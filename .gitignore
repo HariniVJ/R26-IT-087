@@ -205,3 +205,20 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+# Flutter
+frontend/mobile_app/.dart_tool/
+frontend/mobile_app/build/
+frontend/mobile_app/.flutter-plugins
+frontend/mobile_app/.flutter-plugins-dependencies
+frontend/mobile_app/.packages
+
+# Flutter generated
+frontend/mobile_app/android/.gradle/
+frontend/mobile_app/ios/Pods/
+
+
+.env
+__pycache__/
+build/
