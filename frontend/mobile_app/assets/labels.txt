@@ -1,0 +1,3 @@
+high_quality
+low_quality
+medium_quality
