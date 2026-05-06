@@ -10,7 +10,7 @@ class GradingApiService {
   // Android emulator  → http://10.0.2.2:8000
   // Physical device   → http://YOUR_LAN_IP:8000
   // iOS simulator     → http://127.0.0.1:8000
-  static const _base = 'http://10.0.2.2:8000';
+  static const _base = 'http://192.168.8.141:8000';
 
   Future<GradingResult> saveResult({
     required String userId,

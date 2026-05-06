@@ -251,7 +251,7 @@ class _HistoryScreenState extends State<HistoryScreen> with SingleTickerProvider
   Widget _buildDateChips() => Padding(
     padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
     child: Row(children: [
-      Text('Period: ', style: AppText.labelSmall),
+      Text('Perid: ', style: AppText.labelSmall),
       const SizedBox(width: 8),
       ..._DateFilter.values.map((f) {
         final labels = {
@@ -451,3 +451,4 @@ class _ArcPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_) => false;
+}
