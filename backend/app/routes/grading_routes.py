@@ -1,73 +1,69 @@
-import os
-import shutil
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, File, Form, UploadFile
 
-from app.services.firebase_service import (
-    upload_image_to_storage,
-    save_prediction_result,
-    get_user_history
+from app.controllers.grading_controller import (
+    handle_delete_all,
+    handle_delete_single,
+    handle_get_history,
+    handle_get_single,
+    handle_save_result,
 )
-from app.services.recommendation_service import get_recommendation
 
+# This router is imported by main.py
 router = APIRouter()
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+# ── Health check ───────────────────────────────────────────────────────────────
 
 @router.get("/")
-def home():
-    return {
-        "message": "Pomegranate Quality Backend is running"
-    }
+def grading_home():
+    """Health check for the grading component."""
+    return {"message": "Fruit Quality Grading component is running ✅"}
 
 
-@router.post("/save-result")
+# ── CREATE ─────────────────────────────────────────────────────────────────────
+
+@router.post("/save-result", summary="Save a grading result")
 async def save_result(
-    user_id: str = Form(...),
-    quality: str = Form(...),
-    confidence: float = Form(...),
-    file: UploadFile | None = File(None),
+    user_id: str = Form(..., description="Unique user / farmer ID"),
+    quality: str = Form(..., description="One of: high_quality | medium_quality | low_quality"),
+    confidence: float = Form(..., ge=0.0, le=1.0, description="Model confidence score (0.0 – 1.0)"),
+    file: UploadFile | None = File(None, description="Optional fruit image (JPEG/PNG/WEBP)"),
 ):
-    try:
-        recommendation = get_recommendation(quality)
-        image_url = None
-
-        if file is not None:
-            if not file.content_type.startswith("image/"):
-                raise HTTPException(status_code=400, detail="Only image files are allowed")
-
-            local_path = os.path.join(UPLOAD_DIR, file.filename)
-
-            with open(local_path, "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-
-            image_url = upload_image_to_storage(local_path, user_id)
-
-        result = save_prediction_result(
-            user_id=user_id,
-            quality=quality,
-            confidence=confidence,
-            recommendation=recommendation,
-            image_url=image_url
-        )
-
-        return {
-            "success": True,
-            "message": "Prediction result saved successfully",
-            "data": result
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    """
+    Save a fruit quality grading result.
+    - Uploads image to Firebase Storage (if provided)
+    - Saves result + recommendation to Firestore
+    - Returns saved record
+    """
+    return await handle_save_result(user_id, quality, confidence, file)
 
 
-@router.get("/history/{user_id}")
-def history(user_id: str):
-    results = get_user_history(user_id)
+# ── READ ───────────────────────────────────────────────────────────────────────
 
-    return {
-        "success": True,
-        "count": len(results),
-        "data": results
-    }
+@router.get("/history/{user_id}", summary="Get grading history for a user")
+def get_history(user_id: str):
+    """
+    Retrieve all grading results for a user, sorted newest first.
+    Use the quality filter on the Flutter side to filter by label.
+    """
+    return handle_get_history(user_id)
+
+
+@router.get("/result/{result_id}", summary="Get one grading result by ID")
+def get_single(result_id: str):
+    """Retrieve one specific grading result by its Firestore document ID."""
+    return handle_get_single(result_id)
+
+
+# ── DELETE ─────────────────────────────────────────────────────────────────────
+
+@router.delete("/result/{result_id}", summary="Delete one grading result")
+def delete_single(result_id: str):
+    """Delete one specific grading result by its Firestore document ID."""
+    return handle_delete_single(result_id)
+
+
+@router.delete("/history/{user_id}", summary="Delete all results for a user")
+def delete_all(user_id: str):
+    """Delete every grading result belonging to a specific user."""
+    return handle_delete_all(user_id)
