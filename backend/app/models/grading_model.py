@@ -1,3 +1,8 @@
+"""
+YOUR FILE - Member 4: Fruit Quality Grading
+Pydantic models (request/response schemas) for the grading component.
+"""
+
 from pydantic import BaseModel, Field
 from typing import Optional
 from datetime import datetime
