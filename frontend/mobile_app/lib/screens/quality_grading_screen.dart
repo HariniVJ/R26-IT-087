@@ -1,9 +1,21 @@
+// YOUR FILE — Member 4: Fruit Quality Grading
+// lib/screens/quality_grading_screen.dart
+//
+// Changes from previous version:
+//   • Imports TfliteService + PredictionResult
+//   • _tflite field added, loadModel() called in initState
+//   • _analyse() now calls _tflite.predict() THEN sends real values to backend
+//   • _allScores map populated from getAllScores() for breakdown bars
+//   • dispose() closes TFLite interpreter
+
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/grading_result.dart';
+import '../models/prediction_result.dart';
 import '../services/grading_api_service.dart';
+import '../services/tflite_service.dart';
 import '../theme/app_theme.dart';
 import 'history_screen.dart';
 
@@ -20,12 +32,14 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
 
   static const _userId = 'farmer_demo_001';
 
-  File?          _image;
-  GradingResult? _result;
-  _Phase         _phase     = _Phase.idle;
-  String?        _error;
-  double         _progress  = 0;
-  int            _stepIndex = 0;
+  File?              _image;
+  GradingResult?     _result;
+  PredictionResult?  _prediction;        // ← local TFLite result
+  Map<String,double> _allScores = {};    // ← all 3 class scores for breakdown
+  _Phase             _phase     = _Phase.idle;
+  String?            _error;
+  double             _progress  = 0;
+  int                _stepIndex = 0;
 
   final _steps = [
     'Image preprocessing',
@@ -39,17 +53,23 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   late final AnimationController _resultCtrl;
   late final Animation<double>   _resultAnim;
 
-  final _picker  = ImagePicker();
-  final _service = GradingApiService();
+  final _picker   = ImagePicker();
+  final _service  = GradingApiService();
+  final _tflite   = TfliteService();     // ← TFLite service instance
 
   @override
   void initState() {
     super.initState();
-    _pulseCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))
+    _pulseCtrl    = AnimationController(vsync: this, duration: const Duration(seconds: 2))
       ..repeat(reverse: true);
     _progressCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
     _resultCtrl   = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _resultAnim   = CurvedAnimation(parent: _resultCtrl, curve: Curves.elasticOut);
+
+    // Load TFLite model in background when screen opens
+    _tflite.loadModel().catchError((e) {
+      debugPrint('⚠️ TFLite load warning: $e');
+    });
   }
 
   @override
@@ -57,6 +77,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     _pulseCtrl.dispose();
     _progressCtrl.dispose();
     _resultCtrl.dispose();
+    _tflite.dispose();                   // ← close interpreter
     super.dispose();
   }
 
@@ -64,40 +85,93 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   Future<void> _pick(ImageSource src) async {
     final x = await _picker.pickImage(source: src, imageQuality: 85, maxWidth: 1024);
     if (x == null) return;
-    setState(() { _image = File(x.path); _result = null; _error = null; _phase = _Phase.idle; });
+    setState(() {
+      _image      = File(x.path);
+      _result     = null;
+      _prediction = null;
+      _allScores  = {};
+      _error      = null;
+      _phase      = _Phase.idle;
+    });
   }
 
-  // ── Simulate steps then call backend ─────────────────────────────────────
+  // ── Main analysis flow ────────────────────────────────────────────────────
   Future<void> _analyse() async {
     if (_image == null) return;
-    setState(() { _phase = _Phase.analysing; _progress = 0; _stepIndex = 0; _error = null; });
+    setState(() {
+      _phase      = _Phase.analysing;
+      _progress   = 0;
+      _stepIndex  = 0;
+      _error      = null;
+    });
 
-    // Animate through steps
-    for (int i = 0; i < _steps.length; i++) {
-      await Future.delayed(const Duration(milliseconds: 600));
+    // ── Step 1: Image preprocessing (animate) ─────────────────────────────
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    setState(() { _stepIndex = 0; _progress = 0.25; });
+
+    // ── Step 2: Feature extraction (animate) ──────────────────────────────
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (!mounted) return;
+    setState(() { _stepIndex = 1; _progress = 0.50; });
+
+    // ── Step 3: CNN classification — REAL TFLite inference ────────────────
+    PredictionResult prediction;
+    Map<String, double> allScores;
+    try {
+      // Run model on picked image
+      prediction = await _tflite.predict(_image!);
+      allScores  = await _tflite.getAllScores(_image!);
+    } catch (e) {
       if (!mounted) return;
-      setState(() { _stepIndex = i; _progress = (i + 1) / _steps.length; });
+      setState(() {
+        _error = 'Model error: ${e.toString().replaceFirst("Exception: ", "")}';
+        _phase = _Phase.idle;
+      });
+      return;
     }
 
-    // Call backend
+    if (!mounted) return;
+    setState(() { _stepIndex = 2; _progress = 0.75; });
+    await Future.delayed(const Duration(milliseconds: 400));
+
+    // ── Step 4: Save to Firebase via backend ──────────────────────────────
+    if (!mounted) return;
+    setState(() { _stepIndex = 3; _progress = 1.0; });
+
     try {
       final result = await _service.saveResult(
         userId:     _userId,
-        quality:    'high_quality',   // ← replace with your TFLite output
-        confidence: 0.94,             // ← replace with your TFLite confidence
+        quality:    prediction.quality,             // ← real label from TFLite
+        confidence: prediction.confidenceDecimal,   // ← real score as 0.0–1.0
         imageFile:  _image,
       );
       if (!mounted) return;
-      setState(() { _result = result; _phase = _Phase.result; });
+      setState(() {
+        _prediction = prediction;
+        _allScores  = allScores;
+        _result     = result;
+        _phase      = _Phase.result;
+      });
       _resultCtrl.forward(from: 0);
     } catch (e) {
       if (!mounted) return;
-      setState(() { _error = e.toString().replaceFirst('Exception: ', ''); _phase = _Phase.idle; });
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _phase = _Phase.idle;
+      });
     }
   }
 
   void _reset() {
-    setState(() { _image = null; _result = null; _phase = _Phase.idle; _error = null; });
+    setState(() {
+      _image      = null;
+      _result     = null;
+      _prediction = null;
+      _allScores  = {};
+      _phase      = _Phase.idle;
+      _error      = null;
+    });
     _resultCtrl.reset();
   }
 
@@ -118,10 +192,10 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                   const SizedBox(height: 8),
                   if (_phase != _Phase.result) _buildMiniChart(),
                   const SizedBox(height: 16),
-                  if (_phase == _Phase.idle)    _buildIdleBody(),
+                  if (_phase == _Phase.idle)      _buildIdleBody(),
                   if (_phase == _Phase.analysing) _buildAnalysingBody(),
-                  if (_phase == _Phase.result)  _buildResultBody(),
-                  if (_error != null)           _buildError(),
+                  if (_phase == _Phase.result)    _buildResultBody(),
+                  if (_error != null)             _buildError(),
                 ])),
               ),
             ],
@@ -141,7 +215,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       const SizedBox(width: 8),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Quality Grading', style: AppText.titleMedium.copyWith(fontSize: 16)),
-        Text('AI-Powered Analysis', style: AppText.labelSmall.copyWith(color: AppColors.rosePetal)),
+        Text('AI-Powered Analysis',
+            style: AppText.labelSmall.copyWith(color: AppColors.rosePetal)),
       ]),
     ]),
     actions: [
@@ -159,22 +234,22 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     ],
   );
 
-  // ── Mini sparkline chart (shows recent quality distribution) ─────────────
+  // ── Mini sparkline chart ──────────────────────────────────────────────────
   Widget _buildMiniChart() => Container(
     decoration: AppDecorations.glassCard(),
     padding: const EdgeInsets.all(16),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Today\'s Grading Overview', style: AppText.labelSmall),
+      Text("Today's Grading Overview", style: AppText.labelSmall),
       const SizedBox(height: 12),
       Row(children: [
-        _chartPill('High', 0.62, AppColors.chartHigh),
+        _chartPill('High',   0.62, AppColors.chartHigh),
         const SizedBox(width: 8),
         _chartPill('Medium', 0.25, AppColors.chartMed),
         const SizedBox(width: 8),
-        _chartPill('Low', 0.13, AppColors.chartLow),
+        _chartPill('Low',    0.13, AppColors.chartLow),
       ]),
       const SizedBox(height: 14),
-      _SparklineChart(),
+      const _SparklineChart(),
     ]),
   );
 
@@ -194,12 +269,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     ]),
   );
 
-  // ── Idle: image picker ────────────────────────────────────────────────────
+  // ── Idle body ─────────────────────────────────────────────────────────────
   Widget _buildIdleBody() => Column(children: [
     _buildImageBox(),
     const SizedBox(height: 16),
     Row(children: [
-      Expanded(child: _pickBtn(Icons.camera_alt_rounded, 'Camera', ImageSource.camera)),
+      Expanded(child: _pickBtn(Icons.camera_alt_rounded,    'Camera',  ImageSource.camera)),
       const SizedBox(width: 12),
       Expanded(child: _pickBtn(Icons.photo_library_rounded, 'Gallery', ImageSource.gallery)),
     ]),
@@ -225,7 +300,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           ),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(Icons.add_photo_alternate_outlined,
-                size: 56, color: AppColors.rosePetal.withOpacity(0.7 + 0.3 * _pulseCtrl.value)),
+                size: 56,
+                color: AppColors.rosePetal.withOpacity(0.7 + 0.3 * _pulseCtrl.value)),
             const SizedBox(height: 12),
             Text('Tap to Upload Fruit Image', style: AppText.bodyMedium),
             const SizedBox(height: 4),
@@ -238,7 +314,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       borderRadius: BorderRadius.circular(24),
       child: Stack(children: [
         Image.file(_image!, height: 260, width: double.infinity, fit: BoxFit.cover),
-        Positioned(bottom: 0, left: 0, right: 0,
+        Positioned(
+          bottom: 0, left: 0, right: 0,
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -247,24 +324,26 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               ),
             ),
             padding: const EdgeInsets.all(14),
-            child: Text('Image ready — tap Analyse', style: AppText.bodyMedium.copyWith(color: Colors.white)),
+            child: Text('Image ready — tap Analyse',
+                style: AppText.bodyMedium.copyWith(color: Colors.white)),
           ),
         ),
       ]),
     );
   }
 
-  Widget _pickBtn(IconData icon, String label, ImageSource src) => OutlinedButton.icon(
-    onPressed: () => _pick(src),
-    icon: Icon(icon, size: 18),
-    label: Text(label),
-    style: OutlinedButton.styleFrom(
-      foregroundColor: AppColors.crimson,
-      side: const BorderSide(color: AppColors.blush, width: 1.5),
-      padding: const EdgeInsets.symmetric(vertical: 13),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-    ),
-  );
+  Widget _pickBtn(IconData icon, String label, ImageSource src) =>
+      OutlinedButton.icon(
+        onPressed: () => _pick(src),
+        icon: Icon(icon, size: 18),
+        label: Text(label),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.crimson,
+          side: const BorderSide(color: AppColors.blush, width: 1.5),
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      );
 
   Widget _buildTips() => Container(
     decoration: AppDecorations.glassCard(),
@@ -287,15 +366,13 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     ]),
   );
 
-  // ── Analysing: loading animation ──────────────────────────────────────────
+  // ── Analysing body ────────────────────────────────────────────────────────
   Widget _buildAnalysingBody() => Column(children: [
-    // Spinning pomegranate loader
     AnimatedBuilder(
       animation: _pulseCtrl,
       builder: (_, __) => Container(
         height: 200, decoration: AppDecorations.glassCard(),
         child: Center(child: Stack(alignment: Alignment.center, children: [
-          // Outer pulse ring
           Transform.scale(
             scale: 1.0 + 0.12 * _pulseCtrl.value,
             child: Container(
@@ -306,7 +383,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               ),
             ),
           ),
-          // Inner ring
           Container(
             width: 90, height: 90,
             decoration: BoxDecoration(
@@ -317,20 +393,18 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               ]),
             ),
           ),
-          // Icon
           const Text('🍎', style: TextStyle(fontSize: 36)),
         ])),
       ),
     ),
     const SizedBox(height: 20),
-
-    // Progress
     Container(
       decoration: AppDecorations.glassCard(),
       padding: const EdgeInsets.all(20),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text('Analyzing Quality...', style: AppText.titleMedium.copyWith(fontSize: 16)),
+          Text('Analyzing Quality...',
+              style: AppText.titleMedium.copyWith(fontSize: 16)),
           Text('${(_progress * 100).toInt()}%',
               style: const TextStyle(color: AppColors.crimson, fontWeight: FontWeight.w700)),
         ]),
@@ -362,32 +436,37 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           width: 24, height: 24,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: done ? AppColors.highGreen : running ? AppColors.crimson : AppColors.blush,
+            color: done    ? AppColors.highGreen
+                 : running ? AppColors.crimson
+                 :           AppColors.blush,
           ),
           child: Icon(
-            done ? Icons.check : running ? Icons.refresh : Icons.circle,
+            done    ? Icons.check
+                    : running ? Icons.refresh
+                    :           Icons.circle,
             size: 14, color: Colors.white,
           ),
         ),
         const SizedBox(width: 10),
         Text(label, style: AppText.bodyMedium.copyWith(
-          color: done || running ? AppColors.textPrimary : AppColors.textSecondary,
+          color:      done || running ? AppColors.textPrimary : AppColors.textSecondary,
           fontWeight: running ? FontWeight.w600 : FontWeight.normal,
         )),
       ]),
     );
   }
 
-  // ── Result ─────────────────────────────────────────────────────────────────
+  // ── Result body ───────────────────────────────────────────────────────────
   Widget _buildResultBody() {
-    final r = _result!;
+    final r  = _result!;
     final fg = QualityTheme.fgColor(r.quality);
     final bg = QualityTheme.bgColor(r.quality);
 
     return ScaleTransition(
       scale: _resultAnim,
       child: Column(children: [
-        // Hero result card
+
+        // ── Hero card ──────────────────────────────────────────────────────
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
@@ -395,20 +474,25 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               begin: Alignment.topLeft, end: Alignment.bottomRight,
               colors: [fg, fg.withOpacity(0.75)],
             ),
-            boxShadow: [BoxShadow(color: fg.withOpacity(0.35), blurRadius: 24, offset: const Offset(0, 8))],
+            boxShadow: [BoxShadow(
+              color: fg.withOpacity(0.35), blurRadius: 24, offset: const Offset(0, 8),
+            )],
           ),
           padding: const EdgeInsets.all(24),
           child: Column(children: [
             Text(QualityTheme.emoji(r.quality), style: const TextStyle(fontSize: 52)),
             const SizedBox(height: 8),
             Text(QualityTheme.label(r.quality),
-                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white)),
-            Text('Confidence: ${r.confidencePercent} · CNN Model',
-                style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                style: const TextStyle(
+                    fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white)),
+            // Show real confidence from TFLite
+            Text(
+              'Confidence: ${_prediction?.confidencePercent ?? r.confidencePercent} · CNN Model',
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
             const SizedBox(height: 20),
-            // 3 metric pills
             Row(children: [
-              _metricPill(r.confidencePercent, 'Accuracy'),
+              _metricPill(_prediction?.confidencePercent ?? r.confidencePercent, 'Accuracy'),
               const SizedBox(width: 8),
               _metricPill('A+', 'Grade'),
               const SizedBox(width: 8),
@@ -418,7 +502,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         ),
         const SizedBox(height: 16),
 
-        // Recommendation card
+        // ── Recommendation card ────────────────────────────────────────────
         Container(
           decoration: AppDecorations.glassCard(border: fg.withOpacity(0.3)),
           padding: const EdgeInsets.all(18),
@@ -432,28 +516,46 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text('Recommended Usage', style: AppText.labelSmall),
               const SizedBox(height: 4),
-              Text(r.recommendation, style: AppText.bodyMedium.copyWith(color: AppColors.textPrimary, height: 1.4)),
+              Text(r.recommendation,
+                  style: AppText.bodyMedium.copyWith(
+                      color: AppColors.textPrimary, height: 1.4)),
             ])),
           ]),
         ),
         const SizedBox(height: 16),
 
-        // Image thumbnail if available
+        // ── Model score breakdown bars (all 3 classes) ────────────────────
+        if (_allScores.isNotEmpty)
+          Container(
+            decoration: AppDecorations.glassCard(),
+            padding: const EdgeInsets.all(16),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Model Score Breakdown', style: AppText.labelSmall),
+              const SizedBox(height: 12),
+              ..._allScores.entries.map((e) => _scoreLine(e.key, e.value)),
+            ]),
+          ),
+        const SizedBox(height: 16),
+
+        // ── Image thumbnail ────────────────────────────────────────────────
         if (r.imageUrl != null) ...[
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image.network(r.imageUrl!, height: 160, width: double.infinity, fit: BoxFit.cover),
+            child: Image.network(
+                r.imageUrl!, height: 160, width: double.infinity, fit: BoxFit.cover),
           ),
           const SizedBox(height: 16),
         ],
 
-        // Action buttons
-        AppButton(label: 'Scan Another Fruit', icon: Icons.camera_alt_rounded, onPressed: _reset),
+        // ── Action buttons ─────────────────────────────────────────────────
+        AppButton(
+            label: 'Scan Another Fruit',
+            icon: Icons.camera_alt_rounded,
+            onPressed: _reset),
         const SizedBox(height: 10),
         OutlinedButton.icon(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => const HistoryScreen(userId: _userId),
-          )),
+          onPressed: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const HistoryScreen(userId: _userId))),
           icon: const Icon(Icons.history_rounded),
           label: const Text('View History'),
           style: OutlinedButton.styleFrom(
@@ -475,13 +577,47 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(children: [
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+        Text(value,
+            style: const TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.white70)),
       ]),
     ),
   );
 
-  // ── Error ─────────────────────────────────────────────────────────────────
+  /// Score bar for each of the 3 quality classes
+  Widget _scoreLine(String quality, double score) {
+    final color = QualityTheme.fgColor(quality);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(children: [
+            Text(QualityTheme.emoji(quality),
+                style: const TextStyle(fontSize: 13)),
+            const SizedBox(width: 6),
+            Text(QualityTheme.label(quality),
+                style: AppText.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600, fontSize: 13)),
+          ]),
+          Text('${(score * 100).toStringAsFixed(1)}%',
+              style: TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+        ]),
+        const SizedBox(height: 5),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: LinearProgressIndicator(
+            value: score, minHeight: 7,
+            backgroundColor: color.withOpacity(0.12),
+            valueColor: AlwaysStoppedAnimation(color),
+          ),
+        ),
+      ]),
+    );
+  }
+
+  // ── Error banner ──────────────────────────────────────────────────────────
   Widget _buildError() => Padding(
     padding: const EdgeInsets.only(top: 12),
     child: Container(
@@ -494,18 +630,21 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       child: Row(children: [
         const Icon(Icons.error_outline, color: AppColors.lowRed),
         const SizedBox(width: 10),
-        Expanded(child: Text(_error!, style: const TextStyle(color: AppColors.lowRed, fontSize: 13))),
+        Expanded(child: Text(_error!,
+            style: const TextStyle(color: AppColors.lowRed, fontSize: 13))),
       ]),
     ),
   );
 }
 
-// ── Sparkline chart widget ───────────────────────────────────────────────────
+// ── Sparkline chart ───────────────────────────────────────────────────────────
 class _SparklineChart extends StatelessWidget {
-  final _highData  = const [0.5, 0.7, 0.6, 0.8, 0.75, 0.9, 0.85];
-  final _medData   = const [0.3, 0.2, 0.25, 0.2, 0.18, 0.15, 0.22];
-  final _lowData   = const [0.2, 0.1, 0.15, 0.08, 0.12, 0.1, 0.07];
-  final _days      = const ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const _SparklineChart();
+
+  static const _highData = [0.5, 0.7, 0.6, 0.8, 0.75, 0.9, 0.85];
+  static const _medData  = [0.3, 0.2, 0.25, 0.2, 0.18, 0.15, 0.22];
+  static const _lowData  = [0.2, 0.1, 0.15, 0.08, 0.12, 0.1, 0.07];
+  static const _days     = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
   @override
   Widget build(BuildContext context) => SizedBox(
@@ -522,20 +661,18 @@ class _SparklineChart extends StatelessWidget {
 class _SparkPainter extends CustomPainter {
   final List<double> high, med, low;
   final List<String> days;
-
-  _SparkPainter({required this.high, required this.med, required this.low, required this.days});
+  const _SparkPainter(
+      {required this.high, required this.med, required this.low, required this.days});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final h = size.height - 20;
-    final w = size.width;
-    final step = w / (high.length - 1);
+    final h    = size.height - 20;
+    final step = size.width / (high.length - 1);
 
     _drawLine(canvas, high, step, h, AppColors.chartHigh);
     _drawLine(canvas, med,  step, h, AppColors.chartMed);
     _drawLine(canvas, low,  step, h, AppColors.chartLow);
 
-    // Day labels
     final tp = TextPainter(textDirection: TextDirection.ltr);
     for (int i = 0; i < days.length; i++) {
       tp.text = TextSpan(
@@ -549,10 +686,10 @@ class _SparkPainter extends CustomPainter {
 
   void _drawLine(Canvas canvas, List<double> data, double step, double h, Color color) {
     final paint = Paint()
-      ..color = color
+      ..color      = color
       ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+      ..style      = PaintingStyle.stroke
+      ..strokeCap  = StrokeCap.round;
 
     final path = Path();
     for (int i = 0; i < data.length; i++) {
@@ -562,7 +699,6 @@ class _SparkPainter extends CustomPainter {
     }
     canvas.drawPath(path, paint);
 
-    // Dot at last point
     final lx = (data.length - 1) * step;
     final ly = h - data.last * h;
     canvas.drawCircle(Offset(lx, ly), 4, Paint()..color = color);

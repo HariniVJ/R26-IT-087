@@ -30,9 +30,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  image_picker: ^latest
-  tflite_flutter: ^latest
-  image: ^latest
+  http: ^1.2.1
+  image_picker: ^1.1.2
+  tflite_flutter: ^0.10.4
+  image: ^4.1.7
+  cupertino_icons: ^1.0.6
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
