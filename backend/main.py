@@ -1,10 +1,19 @@
 from fastapi import FastAPI
-from app.routes import router
+from app.controllers.grading_controller import router as grading_router
 
 app = FastAPI(
-    title="Pomegranate Quality Grading Backend",
-    description="Backend API for storing quality grading results and images in Firebase",
+    title="AI Farming System Backend",
     version="1.0.0"
 )
 
-app.include_router(router)
+app.include_router(
+    grading_router,
+    prefix="/grading",
+    tags=["Fruit Quality Grading"]
+)
+
+@app.get("/")
+def home():
+    return {
+        "message": "AI Farming System Backend is running"
+    }
