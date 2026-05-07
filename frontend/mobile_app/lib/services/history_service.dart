@@ -7,13 +7,15 @@ class HistoryService {
     _history.insert(0, result);
   }
 
-  static List<PredictionResultModel> getHistory() => _history;
-
-  static void deleteItem(int index) {
-    if (index >= 0 && index < _history.length) {
-      _history.removeAt(index);
-    }
+  static List<PredictionResultModel> getHistory() {
+    return _history;
   }
 
-  static void clearAll() => _history.clear();
+  static void deleteItem(int index) {
+    _history.removeAt(index);
+  }
+
+  static void clearAll() {
+    _history.clear();
+  }
 }

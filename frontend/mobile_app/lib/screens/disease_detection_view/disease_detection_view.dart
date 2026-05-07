@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../../common/brand_color.dart';
 import '../../services/disease_service.dart';
 import '../../services/history_service.dart';
@@ -19,50 +21,133 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
   final ImagePicker picker = ImagePicker();
 
   Future<void> pickImage(ImageSource source) async {
-    final XFile? pickedFile = await picker.pickImage(
-      source: source,
-      imageQuality: 85,
-      maxWidth: 1024,
-      maxHeight: 1024,
-    );
-    if (pickedFile != null) {
-      setState(() => selectedImage = File(pickedFile.path));
+    try {
+      final XFile? pickedFile = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1024,
+        maxHeight: 1024,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          selectedImage = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      _showSnackBar('Image selection failed: $e');
     }
   }
 
   Future<void> detectDisease() async {
     if (selectedImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Text('Please select an image first'),
-            ],
-          ),
-          backgroundColor: BrandColor.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      );
+      _showSnackBar('Please select an image first');
       return;
     }
 
-    setState(() => isLoading = true);
+    setState(() {
+      isLoading = true;
+    });
 
-    final result = await DiseaseService.predictDisease(selectedImage!);
-    HistoryService.addHistory(result);
+    try {
+      final result = await DiseaseService.predictDisease(selectedImage!);
 
-    setState(() => isLoading = false);
+      HistoryService.addHistory(result);
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => ResultView(result: result)),
+      setState(() {
+        isLoading = false;
+      });
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ResultView(result: result)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        isLoading = false;
+      });
+
+      _showSnackBar('Error: $e');
+    }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: BrandColor.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+    );
+  }
+
+  void _showSourceSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Select Image Source',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: BrandColor.darkText,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionButton(
+                    title: 'Camera',
+                    icon: Icons.camera_alt_rounded,
+                    color: BrandColor.primary,
+                    onTap: () {
+                      Navigator.pop(context);
+                      pickImage(ImageSource.camera);
+                    },
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: _ActionButton(
+                    title: 'Gallery',
+                    icon: Icons.photo_library_rounded,
+                    color: BrandColor.green,
+                    onTap: () {
+                      Navigator.pop(context);
+                      pickImage(ImageSource.gallery);
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
     );
   }
 
@@ -81,7 +166,6 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // ── Image Preview Box ─────────────────────────
             GestureDetector(
               onTap: () => _showSourceSheet(context),
               child: AnimatedContainer(
@@ -92,10 +176,9 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(28),
                   border: Border.all(
-                    color:
-                        selectedImage != null
-                            ? BrandColor.primary
-                            : BrandColor.accent.withOpacity(0.4),
+                    color: selectedImage != null
+                        ? BrandColor.primary
+                        : BrandColor.accent.withOpacity(0.4),
                     width: selectedImage != null ? 2.5 : 1.5,
                   ),
                   boxShadow: [
@@ -106,146 +189,117 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
                     ),
                   ],
                 ),
-                child:
-                    selectedImage == null
-                        ? Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              width: 80,
-                              height: 80,
-                              decoration: BoxDecoration(
-                                color: BrandColor.primary.withOpacity(0.08),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.add_photo_alternate_rounded,
-                                size: 40,
-                                color: BrandColor.primary,
+                child: selectedImage == null
+                    ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: BrandColor.primary.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add_photo_alternate_rounded,
+                              size: 40,
+                              color: BrandColor.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          const Text(
+                            'Upload Pomegranate Image',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: BrandColor.darkText,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Tap to use camera or gallery',
+                            style: TextStyle(
+                              color: BrandColor.lightText,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(26),
+                            child: Image.file(
+                              selectedImage!,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                            ),
+                          ),
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  selectedImage = null;
+                                });
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 18),
-                            const Text(
-                              'Upload Pomegranate Image',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                                color: BrandColor.darkText,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            const Text(
-                              'Tap to use camera or gallery',
-                              style: TextStyle(
-                                color: BrandColor.lightText,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 10,
-                              ),
-                              decoration: BoxDecoration(
-                                color: BrandColor.primary.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.touch_app_rounded,
-                                    color: BrandColor.primary,
-                                    size: 16,
-                                  ),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Tap to select',
-                                    style: TextStyle(
-                                      color: BrandColor.primary,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
+                          ),
+                          Positioned(
+                            bottom: 10,
+                            right: 10,
+                            child: GestureDetector(
+                              onTap: () => _showSourceSheet(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black54,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Row(
+                                  children: [
+                                    Icon(
+                                      Icons.refresh_rounded,
+                                      color: Colors.white,
+                                      size: 14,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        )
-                        : Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(26),
-                              child: Image.file(
-                                selectedImage!,
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                              ),
-                            ),
-                            Positioned(
-                              top: 10,
-                              right: 10,
-                              child: GestureDetector(
-                                onTap:
-                                    () => setState(() => selectedImage = null),
-                                child: Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: const BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.close_rounded,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 10,
-                              right: 10,
-                              child: GestureDetector(
-                                onTap: () => _showSourceSheet(context),
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Row(
-                                    children: [
-                                      Icon(
-                                        Icons.refresh_rounded,
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Change',
+                                      style: TextStyle(
                                         color: Colors.white,
-                                        size: 14,
+                                        fontSize: 12,
                                       ),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Change',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
+                      ),
               ),
             ),
 
             const SizedBox(height: 24),
 
-            // ── Camera / Gallery Buttons ──────────────────
             Row(
               children: [
                 Expanded(
@@ -270,7 +324,6 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
 
             const SizedBox(height: 28),
 
-            // ── Detect Button ─────────────────────────────
             SizedBox(
               width: double.infinity,
               height: 58,
@@ -285,55 +338,53 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
                   elevation: 0,
                 ),
                 onPressed: isLoading ? null : detectDisease,
-                child:
-                    isLoading
-                        ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2.5,
-                              ),
+                child: isLoading
+                    ? const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.5,
                             ),
-                            SizedBox(width: 12),
-                            Text(
-                              'Analyzing...',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          ),
+                          SizedBox(width: 12),
+                          Text(
+                            'Analyzing...',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        )
-                        : const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.document_scanner_rounded, size: 22),
-                            SizedBox(width: 10),
-                            Text(
-                              'Detect Disease',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                              ),
+                          ),
+                        ],
+                      )
+                    : const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.document_scanner_rounded, size: 22),
+                          SizedBox(width: 10),
+                          Text(
+                            'Detect Disease',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
+                      ),
               ),
             ),
 
             const SizedBox(height: 20),
 
-            // ── Info Row ──────────────────────────────────
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.info_outline, size: 14, color: BrandColor.lightText),
-                const SizedBox(width: 6),
-                const Text(
+                SizedBox(width: 6),
+                Text(
                   'Best results with clear, well-lit photos',
                   style: TextStyle(fontSize: 12, color: BrandColor.lightText),
                 ),
@@ -342,72 +393,6 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
           ],
         ),
       ),
-    );
-  }
-
-  void _showSourceSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder:
-          (_) => Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Select Image Source',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: BrandColor.darkText,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ActionButton(
-                        title: 'Camera',
-                        icon: Icons.camera_alt_rounded,
-                        color: BrandColor.primary,
-                        onTap: () {
-                          Navigator.pop(context);
-                          pickImage(ImageSource.camera);
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _ActionButton(
-                        title: 'Gallery',
-                        icon: Icons.photo_library_rounded,
-                        color: BrandColor.green,
-                        onTap: () {
-                          Navigator.pop(context);
-                          pickImage(ImageSource.gallery);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-            ),
-          ),
     );
   }
 }

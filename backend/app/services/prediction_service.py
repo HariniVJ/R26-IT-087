@@ -10,11 +10,11 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 MODEL_PATH = BASE_DIR / "ml_models" / "pomegranate_disease_model.tflite"
 
 CLASS_NAMES = [
-    "Healthy",
     "Alternaria",
     "Anthracnose",
     "Bacterial_Blight",
-    "Cercospora"
+    "Cercospora",
+    "Healthy"
 ]
 
 interpreter = tf.lite.Interpreter(model_path=str(MODEL_PATH))

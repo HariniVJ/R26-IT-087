@@ -10,8 +10,6 @@ def preprocess_image(image_bytes: bytes):
 
     img_array = np.array(image, dtype=np.float32)
 
-    # Important: training-la rescale=1./255 use panniruntha ithu compulsory
-    img_array = img_array / 255.0
-
+    
     img_array = np.expand_dims(img_array, axis=0)
     return img_array

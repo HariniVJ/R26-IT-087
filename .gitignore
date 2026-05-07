@@ -221,3 +221,9 @@ frontend/mobile_app/ios/Pods/
 .env
 __pycache__/
 build/
+
+venv/
+__pycache__/
+*.pyc
+serviceAccountKey.json
+uploads/
