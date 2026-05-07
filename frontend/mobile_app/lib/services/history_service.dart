@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+
 import '../models/prediction_result_model.dart';
 
 class HistoryService {
@@ -10,10 +11,6 @@ class HistoryService {
 
   static void addHistory(PredictionResultModel result) {
     _localHistory.insert(0, result);
-  }
-
-  static List<PredictionResultModel> getHistory() {
-    return _localHistory;
   }
 
   static Future<List<PredictionResultModel>> getFirebaseHistory() async {
@@ -35,11 +32,13 @@ class HistoryService {
 
       if (treatmentInfo['prevention'] != null) {
         final preventionList = List<String>.from(treatmentInfo['prevention']);
+
         treatmentText +=
             '\n\nPrevention:\n${preventionList.map((e) => '• $e').join('\n')}';
       }
 
       return PredictionResultModel(
+        predictionId: item['prediction_id'],
         diseaseName: item['disease_name'] ?? 'Unknown',
         confidence: (item['confidence'] ?? 0).toDouble(),
         treatment: treatmentText,
@@ -50,11 +49,19 @@ class HistoryService {
     }).toList();
   }
 
-  static void deleteItem(int index) {
-    _localHistory.removeAt(index);
-  }
+  static Future<void> deleteFirebaseHistory(String predictionId) async {
+    final uri = Uri.parse('$baseUrl/api/disease/history/$predictionId');
 
-  static void clearAll() {
-    _localHistory.clear();
+    final response = await http.delete(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('Delete failed: ${response.body}');
+    }
+
+    final data = jsonDecode(response.body);
+
+    if (data['success'] != true) {
+      throw Exception(data['message'] ?? 'Delete failed');
+    }
   }
 }

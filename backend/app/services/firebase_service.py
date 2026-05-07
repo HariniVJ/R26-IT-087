@@ -3,6 +3,7 @@ from app.config.firebase_config import get_db
 
 COLLECTION_NAME = "disease_predictions"
 
+
 def save_prediction_to_firebase(data: dict):
     db = get_db()
 
@@ -33,7 +34,20 @@ def get_user_prediction_history(user_id: str):
 
     history.sort(
         key=lambda x: x.get("created_at", ""),
-        reverse=True
+        reverse=True,
     )
 
     return history
+
+
+def delete_prediction_by_id(prediction_id: str):
+    db = get_db()
+
+    doc_ref = db.collection(COLLECTION_NAME).document(prediction_id)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        return False
+
+    doc_ref.delete()
+    return True

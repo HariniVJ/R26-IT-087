@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+
 import '../../common/brand_color.dart';
 import '../../models/prediction_result_model.dart';
 import '../../services/history_service.dart';
@@ -67,8 +67,178 @@ class _HistoryViewState extends State<HistoryView> {
             onPressed: () => Navigator.pop(context),
             child: const Text(
               'Close',
-              style: TextStyle(color: BrandColor.primary),
+              style: TextStyle(
+                color: BrandColor.primary,
+                fontWeight: FontWeight.bold,
+              ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteItem(PredictionResultModel item) async {
+    if (item.predictionId == null || item.predictionId!.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Prediction ID not found')));
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Delete History'),
+        content: const Text('Do you want to delete this detection record?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(
+                color: BrandColor.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await HistoryService.deleteFirebaseHistory(item.predictionId!);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('History deleted successfully')),
+      );
+
+      _refreshHistory();
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Delete error: $e')));
+    }
+  }
+
+  Widget _imagePlaceholder(Color color) {
+    return Container(
+      width: 90,
+      height: 90,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Icon(Icons.image_outlined, color: color, size: 32),
+    );
+  }
+
+  Widget _circleButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.10),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 20),
+      ),
+    );
+  }
+
+  Widget _historyCard(PredictionResultModel item) {
+    final color = _getDiseaseColor(item.diseaseName);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _imagePlaceholder(color),
+
+          const SizedBox(width: 18),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.diseaseName,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  'Confidence ${item.confidence}%',
+                  style: const TextStyle(
+                    color: BrandColor.green,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  _formatDateTime(item.detectedAt),
+                  style: const TextStyle(
+                    color: BrandColor.lightText,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Column(
+            children: [
+              _circleButton(
+                icon: Icons.visibility_rounded,
+                color: BrandColor.green,
+                onTap: () => _showTreatmentPopup(item),
+              ),
+
+              const SizedBox(height: 12),
+
+              _circleButton(
+                icon: Icons.delete_outline_rounded,
+                color: BrandColor.primary,
+                onTap: () => _deleteItem(item),
+              ),
+            ],
           ),
         ],
       ),
@@ -80,97 +250,28 @@ class _HistoryViewState extends State<HistoryView> {
       child: Text(
         'No detection history yet',
         style: TextStyle(
-          fontSize: 16,
           color: BrandColor.lightText,
+          fontSize: 16,
           fontWeight: FontWeight.w600,
         ),
       ),
     );
   }
 
-  Widget _historyCard(PredictionResultModel item) {
-    final color = _getDiseaseColor(item.diseaseName);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.10),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
+  Widget _errorView(Object error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Text(
+          'Error: $error',
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: BrandColor.primary,
+            fontSize: 14,
+            height: 1.5,
           ),
-        ],
+        ),
       ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: item.imagePath.isNotEmpty
-                ? Image.file(
-                    File(item.imagePath),
-                    width: 80,
-                    height: 80,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _imagePlaceholder(color),
-                  )
-                : _imagePlaceholder(color),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.diseaseName,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Confidence ${item.confidence}%',
-                  style: const TextStyle(
-                    color: BrandColor.green,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _formatDateTime(item.detectedAt),
-                  style: const TextStyle(
-                    color: BrandColor.lightText,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () => _showTreatmentPopup(item),
-            icon: const Icon(Icons.visibility_rounded),
-            color: BrandColor.green,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _imagePlaceholder(Color color) {
-    return Container(
-      width: 80,
-      height: 80,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Icon(Icons.image_outlined, color: color, size: 28),
     );
   }
 
@@ -178,6 +279,7 @@ class _HistoryViewState extends State<HistoryView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: BrandColor.background,
+
       appBar: AppBar(
         title: const Text('Detection History'),
         leading: IconButton(
@@ -191,6 +293,7 @@ class _HistoryViewState extends State<HistoryView> {
           ),
         ],
       ),
+
       body: FutureBuilder<List<PredictionResultModel>>(
         future: historyFuture,
         builder: (context, snapshot) {
@@ -201,16 +304,7 @@ class _HistoryViewState extends State<HistoryView> {
           }
 
           if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Text(
-                  'Error: ${snapshot.error}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: BrandColor.primary),
-                ),
-              ),
-            );
+            return _errorView(snapshot.error!);
           }
 
           final history = snapshot.data ?? [];
