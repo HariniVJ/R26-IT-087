@@ -28,7 +28,7 @@ async def upload_and_analyze(
     file: UploadFile = File(...),
     user_id: str = Form(...),
 ):
-    allowed_extensions = [".jpg", ".jpeg", ".png"]
+    allowed_extensions = [".jpg", ".jpeg", ".png", ".webp"]
 
     filename = file.filename.lower()
 
