@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../common/brand_color.dart';
+import '../../common/glass_container.dart';
 import '../dashboard_view/dashboard_view.dart';
 
 class SplashView extends StatefulWidget {
@@ -12,6 +13,7 @@ class SplashView extends StatefulWidget {
 
 class _SplashViewState extends State<SplashView>
     with SingleTickerProviderStateMixin {
+  // ── Animation (logic unchanged) ───────────────────────────
   late AnimationController _controller;
   late Animation<double> _fadeAnim;
   late Animation<double> _scaleAnim;
@@ -52,65 +54,89 @@ class _SplashViewState extends State<SplashView>
     super.dispose();
   }
 
+  // ── UI ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [BrandColor.primary, BrandColor.secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              ScaleTransition(
-                scale: _scaleAnim,
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    shape: BoxShape.circle,
+      backgroundColor: BrandColor.background,
+      body: Stack(
+        children: [
+          // Layered dark background with orbs
+          const DarkBackground(),
+
+          // Animated content
+          FadeTransition(
+            opacity: _fadeAnim,
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Glass logo circle
+                  ScaleTransition(
+                    scale: _scaleAnim,
+                    child: GlassContainer(
+                      borderRadius: BorderRadius.circular(40),
+                      padding: const EdgeInsets.all(30),
+                      fillColor: BrandColor.glassWarmFill,
+                      borderColor: BrandColor.glassWarmBorder,
+                      blur: 18,
+                      child: const Text('🍎', style: TextStyle(fontSize: 64)),
+                    ),
                   ),
-                  child: const Center(
-                    child: Text('🍎', style: TextStyle(fontSize: 64)),
+
+                  const SizedBox(height: 36),
+
+                  // App name
+                  const Text(
+                    BrandTexts.appName,
+                    style: TextStyle(
+                      color: BrandColor.darkText,
+                      fontSize: 30,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
                   ),
-                ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    BrandTexts.subTitle,
+                    style: TextStyle(color: BrandColor.lightText, fontSize: 14),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Thin divider line
+                  Container(
+                    width: 48,
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          BrandColor.accent.withOpacity(0.6),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 60),
+
+                  // Loader
+                  SizedBox(
+                    width: 26,
+                    height: 26,
+                    child: CircularProgressIndicator(
+                      color: BrandColor.accent.withOpacity(0.55),
+                      strokeWidth: 2.5,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 28),
-              const Text(
-                'Pomegranate Care',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'AI Disease Detection System',
-                style: TextStyle(color: Colors.white70, fontSize: 15),
-              ),
-              const SizedBox(height: 60),
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(
-                  color: Colors.white54,
-                  strokeWidth: 2.5,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

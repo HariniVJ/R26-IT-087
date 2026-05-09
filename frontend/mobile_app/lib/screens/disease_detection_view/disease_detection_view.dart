@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../common/brand_color.dart';
+import '../../common/glass_container.dart';
 import '../../services/disease_service.dart';
 import '../../services/history_service.dart';
 import '../result_view/result_view.dart';
@@ -20,6 +22,7 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
   bool isLoading = false;
   final ImagePicker picker = ImagePicker();
 
+  // ── Logic unchanged ────────────────────────────────────────
   Future<void> pickImage(ImageSource source) async {
     try {
       final XFile? pickedFile = await picker.pickImage(
@@ -28,11 +31,8 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
         maxWidth: 1024,
         maxHeight: 1024,
       );
-
       if (pickedFile != null) {
-        setState(() {
-          selectedImage = File(pickedFile.path);
-        });
+        setState(() => selectedImage = File(pickedFile.path));
       }
     } catch (e) {
       _showSnackBar('Image selection failed: $e');
@@ -44,33 +44,19 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
       _showSnackBar('Please select an image first');
       return;
     }
-
-    setState(() {
-      isLoading = true;
-    });
-
+    setState(() => isLoading = true);
     try {
       final result = await DiseaseService.predictDisease(selectedImage!);
-
       HistoryService.addHistory(result);
-
       if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
-
+      setState(() => isLoading = false);
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => ResultView(result: result)),
       );
     } catch (e) {
       if (!mounted) return;
-
-      setState(() {
-        isLoading = false;
-      });
-
+      setState(() => isLoading = false);
       _showSnackBar('Error: $e');
     }
   }
@@ -90,320 +76,349 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(20),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey,
-                borderRadius: BorderRadius.circular(4),
+      builder: (_) => ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: BrandColor.bgDeep.withOpacity(0.94),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(28),
               ),
+              border: Border(top: BorderSide(color: BrandColor.glassBorder)),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Select Image Source',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: BrandColor.darkText,
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: _ActionButton(
-                    title: 'Camera',
-                    icon: Icons.camera_alt_rounded,
-                    color: BrandColor.primary,
-                    onTap: () {
-                      Navigator.pop(context);
-                      pickImage(ImageSource.camera);
-                    },
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: BrandColor.glassBorder,
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _ActionButton(
-                    title: 'Gallery',
-                    icon: Icons.photo_library_rounded,
-                    color: BrandColor.green,
-                    onTap: () {
-                      Navigator.pop(context);
-                      pickImage(ImageSource.gallery);
-                    },
+                const SizedBox(height: 20),
+                const Text(
+                  'Select Image Source',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: BrandColor.darkText,
                   ),
                 ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _GlassActionButton(
+                        title: 'Camera',
+                        icon: Icons.camera_alt_rounded,
+                        color: BrandColor.primary,
+                        onTap: () {
+                          Navigator.pop(context);
+                          pickImage(ImageSource.camera);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: _GlassActionButton(
+                        title: 'Gallery',
+                        icon: Icons.photo_library_rounded,
+                        color: BrandColor.green,
+                        onTap: () {
+                          Navigator.pop(context);
+                          pickImage(ImageSource.gallery);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
               ],
             ),
-            const SizedBox(height: 16),
-          ],
+          ),
         ),
       ),
     );
   }
 
+  // ── UI ─────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: BrandColor.background,
-      appBar: AppBar(
-        title: const Text('Upload Fruit Image'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: () => _showSourceSheet(context),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                height: 320,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: selectedImage != null
-                        ? BrandColor.primary
-                        : BrandColor.accent.withOpacity(0.4),
-                    width: selectedImage != null ? 2.5 : 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: BrandColor.primary.withOpacity(0.10),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
+      extendBodyBehindAppBar: true,
+      appBar: const DarkAppBar(title: 'Upload Fruit Image'),
+      body: Stack(
+        children: [
+          const DarkBackground(),
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Upload drop zone
+                  GestureDetector(
+                    onTap: () => _showSourceSheet(context),
+                    child: GlassContainer(
+                      padding: EdgeInsets.zero,
+                      borderRadius: BorderRadius.circular(28),
+                      borderColor: selectedImage != null
+                          ? BrandColor.primary.withOpacity(0.45)
+                          : BrandColor.glassBorder,
+                      child: SizedBox(
+                        height: 320,
+                        width: double.infinity,
+                        child: selectedImage == null
+                            ? _EmptyDropZone()
+                            : _PreviewStack(
+                                image: selectedImage!,
+                                onClear: () =>
+                                    setState(() => selectedImage = null),
+                                onChange: () => _showSourceSheet(context),
+                              ),
+                      ),
                     ),
-                  ],
-                ),
-                child: selectedImage == null
-                    ? Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: BrandColor.primary.withOpacity(0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.add_photo_alternate_rounded,
-                              size: 40,
-                              color: BrandColor.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          const Text(
-                            'Upload Pomegranate Image',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                              color: BrandColor.darkText,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Tap to use camera or gallery',
-                            style: TextStyle(
-                              color: BrandColor.lightText,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(26),
-                            child: Image.file(
-                              selectedImage!,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                            ),
-                          ),
-                          Positioned(
-                            top: 10,
-                            right: 10,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  selectedImage = null;
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close_rounded,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 10,
-                            right: 10,
-                            child: GestureDetector(
-                              onTap: () => _showSourceSheet(context),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.black54,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.refresh_rounded,
-                                      color: Colors.white,
-                                      size: 14,
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'Change',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // Camera / Gallery
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _GlassActionButton(
+                          title: 'Camera',
+                          icon: Icons.camera_alt_rounded,
+                          color: BrandColor.primary,
+                          onTap: () => pickImage(ImageSource.camera),
+                        ),
                       ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: _GlassActionButton(
+                          title: 'Gallery',
+                          icon: Icons.photo_library_rounded,
+                          color: BrandColor.green,
+                          onTap: () => pickImage(ImageSource.gallery),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // Detect button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 58,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: BrandColor.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: BrandColor.primary.withOpacity(
+                          0.35,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: isLoading ? null : detectDisease,
+                      child: isLoading
+                          ? const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2.5,
+                                  ),
+                                ),
+                                SizedBox(width: 12),
+                                Text(
+                                  'Analyzing...',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.document_scanner_rounded, size: 22),
+                                SizedBox(width: 10),
+                                Text(
+                                  'Detect Disease',
+                                  style: TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: BrandColor.softText,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Best results with clear, well-lit photos',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: BrandColor.softText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-
-            const SizedBox(height: 24),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _ActionButton(
-                    title: 'Camera',
-                    icon: Icons.camera_alt_rounded,
-                    color: BrandColor.primary,
-                    onTap: () => pickImage(ImageSource.camera),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: _ActionButton(
-                    title: 'Gallery',
-                    icon: Icons.photo_library_rounded,
-                    color: BrandColor.green,
-                    onTap: () => pickImage(ImageSource.gallery),
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            SizedBox(
-              width: double.infinity,
-              height: 58,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: BrandColor.primary,
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: BrandColor.primary.withOpacity(0.4),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  elevation: 0,
-                ),
-                onPressed: isLoading ? null : detectDisease,
-                child: isLoading
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Text(
-                            'Analyzing...',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.document_scanner_rounded, size: 22),
-                          SizedBox(width: 10),
-                          Text(
-                            'Detect Disease',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline, size: 14, color: BrandColor.lightText),
-                SizedBox(width: 6),
-                Text(
-                  'Best results with clear, well-lit photos',
-                  style: TextStyle(fontSize: 12, color: BrandColor.lightText),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ActionButton extends StatelessWidget {
+// ── Empty Drop Zone ────────────────────────────────────────────
+class _EmptyDropZone extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          width: 80,
+          height: 80,
+          decoration: BoxDecoration(
+            color: BrandColor.primary.withOpacity(0.15),
+            shape: BoxShape.circle,
+            border: Border.all(color: BrandColor.primary.withOpacity(0.30)),
+          ),
+          child: Icon(
+            Icons.add_photo_alternate_rounded,
+            size: 40,
+            color: BrandColor.accent,
+          ),
+        ),
+        const SizedBox(height: 18),
+        const Text(
+          'Upload Pomegranate Image',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: BrandColor.darkText,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Tap to use camera or gallery',
+          style: TextStyle(color: BrandColor.softText, fontSize: 13),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Preview Stack ──────────────────────────────────────────────
+class _PreviewStack extends StatelessWidget {
+  final File image;
+  final VoidCallback onClear;
+  final VoidCallback onChange;
+
+  const _PreviewStack({
+    required this.image,
+    required this.onClear,
+    required this.onChange,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(27),
+          child: Image.file(
+            image,
+            fit: BoxFit.cover,
+            width: double.infinity,
+            height: double.infinity,
+          ),
+        ),
+        Positioned(
+          top: 10,
+          right: 10,
+          child: GestureDetector(
+            onTap: onClear,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Colors.black54,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.close_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          bottom: 10,
+          right: 10,
+          child: GestureDetector(
+            onTap: onChange,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.refresh_rounded, color: Colors.white, size: 14),
+                  SizedBox(width: 4),
+                  Text(
+                    'Change',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Glass Action Button ────────────────────────────────────────
+class _GlassActionButton extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
 
-  const _ActionButton({
+  const _GlassActionButton({
     required this.title,
     required this.icon,
     required this.color,
@@ -412,20 +427,30 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 54,
-      child: ElevatedButton.icon(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-          elevation: 0,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 54,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.14),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withOpacity(0.32)),
         ),
-        onPressed: onTap,
-        icon: Icon(icon, size: 20),
-        label: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: color),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,6 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-
 import '../../common/brand_color.dart';
+import '../../common/glass_container.dart';
 import '../../models/prediction_result_model.dart';
 import '../../services/history_service.dart';
 
@@ -12,9 +13,9 @@ class HistoryView extends StatefulWidget {
 }
 
 class _HistoryViewState extends State<HistoryView> {
+  // ── Logic unchanged ────────────────────────────────────────
   late Future<List<PredictionResultModel>> historyFuture;
   late Future<List<String>> diseaseFuture;
-
   String selectedDisease = 'All';
 
   @override
@@ -41,39 +42,42 @@ class _HistoryViewState extends State<HistoryView> {
 
   bool _isHealthy(String name) => name.toLowerCase() == 'healthy';
 
-  Color _getDiseaseColor(String name) {
-    return _isHealthy(name) ? BrandColor.green : BrandColor.primary;
-  }
+  Color _getDiseaseColor(String name) =>
+      _isHealthy(name) ? BrandColor.green : BrandColor.primary;
 
   void _showTreatmentPopup(PredictionResultModel item) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: Text(
-          item.diseaseName.replaceAll('_', ' '),
-          style: TextStyle(
-            color: _getDiseaseColor(item.diseaseName),
-            fontWeight: FontWeight.bold,
+      builder: (_) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: AlertDialog(
+          backgroundColor: BrandColor.bgDeep,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: BrandColor.glassBorder),
           ),
-        ),
-        content: Text(
-          item.treatment,
-          style: const TextStyle(
-            fontSize: 14,
-            height: 1.6,
-            color: BrandColor.lightText,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Close',
-              style: TextStyle(color: BrandColor.primary),
+          title: Text(
+            item.diseaseName.replaceAll('_', ' '),
+            style: TextStyle(
+              color: _getDiseaseColor(item.diseaseName),
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ],
+          content: Text(
+            item.treatment,
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.6,
+              color: BrandColor.lightText,
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Close', style: TextStyle(color: BrandColor.accent)),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -88,23 +92,36 @@ class _HistoryViewState extends State<HistoryView> {
 
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('Delete History'),
-        content: const Text('Do you want to delete this detection record?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      builder: (_) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: AlertDialog(
+          backgroundColor: BrandColor.bgDeep,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(22),
+            side: BorderSide(color: BrandColor.glassBorder),
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: BrandColor.primary),
+          title: const Text(
+            'Delete History',
+            style: TextStyle(color: BrandColor.darkText),
+          ),
+          content: Text(
+            'Do you want to delete this detection record?',
+            style: TextStyle(color: BrandColor.lightText),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: BrandColor.softText),
+              ),
             ),
-          ),
-        ],
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('Delete', style: TextStyle(color: BrandColor.accent)),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -125,53 +142,65 @@ class _HistoryViewState extends State<HistoryView> {
     }
   }
 
+  // ── UI helpers ─────────────────────────────────────────────
   Widget _diseaseFilterBar() {
     return FutureBuilder<List<String>>(
       future: diseaseFuture,
       builder: (context, snapshot) {
         final diseases = ['All', ...(snapshot.data ?? [])];
-
-        return Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: diseases.map((disease) {
-                final isSelected = selectedDisease == disease;
-
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      selectedDisease = disease;
-                    });
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? BrandColor.primary
-                          : BrandColor.primary.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: BrandColor.primary.withOpacity(0.20),
+        return ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+            child: Container(
+              color: BrandColor.bgDeep.withOpacity(0.85),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: diseases.map((disease) {
+                    final isSelected = selectedDisease == disease;
+                    return GestureDetector(
+                      onTap: () => setState(() => selectedDisease = disease),
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: isSelected
+                              ? const LinearGradient(
+                                  colors: [
+                                    BrandColor.primary,
+                                    BrandColor.secondary,
+                                  ],
+                                )
+                              : null,
+                          color: isSelected
+                              ? null
+                              : BrandColor.primary.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.transparent
+                                : BrandColor.primary.withOpacity(0.25),
+                          ),
+                        ),
+                        child: Text(
+                          disease.replaceAll('_', ' '),
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : BrandColor.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      disease.replaceAll('_', ' '),
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : BrandColor.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
           ),
         );
@@ -179,119 +208,105 @@ class _HistoryViewState extends State<HistoryView> {
     );
   }
 
-  Widget _imagePlaceholder(Color color) {
-    return Container(
-      width: 90,
-      height: 90,
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Icon(Icons.image_outlined, color: color, size: 32),
-    );
-  }
-
-  Widget _circleButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.10),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: color, size: 20),
-      ),
-    );
-  }
-
   Widget _historyCard(PredictionResultModel item) {
     final color = _getDiseaseColor(item.diseaseName);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          _imagePlaceholder(color),
-          const SizedBox(width: 18),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: GlassContainer(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // Image placeholder
+            Container(
+              width: 82,
+              height: 82,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: color.withOpacity(0.22)),
+              ),
+              child: Icon(Icons.image_outlined, color: color, size: 30),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.diseaseName.replaceAll('_', ' '),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        margin: const EdgeInsets.only(right: 5),
+                        decoration: BoxDecoration(
+                          color: BrandColor.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      Text(
+                        'Confidence ${item.confidence}%',
+                        style: TextStyle(
+                          color: BrandColor.green,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _formatDateTime(item.detectedAt),
+                    style: TextStyle(color: BrandColor.softText, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            Column(
               children: [
-                Text(
-                  item.diseaseName.replaceAll('_', ' '),
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                _CircleIconBtn(
+                  icon: Icons.visibility_rounded,
+                  color: BrandColor.green,
+                  onTap: () => _showTreatmentPopup(item),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Confidence ${item.confidence}%',
-                  style: const TextStyle(
-                    color: BrandColor.green,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _formatDateTime(item.detectedAt),
-                  style: const TextStyle(
-                    color: BrandColor.lightText,
-                    fontSize: 13,
-                  ),
+                const SizedBox(height: 10),
+                _CircleIconBtn(
+                  icon: Icons.delete_outline_rounded,
+                  color: BrandColor.primary,
+                  onTap: () => _deleteItem(item),
                 ),
               ],
             ),
-          ),
-          Column(
-            children: [
-              _circleButton(
-                icon: Icons.visibility_rounded,
-                color: BrandColor.green,
-                onTap: () => _showTreatmentPopup(item),
-              ),
-              const SizedBox(height: 12),
-              _circleButton(
-                icon: Icons.delete_outline_rounded,
-                color: BrandColor.primary,
-                onTap: () => _deleteItem(item),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
   Widget _emptyView() {
-    return const Center(
-      child: Text(
-        'No detection history found',
-        style: TextStyle(
-          color: BrandColor.lightText,
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.history_rounded, size: 56, color: BrandColor.softText),
+          const SizedBox(height: 14),
+          Text(
+            'No detection history found',
+            style: TextStyle(
+              color: BrandColor.lightText,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -300,69 +315,116 @@ class _HistoryViewState extends State<HistoryView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: BrandColor.background,
-      appBar: AppBar(
-        title: const Text('Detection History'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_rounded),
-          onPressed: () => Navigator.pop(context),
-        ),
+      extendBodyBehindAppBar: true,
+      appBar: DarkAppBar(
+        title: 'Detection History',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: _refreshHistory,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _diseaseFilterBar(),
-          Expanded(
-            child: FutureBuilder<List<PredictionResultModel>>(
-              future: historyFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: CircularProgressIndicator(color: BrandColor.primary),
-                  );
-                }
-
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Text(
-                        'Error: ${snapshot.error}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(color: BrandColor.primary),
-                      ),
-                    ),
-                  );
-                }
-
-                var history = snapshot.data ?? [];
-
-                if (selectedDisease != 'All') {
-                  history = history
-                      .where((item) => item.diseaseName == selectedDisease)
-                      .toList();
-                }
-
-                if (history.isEmpty) return _emptyView();
-
-                return RefreshIndicator(
-                  onRefresh: _refreshHistory,
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(18),
-                    itemCount: history.length,
-                    itemBuilder: (context, index) {
-                      return _historyCard(history[index]);
-                    },
-                  ),
-                );
-              },
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GlassContainer(
+              borderRadius: BorderRadius.circular(12),
+              blur: 12,
+              child: IconButton(
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: BrandColor.accent,
+                  size: 20,
+                ),
+                onPressed: _refreshHistory,
+              ),
             ),
           ),
         ],
+      ),
+      body: Stack(
+        children: [
+          const DarkBackground(),
+          Column(
+            children: [
+              // Compensate for transparent AppBar height
+              SizedBox(
+                height: kToolbarHeight + MediaQuery.of(context).padding.top,
+              ),
+              _diseaseFilterBar(),
+              Expanded(
+                child: FutureBuilder<List<PredictionResultModel>>(
+                  future: historyFuture,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: BrandColor.accent,
+                        ),
+                      );
+                    }
+                    if (snapshot.hasError) {
+                      return Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Text(
+                            'Error: ${snapshot.error}',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: BrandColor.accent),
+                          ),
+                        ),
+                      );
+                    }
+
+                    var history = snapshot.data ?? [];
+                    if (selectedDisease != 'All') {
+                      history = history
+                          .where((i) => i.diseaseName == selectedDisease)
+                          .toList();
+                    }
+
+                    if (history.isEmpty) return _emptyView();
+
+                    return RefreshIndicator(
+                      onRefresh: _refreshHistory,
+                      color: BrandColor.accent,
+                      backgroundColor: BrandColor.bgDeep,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: history.length,
+                        itemBuilder: (_, i) => _historyCard(history[i]),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Circle Icon Button ─────────────────────────────────────────
+class _CircleIconBtn extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _CircleIconBtn({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.14),
+          shape: BoxShape.circle,
+          border: Border.all(color: color.withOpacity(0.28)),
+        ),
+        child: Icon(icon, color: color, size: 18),
       ),
     );
   }
