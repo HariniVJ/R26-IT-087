@@ -17,7 +17,7 @@ from app.services.grading_recommendation_service import get_recommendation
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-ALLOWED_TYPES  = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+ALLOWED_TYPES  = {"image/jpeg", "image/jpg", "image/png", "image/webp", "application/octet-stream"}
 VALID_QUALITIES = {"high_quality", "medium_quality", "low_quality"}
 
 
