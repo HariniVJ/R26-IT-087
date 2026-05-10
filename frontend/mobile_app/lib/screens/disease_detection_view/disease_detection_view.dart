@@ -28,6 +28,7 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
         maxWidth: 1024,
         maxHeight: 1024,
       );
+
       if (pickedFile != null) {
         setState(() => selectedImage = File(pickedFile.path));
       }
@@ -41,12 +42,16 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
       _showSnackBar('Please select an image first');
       return;
     }
+
     setState(() => isLoading = true);
+
     try {
       final result = await DiseaseService.predictDisease(selectedImage!);
       HistoryService.addHistory(result);
+
       if (!mounted) return;
       setState(() => isLoading = false);
+
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => ResultView(result: result)),
@@ -72,6 +77,7 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
+
     final months = [
       '',
       'Jan',
@@ -87,97 +93,54 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
       'Nov',
       'Dec',
     ];
+
     final weekdays = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
     final dateStr =
         '${weekdays[now.weekday]}, ${now.day} ${months[now.month]} ${now.year}';
+
+    final hour12 = now.hour == 0
+        ? 12
+        : now.hour > 12
+        ? now.hour - 12
+        : now.hour;
+
     final timeStr =
-        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} '
+        '${hour12.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} '
         '${now.hour >= 12 ? 'PM' : 'AM'}';
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 26),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Profile card
               _ProfileCard(timeStr: timeStr, dateStr: dateStr),
-              const SizedBox(height: 28),
 
-              // Header row: title + pomegranate image
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Scan Your',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: BrandColor.darkText,
-                          ),
-                        ),
-                        Text(
-                          'Pomegranate',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: BrandColor.primary,
-                          ),
-                        ),
-                        Text(
-                          'Fruit Stage',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: BrandColor.darkText,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                        Text(
-                          'Capture or select an image to\nidentify the fruit stage using AI.',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Color(0xFF9CA3AF),
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Pomegranate fruit image thumbnail
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      width: 110,
-                      height: 110,
-                      color: const Color(0xFFFFF4F6),
-                      child: selectedImage != null
-                          ? Image.file(selectedImage!, fit: BoxFit.cover)
-                          : const _PomegranateIllustration(),
-                    ),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 26),
 
-              const SizedBox(height: 28),
+              _ComponentIntroCard(),
 
-              // Scan frame area
+              const SizedBox(height: 22),
+
               GestureDetector(
                 onTap: () => pickImage(ImageSource.camera),
                 child: Container(
-                  height: 280,
+                  height: 330,
                   width: double.infinity,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF8F9),
-                    borderRadius: BorderRadius.circular(28),
-                    border: Border.all(color: const Color(0xFFFFE4E8)),
+                    color: const Color(0xFFFFFAFB),
+                    borderRadius: BorderRadius.circular(30),
+                    border: Border.all(color: const Color(0xFFFFD7DE)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: BrandColor.primary.withOpacity(0.08),
+                        blurRadius: 22,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
                   ),
                   child: selectedImage == null
                       ? const _ScanFrameEmpty()
@@ -190,12 +153,11 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
 
               const SizedBox(height: 24),
 
-              // Capture + Select buttons
               Row(
                 children: [
                   Expanded(
                     child: _PrimaryButton(
-                      title: 'Capture Image',
+                      title: 'Capture',
                       icon: Icons.camera_alt_rounded,
                       onTap: () => pickImage(ImageSource.camera),
                     ),
@@ -203,7 +165,7 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
                   const SizedBox(width: 14),
                   Expanded(
                     child: _OutlineButton(
-                      title: 'Select Image',
+                      title: 'Gallery',
                       icon: Icons.photo_library_outlined,
                       onTap: () => pickImage(ImageSource.gallery),
                     ),
@@ -211,31 +173,16 @@ class _DiseaseDetectionViewState extends State<DiseaseDetectionView> {
                 ],
               ),
 
-              if (selectedImage != null) ...[
-                const SizedBox(height: 20),
-                _DetectButton(
-                  isLoading: isLoading,
-                  onTap: isLoading ? null : detectDisease,
-                ),
-              ],
+              const SizedBox(height: 18),
 
-              const SizedBox(height: 20),
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 14,
-                    color: BrandColor.softText,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Best results with clear, well-lit photos',
-                    style: TextStyle(fontSize: 12, color: BrandColor.softText),
-                  ),
-                ],
+              _DetectButton(
+                isLoading: isLoading,
+                onTap: isLoading ? null : detectDisease,
               ),
+
+              const SizedBox(height: 18),
+
+              _TipBox(),
             ],
           ),
         ),
@@ -253,40 +200,40 @@ class _ProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: BrandColor.primary.withOpacity(0.20)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Row(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
               color: BrandColor.primary,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: const Center(
               child: Text(
                 'PK',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,31 +242,31 @@ class _ProfileCard extends StatelessWidget {
                   'Pomegranate Farm',
                   style: TextStyle(
                     color: BrandColor.darkText,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 5),
                 Text(
                   dateStr,
-                  style: TextStyle(color: BrandColor.lightText, fontSize: 12),
+                  style: TextStyle(color: BrandColor.lightText, fontSize: 13),
                 ),
               ],
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: BrandColor.primary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: BrandColor.primary.withOpacity(0.20)),
+              color: const Color(0xFFFFF4F6),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFFFD7DE)),
             ),
             child: Text(
               timeStr,
               style: const TextStyle(
                 color: BrandColor.primary,
                 fontSize: 13,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ),
@@ -329,17 +276,69 @@ class _ProfileCard extends StatelessWidget {
   }
 }
 
-/// Placeholder illustration for the pomegranate thumbnail
-class _PomegranateIllustration extends StatelessWidget {
-  const _PomegranateIllustration();
-
+class _ComponentIntroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('🍎', style: TextStyle(fontSize: 56)));
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: BrandColor.primary,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: BrandColor.primary.withOpacity(0.28),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 62,
+            height: 62,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.16),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Icon(
+              Icons.health_and_safety_rounded,
+              color: Colors.white,
+              size: 34,
+            ),
+          ),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Disease Detection',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Capture or upload a pomegranate fruit image to detect disease and get treatment recommendation.',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
-/// Empty scan frame with corner brackets and dashed circle
 class _ScanFrameEmpty extends StatelessWidget {
   const _ScanFrameEmpty();
 
@@ -347,60 +346,83 @@ class _ScanFrameEmpty extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Corner brackets
         const _CornerBrackets(),
-        // Center content
+
         Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Dashed circle with camera icon
-              CustomPaint(
-                painter: _DashedCirclePainter(
-                  color: BrandColor.primary.withOpacity(0.25),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 28),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: const Color(0xFFFFD7DE)),
+              boxShadow: [
+                BoxShadow(
+                  color: BrandColor.primary.withOpacity(0.08),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
                 ),
-                child: SizedBox(
-                  width: 140,
-                  height: 140,
-                  child: Center(
-                    child: Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: BrandColor.primary.withOpacity(0.15),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt_outlined,
-                        color: BrandColor.primary,
-                        size: 30,
-                      ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4F6),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(
+                    Icons.cloud_upload_rounded,
+                    color: BrandColor.primary,
+                    size: 38,
+                  ),
+                ),
+
+                const SizedBox(height: 18),
+
+                const Text(
+                  'Upload Fruit Image',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 21,
+                    fontWeight: FontWeight.w900,
+                    color: BrandColor.darkText,
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                Text(
+                  'Take a photo or choose from gallery',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: BrandColor.softText),
+                ),
+
+                const SizedBox(height: 18),
+
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: BrandColor.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Tap here to capture',
+                    style: TextStyle(
+                      color: BrandColor.primary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Ready to Scan',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: BrandColor.darkText,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Position the fruit in the frame for best results',
-                style: TextStyle(fontSize: 12, color: BrandColor.softText),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ],
@@ -408,17 +430,16 @@ class _ScanFrameEmpty extends StatelessWidget {
   }
 }
 
-/// Corner bracket decoration matching the image
 class _CornerBrackets extends StatelessWidget {
   const _CornerBrackets();
 
   @override
   Widget build(BuildContext context) {
     const color = BrandColor.primary;
-    const size = 22.0;
-    const stroke = 3.0;
+    const size = 30.0;
+    const stroke = 4.0;
     const radius = 8.0;
-    const padding = 16.0;
+    const padding = 20.0;
 
     Widget bracket({
       required Alignment align,
@@ -441,7 +462,7 @@ class _CornerBrackets extends StatelessWidget {
             child: CustomPaint(
               size: const Size(size, size),
               painter: _BracketPainter(
-                color: color,
+                color: const Color.fromARGB(255, 255, 255, 255),
                 strokeWidth: stroke,
                 radius: radius,
               ),
@@ -495,7 +516,7 @@ class _BracketPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_BracketPainter old) => false;
+  bool shouldRepaint(_BracketPainter oldDelegate) => false;
 }
 
 class _DashedCirclePainter extends CustomPainter {
@@ -507,19 +528,20 @@ class _DashedCirclePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1.7
       ..style = PaintingStyle.stroke;
 
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 4;
+    final radius = size.width / 2 - 5;
 
-    const dashCount = 24;
+    const dashCount = 26;
     const dashAngle = 3.14159 * 2 / dashCount;
-    const gapFraction = 0.4;
+    const gapFraction = 0.42;
 
     for (int i = 0; i < dashCount; i++) {
       final startAngle = i * dashAngle;
       final sweepAngle = dashAngle * (1 - gapFraction);
+
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius),
         startAngle,
@@ -531,7 +553,7 @@ class _DashedCirclePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_DashedCirclePainter old) => false;
+  bool shouldRepaint(_DashedCirclePainter oldDelegate) => false;
 }
 
 class _ScanFramePreview extends StatelessWidget {
@@ -545,7 +567,7 @@ class _ScanFramePreview extends StatelessWidget {
     return Stack(
       children: [
         ClipRRect(
-          borderRadius: BorderRadius.circular(27),
+          borderRadius: BorderRadius.circular(29),
           child: Image.file(
             image,
             fit: BoxFit.cover,
@@ -554,12 +576,12 @@ class _ScanFramePreview extends StatelessWidget {
           ),
         ),
         Positioned(
-          top: 10,
-          right: 10,
+          top: 12,
+          right: 12,
           child: GestureDetector(
             onTap: onClear,
             child: Container(
-              padding: const EdgeInsets.all(6),
+              padding: const EdgeInsets.all(7),
               decoration: const BoxDecoration(
                 color: Colors.black54,
                 shape: BoxShape.circle,
@@ -591,32 +613,32 @@ class _PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(22),
       onTap: onTap,
       child: Container(
-        height: 58,
+        height: 64,
         decoration: BoxDecoration(
           color: BrandColor.primary,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: BrandColor.primary.withOpacity(0.30),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
+              color: BrandColor.primary.withOpacity(0.28),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 19, color: Colors.white),
-            const SizedBox(width: 9),
+            Icon(icon, size: 22, color: Colors.white),
+            const SizedBox(width: 10),
             Text(
               title,
               style: const TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
               ),
             ),
           ],
@@ -640,33 +662,33 @@ class _OutlineButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(22),
       onTap: onTap,
       child: Container(
-        height: 58,
+        height: 64,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(22),
           border: Border.all(color: const Color(0xFFE5E7EB)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
             ),
           ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 19, color: BrandColor.primary),
-            const SizedBox(width: 9),
+            Icon(icon, size: 22, color: BrandColor.primary),
+            const SizedBox(width: 10),
             Text(
               title,
               style: const TextStyle(
                 color: BrandColor.darkText,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
               ),
             ),
           ],
@@ -685,7 +707,7 @@ class _DetectButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 58,
+      height: 64,
       width: double.infinity,
       child: ElevatedButton(
         onPressed: onTap,
@@ -696,7 +718,7 @@ class _DetectButton extends StatelessWidget {
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(22),
           ),
         ),
         child: isLoading
@@ -713,8 +735,8 @@ class _DetectButton extends StatelessWidget {
                   ),
                   SizedBox(width: 12),
                   Text(
-                    'Analyzing...',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                    'Analyzing Disease...',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
                   ),
                 ],
               )
@@ -725,10 +747,45 @@ class _DetectButton extends StatelessWidget {
                   SizedBox(width: 10),
                   Text(
                     'Detect Disease',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
                   ),
                 ],
               ),
+      ),
+    );
+  }
+}
+
+class _TipBox extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFAFB),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFFFD7DE)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.lightbulb_rounded,
+            color: Color(0xFFFFC107),
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Tip: Use a clear, well-lit pomegranate fruit image for better disease detection accuracy.',
+              style: TextStyle(
+                color: BrandColor.lightText,
+                fontSize: 13,
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
