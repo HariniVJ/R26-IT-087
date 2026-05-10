@@ -1,12 +1,18 @@
 import 'dart:convert';
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class IrrigationApiService {
-  // Local laptop backend for development:
-  static const String baseUrl = 'http://192.168.1.100:8000';
+  static String get baseUrl {
+    final url = dotenv.env['API_BASE_URL'];
 
-  // Later cloud backend example:
-  // static const String baseUrl = 'https://your-backend-name.onrender.com';
+    if (url == null || url.isEmpty) {
+      throw Exception('API_BASE_URL is missing in .env file');
+    }
+
+    return url;
+  }
 
   static Future<Map<String, dynamic>> predictIrrigation({
     required double soilMoisture,
@@ -18,7 +24,9 @@ class IrrigationApiService {
     final response = await http
         .post(
           url,
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: jsonEncode({
             'soil_moisture': soilMoisture,
             'latitude': latitude,
@@ -29,12 +37,10 @@ class IrrigationApiService {
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-
       data['mode'] = 'online';
-
       return data;
     }
 
-    throw Exception('Backend error: ${response.statusCode}');
+    throw Exception('Backend error: ${response.statusCode}: ${response.body}');
   }
 }

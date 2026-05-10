@@ -1,9 +1,18 @@
 import 'dart:convert';
+
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
 
 class FertilizerApiService {
-  // Same backend IP as irrigation
-  static const String baseUrl = 'http://192.168.1.100:8000';
+  static String get baseUrl {
+    final url = dotenv.env['API_BASE_URL'];
+
+    if (url == null || url.isEmpty) {
+      throw Exception('API_BASE_URL is missing in .env file');
+    }
+
+    return url;
+  }
 
   static Future<Map<String, dynamic>> predictFertilizer({
     required double moisture,
@@ -20,7 +29,9 @@ class FertilizerApiService {
     final response = await http
         .post(
           url,
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: jsonEncode({
             'moisture': moisture,
             'temp': temp,
@@ -40,6 +51,6 @@ class FertilizerApiService {
       return data;
     }
 
-    throw Exception('Backend error: ${response.statusCode}');
+    throw Exception('Backend error: ${response.statusCode}: ${response.body}');
   }
 }
