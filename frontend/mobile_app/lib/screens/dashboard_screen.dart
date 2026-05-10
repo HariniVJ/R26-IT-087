@@ -1,41 +1,46 @@
 // lib/screens/dashboard_screen.dart
-// Dashboard screen — imports all shared widgets and config.
-// To change colors  → edit lib/theme/app_colors.dart
-// To change sizes   → edit lib/config/app_constants.dart
-// To change buttons → edit lib/widgets/module_button.dart
-// To change weather → edit lib/widgets/weather_card.dart
-// To add real screens → update _openScreen() switch cases below
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-// ── Config & theme ────────────────────────────────────────────────────────────
+// Config & theme
 import '../config/app_constants.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text.dart';
 
-// ── Data model ────────────────────────────────────────────────────────────────
+// Data model
 import '../models/dashboard_item.dart';
 
-// ── Reusable widgets ──────────────────────────────────────────────────────────
+// Reusable widgets
 import '../widgets/glass_box.dart';
 import '../widgets/module_button.dart';
 import '../widgets/weather_card.dart';
 
-// ── Services ──────────────────────────────────────────────────────────────────
+// Services
 import '../services/weather_service.dart';
 
-// ── Screens ───────────────────────────────────────────────────────────────────
+// Screens
+import 'irrigation_screen.dart';
+import 'fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
 import 'coming_soon_screen.dart';
-// When team members finish their screens, add imports here:
-// import 'soil_analysis_screen.dart';
-// import 'fruit_growth_screen.dart';
-// import 'disease_detection_screen.dart';
 
-// ── Module list — ADD / REMOVE / REORDER here only ───────────────────────────
-// Colors come from AppColors so changing one place updates all buttons
+// Module list
 const _modules = [
+  DashboardItem(
+    title: 'Irrigation Advice',
+    subtitle: 'Check water suitability',
+    emoji: '💧',
+    color: AppColors.growthColor,
+    screenName: 'irrigation',
+  ),
+  DashboardItem(
+    title: 'Fertilizer',
+    subtitle: 'NPK & fertilizer amount',
+    emoji: '🧪',
+    color: AppColors.soilColor,
+    screenName: 'fertilizer',
+  ),
   DashboardItem(
     title: 'Soil Analysis',
     subtitle: 'NPK & Moisture',
@@ -66,26 +71,23 @@ const _modules = [
   ),
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
-  // ── Time ──────────────────────────────────────────────────────────────────
   late Timer _timer;
   late DateTime _now;
 
-  // ── Weather ───────────────────────────────────────────────────────────────
   final _weatherSvc = WeatherService();
   WeatherData? _weather;
   bool _weatherLoading = true;
   String? _weatherError;
 
-  // ── Button entrance animations ────────────────────────────────────────────
   late final List<AnimationController> _btnCtrls;
   late final List<Animation<double>> _btnAnims;
 
@@ -94,11 +96,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
 
     _now = DateTime.now();
+
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _now = DateTime.now());
+      if (mounted) {
+        setState(() => _now = DateTime.now());
+      }
     });
 
-    // Staggered scale-in for each module button
     _btnCtrls = List.generate(
       _modules.length,
       (_) => AnimationController(
@@ -106,13 +110,19 @@ class _DashboardScreenState extends State<DashboardScreen>
         duration: const Duration(milliseconds: 800),
       ),
     );
+
     _btnAnims = _btnCtrls
-        .map((c) => CurvedAnimation(parent: c, curve: Curves.elasticOut))
+        .map((controller) => CurvedAnimation(
+              parent: controller,
+              curve: Curves.elasticOut,
+            ))
         .toList();
 
     for (int i = 0; i < _btnCtrls.length; i++) {
       Future.delayed(Duration(milliseconds: 250 + i * 130), () {
-        if (mounted) _btnCtrls[i].forward();
+        if (mounted) {
+          _btnCtrls[i].forward();
+        }
       });
     }
 
@@ -122,7 +132,11 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     _timer.cancel();
-    for (final c in _btnCtrls) c.dispose();
+
+    for (final controller in _btnCtrls) {
+      controller.dispose();
+    }
+
     super.dispose();
   }
 
@@ -131,60 +145,76 @@ class _DashboardScreenState extends State<DashboardScreen>
       _weatherLoading = true;
       _weatherError = null;
     });
+
     try {
-      final d = await _weatherSvc.fetchWeather();
-      if (mounted)
+      final data = await _weatherSvc.fetchWeather();
+
+      if (mounted) {
         setState(() {
-          _weather = d;
+          _weather = data;
           _weatherLoading = false;
         });
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _weatherLoading = false;
           _weatherError = 'Could not load weather';
         });
+      }
     }
   }
 
-  // ── Navigation — only change this method to connect new screens ───────────
   void _openScreen(DashboardItem item) {
     Widget screen;
+
     switch (item.screenName) {
+      case 'irrigation':
+        screen = const IrrigationScreen();
+        break;
+
+      case 'fertilizer':
+        screen = const FertilizerScreen();
+        break;
+
       case 'grading':
         screen = const QualityGradingScreen();
         break;
-      // Uncomment when team members finish their screens:
-      // case 'soil':
-      //   screen = const SoilAnalysisScreen();
-      //   break;
-      // case 'growth':
-      //   screen = const FruitGrowthScreen();
-      //   break;
-      // case 'disease':
-      //   screen = const DiseaseDetectionScreen();
-      //   break;
+
       default:
-        screen = ComingSoonScreen(title: item.title, color: item.color);
+        screen = ComingSoonScreen(
+          title: item.title,
+          color: item.color,
+        );
     }
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => screen),
+    );
   }
 
-  // ── Time helpers ──────────────────────────────────────────────────────────
   String get _clock {
     return '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
   }
 
   String get _greeting {
-    final h = _now.hour;
-    if (h < 12) return 'Good Morning';
-    if (h < 17) return 'Good Afternoon';
+    final hour = _now.hour;
+
+    if (hour < 12) {
+      return 'Good Morning';
+    }
+
+    if (hour < 17) {
+      return 'Good Afternoon';
+    }
+
     return 'Good Evening';
   }
 
   String get _date {
-    const wd = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const mo = [
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const months = [
       'Jan',
       'Feb',
       'Mar',
@@ -198,17 +228,16 @@ class _DashboardScreenState extends State<DashboardScreen>
       'Nov',
       'Dec',
     ];
-    return '${wd[_now.weekday - 1]}, ${_now.day} ${mo[_now.month - 1]} ${_now.year}';
+
+    return '${weekdays[_now.weekday - 1]}, ${_now.day} ${months[_now.month - 1]} ${_now.year}';
   }
 
-  // ── BUILD ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // Layer 1 — background image
           Image.asset(
             AppConstants.bgImage,
             fit: BoxFit.cover,
@@ -227,7 +256,6 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
 
-          // Layer 2 — dark overlay
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -242,7 +270,6 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
 
-          // Layer 3 — content
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
@@ -255,11 +282,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _topRow(),
-                  const SizedBox(height: 18),
-                  _greeting2(),
+
                   const SizedBox(height: 18),
 
-                  // ── Weather card (reusable widget) ───────────────────────
+                  _greetingSection(),
+
+                  const SizedBox(height: 18),
+
                   WeatherCard(
                     isLoading: _weatherLoading,
                     error: _weatherError,
@@ -268,10 +297,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
 
                   const SizedBox(height: AppConstants.sectionGap),
+
                   _sectionTitle(),
+
                   const SizedBox(height: 14),
 
-                  // ── Module grid ──────────────────────────────────────────
                   GridView.count(
                     crossAxisCount: AppConstants.gridColumns,
                     shrinkWrap: true,
@@ -281,12 +311,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                     childAspectRatio: AppConstants.gridAspectRatio,
                     children: List.generate(
                       _modules.length,
-                      (i) => ScaleTransition(
-                        scale: _btnAnims[i],
-                        // ── Reusable ModuleButton widget ─────────────────
+                      (index) => ScaleTransition(
+                        scale: _btnAnims[index],
                         child: ModuleButton(
-                          item: _modules[i],
-                          onTap: () => _openScreen(_modules[i]),
+                          item: _modules[index],
+                          onTap: () => _openScreen(_modules[index]),
                         ),
                       ),
                     ),
@@ -300,92 +329,143 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
-  // ── Top row ────────────────────────────────────────────────────────────────
-  Widget _topRow() => Row(
-    children: [
-      // Avatar
-      Container(
-        width: 46,
-        height: 46,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [AppColors.crimson, AppColors.rose],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+  Widget _topRow() {
+    return Row(
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [
+                AppColors.crimson,
+                AppColors.rose,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.45),
+              width: 2,
+            ),
           ),
-          border: Border.all(color: Colors.white.withOpacity(0.45), width: 2),
-        ),
-        child: Center(
-          child: Text(
-            AppConstants.farmerName.substring(0, 2).toUpperCase(),
-            style: AppTextStyles.farmName.copyWith(fontSize: 15),
+          child: Center(
+            child: Text(
+              AppConstants.farmerName.substring(0, 2).toUpperCase(),
+              style: AppTextStyles.farmName.copyWith(fontSize: 15),
+            ),
           ),
         ),
-      ),
-      const SizedBox(width: 12),
 
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const SizedBox(width: 12),
+
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppConstants.farmName,
+                style: AppTextStyles.farmName,
+              ),
+              Text(
+                _date,
+                style: TextStyle(
+                  color: AppColors.textWhiteFaint,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        GlassBox(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 9,
+          ),
+          radius: AppConstants.clockRadius,
+          child: Text(
+            _clock,
+            style: AppTextStyles.clock,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _greetingSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Text(AppConstants.farmName, style: AppTextStyles.farmName),
             Text(
-              _date,
-              style: TextStyle(color: AppColors.textWhiteFaint, fontSize: 11),
+              '$_greeting  ',
+              style: TextStyle(
+                color: AppColors.textWhiteSoft,
+                fontSize: 14,
+              ),
+            ),
+            const Text(
+              '🌾',
+              style: TextStyle(fontSize: 16),
             ),
           ],
         ),
-      ),
-
-      // Live clock — uses GlassBox
-      GlassBox(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        radius: AppConstants.clockRadius,
-        child: Text(_clock, style: AppTextStyles.clock),
-      ),
-    ],
-  );
-
-  // ── Greeting ───────────────────────────────────────────────────────────────
-  Widget _greeting2() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(
-        children: [
-          Text(
-            '$_greeting  ',
-            style: TextStyle(color: AppColors.textWhiteSoft, fontSize: 14),
-          ),
-          const Text('🌾', style: TextStyle(fontSize: 16)),
-        ],
-      ),
-      Text(AppConstants.farmerName, style: AppTextStyles.farmerName),
-    ],
-  );
-
-  // ── Section title ──────────────────────────────────────────────────────────
-  Widget _sectionTitle() => Row(
-    children: [
-      Container(
-        width: 4,
-        height: 22,
-        margin: const EdgeInsets.only(right: 10),
-        decoration: BoxDecoration(
-          color: AppColors.rose,
-          borderRadius: BorderRadius.circular(2),
+        Text(
+          AppConstants.farmerName,
+          style: AppTextStyles.farmerName,
         ),
-      ),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Farm Management', style: AppTextStyles.sectionTitle),
-          Text(
-            'Select a module to get started',
-            style: TextStyle(color: AppColors.textWhiteFaint, fontSize: 12),
+        const SizedBox(height: 8),
+        Text(
+          'Smart Farming Assistant',
+          style: TextStyle(
+            color: AppColors.textWhiteSoft,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
           ),
-        ],
-      ),
-    ],
-  );
+        ),
+        Text(
+          'Online weather-aware mode and offline rural mode',
+          style: TextStyle(
+            color: AppColors.textWhiteFaint,
+            fontSize: 12,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _sectionTitle() {
+    return Row(
+      children: [
+        Container(
+          width: 4,
+          height: 22,
+          margin: const EdgeInsets.only(right: 10),
+          decoration: BoxDecoration(
+            color: AppColors.rose,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Farm Management',
+              style: AppTextStyles.sectionTitle,
+            ),
+            Text(
+              'Select a module to get started',
+              style: TextStyle(
+                color: AppColors.textWhiteFaint,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
 }

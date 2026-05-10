@@ -5,26 +5,24 @@ import 'screens/dashboard_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await dotenv.load(fileName: ".env");
-  runApp(const AIFarmingApp());
-}
 
-class AIFarmingApp extends StatelessWidget {
-  const AIFarmingApp({super.key});
-import 'screens/home_screen.dart';
-
-void main() {
   runApp(const PomegranateApp());
 }
 
+class PomegranateApp extends StatelessWidget {
+  const PomegranateApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'AI Farming System',
+      title: 'Pomegranate Farming',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF8B1A2F)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFFBB2222),
+        ),
         useMaterial3: true,
       ),
       home: const DashboardScreen(),

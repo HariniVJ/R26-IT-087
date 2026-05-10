@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../logic/irrigation_logic.dart';
 import '../services/irrigation_api_service.dart';
 
@@ -10,8 +11,11 @@ class IrrigationScreen extends StatefulWidget {
 }
 
 class _IrrigationScreenState extends State<IrrigationScreen> {
-  final TextEditingController soilMoistureController =
-      TextEditingController(text: '38');
+  static const Color mainRed = Color(0xFFBB2222);
+
+  final TextEditingController soilMoistureController = TextEditingController(
+    text: '38',
+  );
 
   bool isLoading = false;
   Map<String, dynamic>? result;
@@ -78,7 +82,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
   Color statusColor(String status) {
     if (status == 'Suitable Now') return Colors.green;
     if (status == 'Suitable Based on Soil') return Colors.green;
-    if (status == 'Not Suitable Now') return Colors.red;
+    if (status == 'Not Suitable Now') return mainRed;
     if (status == 'No Urgent Irrigation Needed') return Colors.orange;
     if (status == 'Cannot Predict') return Colors.grey;
     return Colors.blueGrey;
@@ -118,9 +122,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
 
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -132,19 +134,16 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
                     ? 'Online Weather-Aware Mode'
                     : 'Offline Rural Mode',
               ),
-              backgroundColor:
-                  mode == 'online' ? Colors.green.shade100 : Colors.orange.shade100,
+              backgroundColor: mode == 'online'
+                  ? Colors.green.shade100
+                  : Colors.orange.shade100,
             ),
 
             const SizedBox(height: 12),
 
             Row(
               children: [
-                Icon(
-                  statusIcon(status),
-                  color: statusColor(status),
-                  size: 34,
-                ),
+                Icon(statusIcon(status), color: statusColor(status), size: 34),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -200,18 +199,11 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
               const Divider(height: 30),
               const Text(
                 'Weather Data Used',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
               weatherRow('Temperature', weather['temp_mean'], '°C'),
-              weatherRow(
-                'Apparent Temp',
-                weather['apparent_temp_mean'],
-                '°C',
-              ),
+              weatherRow('Apparent Temp', weather['apparent_temp_mean'], '°C'),
               weatherRow('Rain Now', weather['rain_mm'], 'mm'),
               weatherRow('Rain Hours', weather['rain_hours'], 'h'),
               weatherRow(
@@ -249,42 +241,58 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
         title: const Text('Irrigation Advice'),
         centerTitle: true,
+        backgroundColor: mainRed,
+        foregroundColor: Colors.white,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(
-              Icons.water_drop,
-              size: 70,
-              color: Colors.green,
-            ),
+            const Icon(Icons.water_drop, size: 70, color: mainRed),
+
             const SizedBox(height: 12),
+
             const Text(
               'Check Irrigation Suitability',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
+
             const SizedBox(height: 8),
+
             const Text(
               'Online mode uses weather forecast. Offline mode uses soil moisture only.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
             ),
+
             const SizedBox(height: 24),
 
             TextField(
               controller: soilMoistureController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Soil Moisture (%)',
                 hintText: 'Example: 38',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.grass),
+                prefixIcon: const Icon(Icons.grass, color: mainRed),
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: mainRed, width: 1.6),
+                ),
               ),
             ),
 
@@ -296,12 +304,23 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
                   ? const SizedBox(
                       height: 18,
                       width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.search),
-              label: Text(isLoading ? 'Checking...' : 'Check Irrigation'),
+              label: Text(
+                isLoading ? 'Checking...' : 'Check Irrigation',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               style: ElevatedButton.styleFrom(
+                backgroundColor: mainRed,
+                foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
 
