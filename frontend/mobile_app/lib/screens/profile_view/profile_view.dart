@@ -39,7 +39,7 @@ const _english = _LangStrings(
   cropType: 'Crop Type',
   cropValue: 'Pomegranate',
   aiModel: 'AI Model',
-  aiValue: 'Disease Detection v1.0',
+  aiValue: 'PomCare v1.0',
   language: 'Language',
   languageValue: 'English',
 );
@@ -76,6 +76,7 @@ class _ProfileViewState extends State<ProfileView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: BrandColor.background,
+      bottomNavigationBar: _BottomNavBar(context),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -149,7 +150,7 @@ class _ProfileViewState extends State<ProfileView> {
               ),
               child: const Center(
                 child: Text(
-                  'PK',
+                  'AK',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 36,
@@ -395,4 +396,96 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
+}
+
+Widget _BottomNavBar(BuildContext context) {
+  return Container(
+    height: 78,
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.08),
+          blurRadius: 18,
+          offset: const Offset(0, -5),
+        ),
+      ],
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _navItem(
+          context,
+          icon: Icons.home_rounded,
+          label: 'Home',
+          onTap: () {
+            Navigator.pop(context);
+          },
+        ),
+
+        _navItem(context, icon: Icons.history_rounded, label: 'History'),
+
+        Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: BrandColor.primary,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: BrandColor.primary.withOpacity(0.35),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.crop_free_rounded,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
+
+        _navItem(context, icon: Icons.bar_chart_rounded, label: 'Reports'),
+
+        _navItem(
+          context,
+          icon: Icons.person_outline_rounded,
+          label: 'Profile',
+          active: true,
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _navItem(
+  BuildContext context, {
+  required IconData icon,
+  required String label,
+  bool active = false,
+  VoidCallback? onTap,
+}) {
+  final color = active ? BrandColor.primary : Colors.grey;
+
+  return GestureDetector(
+    onTap: onTap,
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
 }

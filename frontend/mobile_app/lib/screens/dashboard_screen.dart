@@ -15,6 +15,7 @@ import 'fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
 import '../screens/dashboard_view/dashboard_view.dart';
 import 'coming_soon_screen.dart';
+import '../screens/profile_view/profile_view.dart';
 
 const _red = Color(0xFFC1121F);
 const _redSoft = Color(0xFFFFEEF3);
@@ -204,6 +205,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Scaffold(
       backgroundColor: Colors.white,
+      bottomNavigationBar: const AppBottomNavBar(),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
@@ -422,4 +424,111 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     ],
   );
+}
+
+class AppBottomNavBar extends StatelessWidget {
+  const AppBottomNavBar({super.key});
+
+  static const _red = Color(0xFFC1121F);
+  static const _soft = Color(0xFF9CA3AF);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 78,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 18,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _NavItem(icon: Icons.home_rounded, label: 'Home', active: true),
+          _NavItem(icon: Icons.history_rounded, label: 'History'),
+          _ScanButton(),
+          _NavItem(icon: Icons.bar_chart_rounded, label: 'Reports'),
+          _NavItem(
+            icon: Icons.person_outline_rounded,
+            label: 'Profile',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileView()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    this.active = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = active ? AppBottomNavBar._red : AppBottomNavBar._soft;
+
+    return GestureDetector(
+  onTap: onTap,
+  child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 10,
+            fontWeight: active ? FontWeight.w800 : FontWeight.w500,
+          ),
+        ),
+      ],
+      ),
+    );
+  }
+}
+
+class _ScanButton extends StatelessWidget {
+  const _ScanButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 58,
+      height: 58,
+      decoration: BoxDecoration(
+        color: AppBottomNavBar._red,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: AppBottomNavBar._red.withOpacity(0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.crop_free_rounded, color: Colors.white, size: 28),
+    );
+  }
 }

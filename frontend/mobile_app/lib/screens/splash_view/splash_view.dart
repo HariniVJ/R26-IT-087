@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../common/brand_color.dart';
 //import '../home_shell/home_shell.dart';
 import '../dashboard_screen.dart';
+import '../auth/onboarding_auth_flow.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -43,7 +44,7 @@ class _SplashViewState extends State<SplashView>
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(builder: (_) => const OnboardingAuthFlow()),
         );
       }
     });

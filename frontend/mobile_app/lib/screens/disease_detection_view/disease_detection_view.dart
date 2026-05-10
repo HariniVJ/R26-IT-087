@@ -224,7 +224,7 @@ class _ProfileCard extends StatelessWidget {
             ),
             child: const Center(
               child: Text(
-                'PK',
+                'AK',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 17,
