@@ -325,7 +325,7 @@ class _HomeComponentCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(width: 5),
+                const SizedBox(width: 4),
                 Icon(Icons.arrow_forward_rounded, color: color, size: 16),
               ],
             ),
