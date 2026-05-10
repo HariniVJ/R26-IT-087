@@ -529,48 +529,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       scale: _resultAnim,
       child: Column(children: [
 
-        // ── Save status banner ─────────────────────────────────────────────
-        if (_saving)
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.medAmberLight,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.medAmber.withOpacity(0.4)),
-            ),
-            child: Row(children: [
-              const SizedBox(width: 16, height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.medAmber)),
-              const SizedBox(width: 10),
-              Text('Saving to database...', style: TextStyle(
-                color: AppColors.medAmber, fontSize: 13, fontWeight: FontWeight.w600,
-              )),
-            ]),
-          ),
-
-        if (_savedOk == true)
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: AppColors.highGreenLight,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.highGreen.withOpacity(0.3)),
-            ),
-            child: Row(children: [
-              const Icon(Icons.check_circle_outline, color: AppColors.highGreen, size: 18),
-              const SizedBox(width: 8),
-              Text('Saved to Firebase ✅', style: TextStyle(
-                color: AppColors.highGreen, fontSize: 13, fontWeight: FontWeight.w600,
-              )),
-              const Spacer(),
-              Text('ID: ${r.id.substring(0, 8)}...',
-                style: TextStyle(color: AppColors.highGreen.withOpacity(0.6), fontSize: 10)),
-            ]),
-          ),
-
-        // ── Hero card ──────────────────────────────────────────────────────
+               // ── Hero card ──────────────────────────────────────────────────────
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
