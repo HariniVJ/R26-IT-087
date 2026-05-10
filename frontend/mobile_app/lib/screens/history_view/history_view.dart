@@ -13,10 +13,11 @@ class HistoryView extends StatefulWidget {
 }
 
 class _HistoryViewState extends State<HistoryView> {
-  // ── Logic unchanged ────────────────────────────────────────
   late Future<List<PredictionResultModel>> historyFuture;
   late Future<List<String>> diseaseFuture;
+
   String selectedDisease = 'All';
+  DateTime? selectedDate;
 
   @override
   void initState() {
@@ -29,7 +30,36 @@ class _HistoryViewState extends State<HistoryView> {
     setState(() {
       historyFuture = HistoryService.getFirebaseHistory();
       diseaseFuture = HistoryService.getAllDiseases();
+      selectedDate = null;
     });
+  }
+
+  Future<void> _pickDate() async {
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: selectedDate ?? DateTime.now(),
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: BrandColor.primary,
+              onPrimary: Colors.white,
+              surface: BrandColor.bgDeep,
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        selectedDate = pickedDate;
+      });
+    }
   }
 
   String _formatDateTime(DateTime dt) {
@@ -130,9 +160,11 @@ class _HistoryViewState extends State<HistoryView> {
     try {
       await HistoryService.deleteFirebaseHistory(item.predictionId!);
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('History deleted successfully')),
       );
+
       _refreshHistory();
     } catch (e) {
       if (!mounted) return;
@@ -142,12 +174,12 @@ class _HistoryViewState extends State<HistoryView> {
     }
   }
 
-  // ── UI helpers ─────────────────────────────────────────────
   Widget _diseaseFilterBar() {
     return FutureBuilder<List<String>>(
       future: diseaseFuture,
       builder: (context, snapshot) {
         final diseases = ['All', ...(snapshot.data ?? [])];
+
         return ClipRect(
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
@@ -159,6 +191,7 @@ class _HistoryViewState extends State<HistoryView> {
                 child: Row(
                   children: diseases.map((disease) {
                     final isSelected = selectedDisease == disease;
+
                     return GestureDetector(
                       onTap: () => setState(() => selectedDisease = disease),
                       child: Container(
@@ -210,13 +243,13 @@ class _HistoryViewState extends State<HistoryView> {
 
   Widget _historyCard(PredictionResultModel item) {
     final color = _getDiseaseColor(item.diseaseName);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: GlassContainer(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Image placeholder
             Container(
               width: 82,
               height: 82,
@@ -227,7 +260,9 @@ class _HistoryViewState extends State<HistoryView> {
               ),
               child: Icon(Icons.image_outlined, color: color, size: 30),
             ),
+
             const SizedBox(width: 16),
+
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +275,9 @@ class _HistoryViewState extends State<HistoryView> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
+
                   const SizedBox(height: 6),
+
                   Row(
                     children: [
                       Container(
@@ -262,7 +299,9 @@ class _HistoryViewState extends State<HistoryView> {
                       ),
                     ],
                   ),
+
                   const SizedBox(height: 6),
+
                   Text(
                     _formatDateTime(item.detectedAt),
                     style: TextStyle(color: BrandColor.softText, fontSize: 12),
@@ -270,6 +309,7 @@ class _HistoryViewState extends State<HistoryView> {
                 ],
               ),
             ),
+
             Column(
               children: [
                 _CircleIconBtn(
@@ -311,11 +351,16 @@ class _HistoryViewState extends State<HistoryView> {
     );
   }
 
+  bool _sameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: BrandColor.background,
       extendBodyBehindAppBar: true,
+
       appBar: DarkAppBar(
         title: 'Detection History',
         actions: [
@@ -326,26 +371,70 @@ class _HistoryViewState extends State<HistoryView> {
               blur: 12,
               child: IconButton(
                 icon: Icon(
-                  Icons.refresh_rounded,
+                  Icons.calendar_month_rounded,
                   color: BrandColor.accent,
                   size: 20,
                 ),
-                onPressed: _refreshHistory,
+                onPressed: _pickDate,
               ),
             ),
           ),
         ],
       ),
+
       body: Stack(
         children: [
           const DarkBackground(),
+
           Column(
             children: [
-              // Compensate for transparent AppBar height
               SizedBox(
                 height: kToolbarHeight + MediaQuery.of(context).padding.top,
               ),
+
               _diseaseFilterBar(),
+
+              if (selectedDate != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                  child: GlassContainer(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_month_rounded,
+                          color: BrandColor.accent,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Selected date: ${selectedDate!.day.toString().padLeft(2, '0')}/'
+                            '${selectedDate!.month.toString().padLeft(2, '0')}/'
+                            '${selectedDate!.year}',
+                            style: TextStyle(
+                              color: BrandColor.lightText,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => setState(() => selectedDate = null),
+                          child: Icon(
+                            Icons.close_rounded,
+                            color: BrandColor.softText,
+                            size: 18,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               Expanded(
                 child: FutureBuilder<List<PredictionResultModel>>(
                   future: historyFuture,
@@ -357,6 +446,7 @@ class _HistoryViewState extends State<HistoryView> {
                         ),
                       );
                     }
+
                     if (snapshot.hasError) {
                       return Center(
                         child: Padding(
@@ -371,9 +461,16 @@ class _HistoryViewState extends State<HistoryView> {
                     }
 
                     var history = snapshot.data ?? [];
+
                     if (selectedDisease != 'All') {
                       history = history
                           .where((i) => i.diseaseName == selectedDisease)
+                          .toList();
+                    }
+
+                    if (selectedDate != null) {
+                      history = history
+                          .where((i) => _sameDate(i.detectedAt, selectedDate!))
                           .toList();
                     }
 
@@ -400,7 +497,6 @@ class _HistoryViewState extends State<HistoryView> {
   }
 }
 
-// ── Circle Icon Button ─────────────────────────────────────────
 class _CircleIconBtn extends StatelessWidget {
   final IconData icon;
   final Color color;

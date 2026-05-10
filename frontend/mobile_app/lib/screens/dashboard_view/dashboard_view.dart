@@ -4,7 +4,7 @@ import '../../common/glass_container.dart';
 import '../disease_detection_view/disease_detection_view.dart';
 import '../history_view/history_view.dart';
 import '../info_detail_view/info_detail_view.dart';
-import '../treatment_chat_view/treatment_chat_view.dart';
+import '../monthly_report_view/monthly_report_view.dart';
 
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
@@ -276,15 +276,15 @@ class DashboardView extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       _GlassMiniCard(
-                        emoji: '💊',
-                        title: 'Treatment\nChat',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const TreatmentChatView(),
-                          ),
-                        ),
-                      ),
+  emoji: '📅',
+  title: 'Monthly\nReport',
+  onTap: () => Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => const MonthlyReportView(),
+    ),
+  ),
+),
                       const SizedBox(width: 12),
                       _GlassMiniCard(
                         emoji: '📊',

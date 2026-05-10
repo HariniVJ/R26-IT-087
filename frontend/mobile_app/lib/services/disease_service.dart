@@ -7,11 +7,11 @@ import '../models/prediction_result_model.dart';
 
 class DiseaseService {
   // Windows testing
-  static const String baseUrl = 'http://127.0.0.1:8000';
+  // static const String baseUrl = 'http://127.0.0.1:8000';
 
   // Mobile testing use PC IPv4
   // Example:
-  // static const String baseUrl = 'http://192.168.1.5:8000';
+  static const String baseUrl = 'http://127.0.0.1:8000';
 
   static Future<PredictionResultModel> predictDisease(File imageFile) async {
     final uri = Uri.parse('$baseUrl/api/disease/upload-and-analyze');
