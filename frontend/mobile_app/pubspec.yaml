@@ -61,6 +61,9 @@ flutter:
   assets:
     - assets/images/farm_bg.jpeg
     - assets/images/farm_bg1.jpeg
+    - assets/images/farm_bg2.jpeg
+    - assets/images/farm_bg3.jpeg
+    - assets/images/farm_bg4.jpeg
     - assets/models/pomegranat_quality_model.tflite
     - assets/models/labels.txt
 
