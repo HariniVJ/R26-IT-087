@@ -5,7 +5,12 @@ import pandas as pd
 from app.services.weather_service import get_weather_data
 
 
-MODEL_PATH = os.path.join("models", "irrigation_model.pkl")
+
+BASE_DIR = os.path.dirname(
+    os.path.dirname(os.path.abspath(__file__))
+)
+
+MODEL_PATH = os.path.join(BASE_DIR, "ml_models", "irrigation_model.pkl")
 
 saved_model = joblib.load(MODEL_PATH)
 

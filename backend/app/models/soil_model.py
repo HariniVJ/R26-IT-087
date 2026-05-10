@@ -1,3 +1,4 @@
+from pydantic import BaseModel
 class FertilizerMobileInput(BaseModel):
     moisture: float
     temp: float
