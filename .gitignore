@@ -221,3 +221,7 @@ frontend/mobile_app/ios/Pods/
 .env
 __pycache__/
 build/
+
+# ML Model file (too large for GitHub - over 100MB)
+*.h5
+backend/app/models/pomegranate_cnn_model.h5
