@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+
 import '../../common/brand_color.dart';
-import '../../common/glass_container.dart';
 import '../disease_detection_view/disease_detection_view.dart';
 import '../history_view/history_view.dart';
 import '../info_detail_view/info_detail_view.dart';
@@ -11,227 +11,59 @@ class DashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final timeStr =
+        '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')} '
+        '${now.hour >= 12 ? 'PM' : 'AM'}';
+    final months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final weekdays = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final dateStr =
+        '${weekdays[now.weekday]}, ${now.day} ${months[now.month]} ${now.year}';
+
     return Scaffold(
       backgroundColor: BrandColor.background,
-      body: Stack(
-        children: [
-          // ── Dark background with orbs ─────────────────────
-          const DarkBackground(),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Profile card matching the image
+              _ProfileCard(timeStr: timeStr, dateStr: dateStr),
+              const SizedBox(height: 28),
 
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Title
+              const Text(
+                'Pomegranate Care',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                  color: BrandColor.darkText,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'AI-Based Intelligent Farming System',
+                style: TextStyle(fontSize: 13, color: BrandColor.lightText),
+              ),
+              const SizedBox(height: 24),
+
+              GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 2,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.78,
                 children: [
-                  // ── Top bar ─────────────────────────────────
-                  Row(
-                    children: [
-                      GlassContainer(
-                        borderRadius: BorderRadius.circular(16),
-                        padding: const EdgeInsets.all(10),
-                        fillColor: BrandColor.glassWarmFill,
-                        borderColor: BrandColor.glassWarmBorder,
-                        child: const Text('🍎', style: TextStyle(fontSize: 22)),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Pomegranate Care',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                                color: BrandColor.darkText,
-                              ),
-                            ),
-                            Text(
-                              'AI-Powered Detection',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: BrandColor.softText,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      GlassContainer(
-                        borderRadius: BorderRadius.circular(50),
-                        child: IconButton(
-                          icon: Icon(
-                            Icons.notifications_outlined,
-                            color: BrandColor.accent,
-                          ),
-                          onPressed: () {},
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // ── Greeting ─────────────────────────────────
-                  // Live badge
-                  GlassContainer(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 5,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: BrandColor.accent,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: BrandColor.accent,
-                                blurRadius: 5,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'AI POWERED · LIVE',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: BrandColor.accent,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Hello, Farmer! 👋',
-                    style: TextStyle(
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                      color: BrandColor.darkText,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Check your pomegranate fruit health\nusing AI technology.',
-                    style: TextStyle(
-                      color: BrandColor.lightText,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── Hero Banner ──────────────────────────────
-                  GlassContainer(
-                    fillColor: BrandColor.glassWarmFill,
-                    borderColor: BrandColor.glassWarmBorder,
-                    padding: const EdgeInsets.all(24),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Inner badge
-                              GlassContainer(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                borderRadius: BorderRadius.circular(20),
-                                child: Text(
-                                  'Disease Detection',
-                                  style: TextStyle(
-                                    color: BrandColor.accent,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.8,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Disease\nDetection',
-                                style: TextStyle(
-                                  color: BrandColor.darkText,
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Upload fruit photo\nand get instant results',
-                                style: TextStyle(
-                                  color: BrandColor.lightText,
-                                  fontSize: 13,
-                                  height: 1.4,
-                                ),
-                              ),
-                              const SizedBox(height: 14),
-                              // CTA
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 9,
-                                ),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      BrandColor.primary,
-                                      BrandColor.secondary,
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(20),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: BrandColor.primary.withOpacity(
-                                        0.50,
-                                      ),
-                                      blurRadius: 14,
-                                      offset: const Offset(0, 5),
-                                    ),
-                                  ],
-                                ),
-                                child: const Text(
-                                  'Start Scan  →',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Text('🍎', style: TextStyle(fontSize: 72)),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // ── Quick Actions ─────────────────────────────
-                  const SectionLabel(label: 'Quick Actions'),
-                  const SizedBox(height: 14),
-
-                  _GlassFeatureCard(
-                    title: 'Start Detection',
-                    subtitle: 'Upload fruit image for AI analysis',
-                    icon: Icons.document_scanner_rounded,
-                    iconColor: BrandColor.primary,
-                    badge: 'NEW',
+                  _HomeComponentCard(
+                    icon: Icons.search_rounded,
+                    title: 'Start\nDetection',
+                    subtitle: 'Upload fruit image',
+                    color: BrandColor.primary,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -239,103 +71,84 @@ class DashboardView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  _GlassFeatureCard(
-                    title: 'Detection History',
-                    subtitle: 'View your past scan results',
+                  _HomeComponentCard(
                     icon: Icons.history_rounded,
-                    iconColor: BrandColor.green,
+                    title: 'Detection\nHistory',
+                    subtitle: 'View past results',
+                    color: BrandColor.green,
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const HistoryView()),
                     ),
                   ),
-
-                  const SizedBox(height: 28),
-
-                  // ── Smart Farming Tools ───────────────────────
-                  const SectionLabel(label: 'Smart Farming Tools'),
-                  const SizedBox(height: 14),
-
-                  Row(
-                    children: [
-                      _GlassMiniCard(
-                        emoji: '🍎',
-                        title: 'Fruit\nHealth',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const InfoDetailView(
-                              emoji: '🍎',
-                              title: 'Fruit Health',
-                              description:
-                                  'This section helps farmers understand pomegranate fruit health and identify whether the fruit looks healthy or diseased.',
-                            ),
-                          ),
-                        ),
+                  _HomeComponentCard(
+                    icon: Icons.bar_chart_rounded,
+                    title: 'Monthly\nReport',
+                    subtitle: 'Disease vs date chart',
+                    color: const Color(0xFFFF7043),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MonthlyReportView(),
                       ),
-                      const SizedBox(width: 12),
-                      _GlassMiniCard(
-  emoji: '📅',
-  title: 'Monthly\nReport',
-  onTap: () => Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (_) => const MonthlyReportView(),
-    ),
-  ),
-),
-                      const SizedBox(width: 12),
-                      _GlassMiniCard(
-                        emoji: '📊',
-                        title: 'AI\nResult',
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const InfoDetailView(
-                              emoji: '📊',
-                              title: 'AI Result',
-                              description:
-                                  'This section explains AI prediction result, confidence percentage, detected date, and disease classification details.',
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ── Tip Card ─────────────────────────────────
-                  GlassContainer(
-                    padding: const EdgeInsets.all(18),
-                    child: Row(
-                      children: [
-                        GlassContainer(
-                          borderRadius: BorderRadius.circular(14),
-                          padding: const EdgeInsets.all(10),
-                          child: const Text(
-                            '💡',
-                            style: TextStyle(fontSize: 22),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            'Tip: Capture fruit image in good lighting for better disease detection accuracy.',
-                            style: TextStyle(
-                              color: BrandColor.lightText,
-                              fontSize: 13,
-                              height: 1.5,
-                            ),
-                          ),
-                        ),
-                      ],
                     ),
                   ),
-
-                  const SizedBox(height: 20),
+                  _HomeComponentCard(
+                    icon: Icons.smart_toy_rounded,
+                    title: 'AI\nResult',
+                    subtitle: 'Prediction details',
+                    color: const Color(0xFF7C3AED),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const InfoDetailView(
+                          emoji: '🤖',
+                          title: 'AI Result',
+                          description:
+                              'This section explains AI prediction results, confidence percentage, disease classification, and detected date details.',
+                        ),
+                      ),
+                    ),
+                  ),
                 ],
+              ),
+
+              const SizedBox(height: 28),
+              _tipCard(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tipCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: BrandColor.primary.withOpacity(0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Text('💡', style: TextStyle(fontSize: 24)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Tip: Capture fruit image in good lighting for better disease detection accuracy.',
+              style: TextStyle(
+                color: BrandColor.lightText,
+                fontSize: 13,
+                height: 1.5,
               ),
             ),
           ),
@@ -345,97 +158,90 @@ class DashboardView extends StatelessWidget {
   }
 }
 
-// ── Glass Feature Card ─────────────────────────────────────────
-class _GlassFeatureCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color iconColor;
-  final String? badge;
-  final Color? badgeColor;
-  final VoidCallback onTap;
+class _ProfileCard extends StatelessWidget {
+  final String timeStr;
+  final String dateStr;
 
-  const _GlassFeatureCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.iconColor,
-    required this.onTap,
-    this.badge,
-    this.badgeColor,
-  });
+  const _ProfileCard({required this.timeStr, required this.dateStr});
 
   @override
   Widget build(BuildContext context) {
-    final color = badgeColor ?? iconColor;
-    return GlassContainer(
-      onTap: onTap,
-      padding: const EdgeInsets.all(18),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: BrandColor.primary.withOpacity(0.20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
         children: [
-          // Icon box
+          // Avatar
           Container(
-            width: 52,
-            height: 52,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: iconColor.withOpacity(0.25)),
+              color: BrandColor.primary,
+              borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: iconColor, size: 26),
+            child: const Center(
+              child: Text(
+                'PK',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
+          // Name & date
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: BrandColor.darkText,
-                      ),
-                    ),
-                    if (badge != null) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: color.withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: color.withOpacity(0.28)),
-                        ),
-                        child: Text(
-                          badge!,
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            color: BrandColor.accent,
-                            letterSpacing: 0.6,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
+                const Text(
+                  'Pomegranate Farm',
+                  style: TextStyle(
+                    color: BrandColor.darkText,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 12.5, color: BrandColor.softText),
+                  dateStr,
+                  style: TextStyle(
+                    color: BrandColor.lightText,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
-          Icon(
-            Icons.arrow_forward_ios_rounded,
-            color: iconColor.withOpacity(0.55),
-            size: 14,
+          // Time chip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: BrandColor.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: BrandColor.primary.withOpacity(0.20)),
+            ),
+            child: Text(
+              timeStr,
+              style: const TextStyle(
+                color: BrandColor.primary,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -443,37 +249,85 @@ class _GlassFeatureCard extends StatelessWidget {
   }
 }
 
-// ── Glass Mini Card ────────────────────────────────────────────
-class _GlassMiniCard extends StatelessWidget {
-  final String emoji;
+class _HomeComponentCard extends StatelessWidget {
+  final IconData icon;
   final String title;
+  final String subtitle;
+  final Color color;
   final VoidCallback onTap;
 
-  const _GlassMiniCard({
-    required this.emoji,
+  const _HomeComponentCard({
+    required this.icon,
     required this.title,
+    required this.subtitle,
+    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GlassContainer(
-        onTap: onTap,
-        padding: const EdgeInsets.symmetric(vertical: 20),
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: color.withOpacity(0.14)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.08),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 28)),
-            const SizedBox(height: 8),
+            Container(
+              height: 52,
+              width: 52,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(icon, color: color, size: 28),
+            ),
+            const Spacer(),
             Text(
               title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: BrandColor.lightText,
-                height: 1.3,
+              style: const TextStyle(
+                color: BrandColor.darkText,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                height: 1.15,
               ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: BrandColor.lightText,
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  'Open',
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Icon(Icons.arrow_forward_rounded, color: color, size: 16),
+              ],
             ),
           ],
         ),

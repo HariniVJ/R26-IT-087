@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
 import '../../common/brand_color.dart';
-import '../../common/glass_container.dart';
-import '../dashboard_view/dashboard_view.dart';
+import '../home_shell/home_shell.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -13,7 +13,6 @@ class SplashView extends StatefulWidget {
 
 class _SplashViewState extends State<SplashView>
     with SingleTickerProviderStateMixin {
-  // ── Animation (logic unchanged) ───────────────────────────
   late AnimationController _controller;
   late Animation<double> _fadeAnim;
   late Animation<double> _scaleAnim;
@@ -31,6 +30,7 @@ class _SplashViewState extends State<SplashView>
       begin: 0,
       end: 1,
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
+
     _scaleAnim = Tween<double>(
       begin: 0.7,
       end: 1,
@@ -42,7 +42,7 @@ class _SplashViewState extends State<SplashView>
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardView()),
+          MaterialPageRoute(builder: (_) => const HomeShell()),
         );
       }
     });
@@ -54,89 +54,82 @@ class _SplashViewState extends State<SplashView>
     super.dispose();
   }
 
-  // ── UI ────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: BrandColor.background,
-      body: Stack(
-        children: [
-          // Layered dark background with orbs
-          const DarkBackground(),
-
-          // Animated content
-          FadeTransition(
-            opacity: _fadeAnim,
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Glass logo circle
-                  ScaleTransition(
-                    scale: _scaleAnim,
-                    child: GlassContainer(
-                      borderRadius: BorderRadius.circular(40),
-                      padding: const EdgeInsets.all(30),
-                      fillColor: BrandColor.glassWarmFill,
-                      borderColor: BrandColor.glassWarmBorder,
-                      blur: 18,
-                      child: const Text('🍎', style: TextStyle(fontSize: 64)),
-                    ),
-                  ),
-
-                  const SizedBox(height: 36),
-
-                  // App name
-                  const Text(
-                    BrandTexts.appName,
-                    style: TextStyle(
-                      color: BrandColor.darkText,
-                      fontSize: 30,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    BrandTexts.subTitle,
-                    style: TextStyle(color: BrandColor.lightText, fontSize: 14),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Thin divider line
-                  Container(
-                    width: 48,
-                    height: 1,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.transparent,
-                          BrandColor.accent.withOpacity(0.6),
-                          Colors.transparent,
-                        ],
+      backgroundColor: Colors.white,
+      body: FadeTransition(
+        opacity: _fadeAnim,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ScaleTransition(
+                scale: _scaleAnim,
+                child: Container(
+                  width: 130,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF4F6),
+                    borderRadius: BorderRadius.circular(40),
+                    border: Border.all(color: const Color(0xFFFFD7DE)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: BrandColor.primary.withOpacity(0.15),
+                        blurRadius: 30,
+                        offset: const Offset(0, 12),
                       ),
-                    ),
+                    ],
                   ),
-
-                  const SizedBox(height: 60),
-
-                  // Loader
-                  SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CircularProgressIndicator(
-                      color: BrandColor.accent.withOpacity(0.55),
-                      strokeWidth: 2.5,
-                    ),
+                  child: const Center(
+                    child: Text('🍎', style: TextStyle(fontSize: 64)),
                   ),
-                ],
+                ),
               ),
-            ),
+
+              const SizedBox(height: 36),
+
+              const Text(
+                BrandTexts.appName,
+                style: TextStyle(
+                  color: BrandColor.darkText,
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+
+              const SizedBox(height: 8),
+
+              Text(
+                BrandTexts.subTitle,
+                style: TextStyle(color: BrandColor.lightText, fontSize: 14),
+              ),
+
+              const SizedBox(height: 20),
+
+              Container(
+                width: 48,
+                height: 3,
+                decoration: BoxDecoration(
+                  color: BrandColor.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+
+              const SizedBox(height: 60),
+
+              const SizedBox(
+                width: 26,
+                height: 26,
+                child: CircularProgressIndicator(
+                  color: BrandColor.primary,
+                  strokeWidth: 2.5,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
