@@ -1,6 +1,3 @@
-// lib/models/dashboard_item.dart
-// Data model for each module button on the dashboard
-
 import 'package:flutter/material.dart';
 
 class DashboardItem {

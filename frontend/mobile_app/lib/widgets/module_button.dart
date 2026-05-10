@@ -1,8 +1,3 @@
-// lib/widgets/module_button.dart
-// Reusable animated module button — used 4 times in the dashboard grid.
-// All styling controlled by DashboardItem.color and AppColors/AppConstants.
-// To change button appearance: edit only this file.
-
 import 'package:flutter/material.dart';
 import '../models/dashboard_item.dart';
 import '../theme/app_colors.dart';
@@ -105,13 +100,13 @@ class _ModuleButtonState extends State<ModuleButton> {
         Text(
           'Open',
           style: TextStyle(
-            color: Colors.white,
+            color: Color.fromARGB(255, 0, 0, 0),
             fontSize: 10,
             fontWeight: FontWeight.w700,
           ),
         ),
         SizedBox(width: 4),
-        Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 12),
+        Icon(Icons.arrow_forward_rounded, color: Color.fromARGB(255, 0, 0, 0), size: 12),
       ],
     ),
   );
@@ -132,14 +127,15 @@ class _ModuleButtonState extends State<ModuleButton> {
 
   // ── Local text styles (use AppTextStyles if you prefer) ───────────────────
   static const _buttonTitle = TextStyle(
-    color: Colors.white,
+    color: Color.fromARGB(255, 0, 0, 0),
     fontWeight: FontWeight.w700,
     fontSize: 14,
     height: 1.2,
   );
 
   static final _buttonSubtitle = TextStyle(
-    color: Colors.white.withOpacity(0.55),
-    fontSize: 11,
+    color: Color.fromARGB(255, 0, 0, 0),
+     fontWeight: FontWeight.w700,
+    fontSize: 12,
   );
 }

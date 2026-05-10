@@ -1,91 +1,74 @@
 // lib/screens/dashboard_screen.dart
-// Dashboard screen — imports all shared widgets and config.
-// To change colors  → edit lib/theme/app_colors.dart
-// To change sizes   → edit lib/config/app_constants.dart
-// To change buttons → edit lib/widgets/module_button.dart
-// To change weather → edit lib/widgets/weather_card.dart
-// To add real screens → update _openScreen() switch cases below
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-// ── Config & theme ────────────────────────────────────────────────────────────
 import '../config/app_constants.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text.dart';
-
-// ── Data model ────────────────────────────────────────────────────────────────
 import '../models/dashboard_item.dart';
-
-// ── Reusable widgets ──────────────────────────────────────────────────────────
-import '../widgets/glass_box.dart';
 import '../widgets/module_button.dart';
 import '../widgets/weather_card.dart';
-
-// ── Services ──────────────────────────────────────────────────────────────────
 import '../services/weather_service.dart';
 
-// ── Screens ───────────────────────────────────────────────────────────────────
 import 'quality_grading_screen.dart';
 import 'coming_soon_screen.dart';
-// When team members finish their screens, add imports here:
-// import 'soil_analysis_screen.dart';
-// import 'fruit_growth_screen.dart';
-// import 'disease_detection_screen.dart';
 
-// ── Module list — ADD / REMOVE / REORDER here only ───────────────────────────
-// Colors come from AppColors so changing one place updates all buttons
+const _red = Color(0xFFC1121F);
+const _redSoft = Color(0xFFFFEEF3);
+const _redCard = Color(0xFFFFF1F5);
+const _textDark = Color(0xFF1F2937);
+const _textSoft = Color(0xFF6B7280);
+const _border = Color(0xFFE5E7EB);
+
 const _modules = [
   DashboardItem(
-    title: 'Soil Analysis',
+    title: 'Irrigation Advice',
     subtitle: 'NPK & Moisture',
     emoji: '🌱',
-    color: AppColors.soilColor,
+    color: Color(0xFFF3C6CF),
     screenName: 'soil',
   ),
   DashboardItem(
     title: 'Fruit Growth',
     subtitle: 'Stage & Harvest',
     emoji: '🌿',
-    color: AppColors.growthColor,
+    color: Color(0xFFF3C6CF),
     screenName: 'growth',
   ),
   DashboardItem(
     title: 'Disease Detect',
     subtitle: 'Scan & Treat',
     emoji: '🔬',
-    color: AppColors.diseaseColor,
+    color: Color(0xFFF3C6CF),
     screenName: 'disease',
   ),
   DashboardItem(
     title: 'Quality Grading',
     subtitle: 'AI Analysis',
     emoji: '🍎',
-    color: AppColors.gradingColor,
+    color: Color(0xFFF3C6CF),
     screenName: 'grading',
   ),
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
+
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
-  // ── Time ──────────────────────────────────────────────────────────────────
   late Timer _timer;
   late DateTime _now;
 
-  // ── Weather ───────────────────────────────────────────────────────────────
   final _weatherSvc = WeatherService();
   WeatherData? _weather;
   bool _weatherLoading = true;
   String? _weatherError;
 
-  // ── Button entrance animations ────────────────────────────────────────────
   late final List<AnimationController> _btnCtrls;
   late final List<Animation<double>> _btnAnims;
 
@@ -98,7 +81,6 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (mounted) setState(() => _now = DateTime.now());
     });
 
-    // Staggered scale-in for each module button
     _btnCtrls = List.generate(
       _modules.length,
       (_) => AnimationController(
@@ -106,6 +88,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         duration: const Duration(milliseconds: 800),
       ),
     );
+
     _btnAnims = _btnCtrls
         .map((c) => CurvedAnimation(parent: c, curve: Curves.elasticOut))
         .toList();
@@ -122,7 +105,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     _timer.cancel();
-    for (final c in _btnCtrls) c.dispose();
+    for (final c in _btnCtrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -131,46 +116,39 @@ class _DashboardScreenState extends State<DashboardScreen>
       _weatherLoading = true;
       _weatherError = null;
     });
+
     try {
       final d = await _weatherSvc.fetchWeather();
-      if (mounted)
+      if (mounted) {
         setState(() {
           _weather = d;
           _weatherLoading = false;
         });
+      }
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _weatherLoading = false;
           _weatherError = 'Could not load weather';
         });
+      }
     }
   }
 
-  // ── Navigation — only change this method to connect new screens ───────────
   void _openScreen(DashboardItem item) {
     Widget screen;
+
     switch (item.screenName) {
       case 'grading':
         screen = const QualityGradingScreen();
         break;
-      // Uncomment when team members finish their screens:
-      // case 'soil':
-      //   screen = const SoilAnalysisScreen();
-      //   break;
-      // case 'growth':
-      //   screen = const FruitGrowthScreen();
-      //   break;
-      // case 'disease':
-      //   screen = const DiseaseDetectionScreen();
-      //   break;
       default:
         screen = ComingSoonScreen(title: item.title, color: item.color);
     }
+
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
-  // ── Time helpers ──────────────────────────────────────────────────────────
   String get _clock {
     return '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
   }
@@ -198,191 +176,212 @@ class _DashboardScreenState extends State<DashboardScreen>
       'Nov',
       'Dec',
     ];
+
     return '${wd[_now.weekday - 1]}, ${_now.day} ${mo[_now.month - 1]} ${_now.year}';
   }
 
-  // ── BUILD ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          // Layer 1 — background image
-          Image.asset(
-            AppConstants.bgImage,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF2D0A12),
-                    Color(0xFF5C1A28),
-                    Color(0xFF1A0A0E),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            AppConstants.screenPadding,
+            12,
+            AppConstants.screenPadding,
+            32,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _topRow(),
+              const SizedBox(height: 18),
+              _greeting2(),
+              const SizedBox(height: 18),
+              Container(
+                decoration: BoxDecoration(
+                  color: _redSoft,
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _red.withOpacity(0.08),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
                 ),
+                child: WeatherCard(
+                  isLoading: _weatherLoading,
+                  error: _weatherError,
+                  data: _weather,
+                  onRetry: _loadWeather,
+                ),
               ),
-            ),
-          ),
-
-          // Layer 2 — dark overlay
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.overlayTop,
-                  AppColors.overlayMid,
-                  AppColors.overlayBottom,
-                ],
-              ),
-            ),
-          ),
-
-          // Layer 3 — content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                AppConstants.screenPadding,
-                12,
-                AppConstants.screenPadding,
-                32,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _topRow(),
-                  const SizedBox(height: 18),
-                  _greeting2(),
-                  const SizedBox(height: 18),
-
-                  // ── Weather card (reusable widget) ───────────────────────
-                  WeatherCard(
-                    isLoading: _weatherLoading,
-                    error: _weatherError,
-                    data: _weather,
-                    onRetry: _loadWeather,
-                  ),
-
-                  const SizedBox(height: AppConstants.sectionGap),
-                  _sectionTitle(),
-                  const SizedBox(height: 14),
-
-                  // ── Module grid ──────────────────────────────────────────
-                  GridView.count(
-                    crossAxisCount: AppConstants.gridColumns,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisSpacing: AppConstants.gridSpacing,
-                    mainAxisSpacing: AppConstants.gridSpacing,
-                    childAspectRatio: AppConstants.gridAspectRatio,
-                    children: List.generate(
-                      _modules.length,
-                      (i) => ScaleTransition(
-                        scale: _btnAnims[i],
-                        // ── Reusable ModuleButton widget ─────────────────
-                        child: ModuleButton(
-                          item: _modules[i],
-                          onTap: () => _openScreen(_modules[i]),
-                        ),
+              const SizedBox(height: AppConstants.sectionGap),
+              _sectionTitle(),
+              const SizedBox(height: 14),
+              GridView.count(
+                crossAxisCount: AppConstants.gridColumns,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: AppConstants.gridSpacing,
+                mainAxisSpacing: AppConstants.gridSpacing,
+                childAspectRatio: AppConstants.gridAspectRatio,
+                children: List.generate(
+                  _modules.length,
+                  (i) => ScaleTransition(
+                    scale: _btnAnims[i],
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _redCard,
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: _red.withOpacity(0.06),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: ModuleButton(
+                        item: _modules[i],
+                        onTap: () => _openScreen(_modules[i]),
                       ),
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
-  // ── Top row ────────────────────────────────────────────────────────────────
   Widget _topRow() => Row(
     children: [
-      // Avatar
       Container(
         width: 46,
         height: 46,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const LinearGradient(
-            colors: [AppColors.crimson, AppColors.rose],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          border: Border.all(color: Colors.white.withOpacity(0.45), width: 2),
-        ),
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: _red),
         child: Center(
           child: Text(
             AppConstants.farmerName.substring(0, 2).toUpperCase(),
-            style: AppTextStyles.farmName.copyWith(fontSize: 15),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ),
       const SizedBox(width: 12),
-
       Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(AppConstants.farmName, style: AppTextStyles.farmName),
+            Text(
+              AppConstants.farmName,
+              style: const TextStyle(
+                color: _textDark,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
             Text(
               _date,
-              style: TextStyle(color: AppColors.textWhiteFaint, fontSize: 11),
+              style: const TextStyle(
+                color: _textSoft,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
       ),
-
-      // Live clock — uses GlassBox
-      GlassBox(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        radius: AppConstants.clockRadius,
-        child: Text(_clock, style: AppTextStyles.clock),
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: _redSoft,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _red.withOpacity(0.15)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.access_time_rounded, color: _red, size: 13),
+            const SizedBox(width: 5),
+            Text(
+              _clock,
+              style: const TextStyle(
+                color: _red,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     ],
   );
 
-  // ── Greeting ───────────────────────────────────────────────────────────────
   Widget _greeting2() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Row(
         children: [
           Text(
-            '$_greeting  ',
-            style: TextStyle(color: AppColors.textWhiteSoft, fontSize: 14),
+            '$_greeting ',
+            style: const TextStyle(
+              color: _textSoft,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          const Text('🌾', style: TextStyle(fontSize: 16)),
+          const Text('🌾', style: TextStyle(fontSize: 14)),
         ],
       ),
-      Text(AppConstants.farmerName, style: AppTextStyles.farmerName),
+      Text(
+        AppConstants.farmerName,
+        style: const TextStyle(
+          color: _textDark,
+          fontSize: 25,
+          fontWeight: FontWeight.w900,
+          height: 1.1,
+        ),
+      ),
     ],
   );
 
-  // ── Section title ──────────────────────────────────────────────────────────
   Widget _sectionTitle() => Row(
     children: [
       Container(
         width: 4,
-        height: 22,
+        height: 24,
         margin: const EdgeInsets.only(right: 10),
         decoration: BoxDecoration(
-          color: AppColors.rose,
+          color: _red,
           borderRadius: BorderRadius.circular(2),
         ),
       ),
       Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Farm Management', style: AppTextStyles.sectionTitle),
+        children: const [
+          Text(
+            'Farm Management',
+            style: TextStyle(
+              color: _textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
           Text(
             'Select a module to get started',
-            style: TextStyle(color: AppColors.textWhiteFaint, fontSize: 12),
+            style: TextStyle(
+              color: _textSoft,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),

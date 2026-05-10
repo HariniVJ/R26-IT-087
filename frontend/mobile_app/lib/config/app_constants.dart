@@ -5,8 +5,8 @@ class AppConstants {
   AppConstants._();
 
   // ── Farmer info ───────────────────────────────────────────────────────────
-  static const farmerName = 'Akaran';
-  static const farmName   = "Akaran's Farm";
+  static const farmerName = 'Pomegranate';
+  static const farmName   = "Pomegranate Farm";
 
   // ── Assets ────────────────────────────────────────────────────────────────
   static const bgImage    = 'assets/images/farm_bg2.jpeg';
