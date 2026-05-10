@@ -145,7 +145,7 @@ class WeatherCard extends StatelessWidget {
               children: [
                 Icon(
                   Icons.location_on_rounded,
-                  color: AppColors.rose.withOpacity(0.8),
+                  color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.8),
                   size: 14,
                 ),
                 const SizedBox(width: 4),

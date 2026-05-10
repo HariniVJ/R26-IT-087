@@ -1,4 +1,4 @@
-name: frontend
+name: PomCare
 description: "A new Flutter project."
 
 publish_to: 'none'
@@ -24,6 +24,8 @@ dependencies:
   fl_chart: ^0.68.0
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.13.1
+
   flutter_test:
     sdk: flutter
 
@@ -41,3 +43,8 @@ flutter:
     - assets/images/farm_bg4.jpeg
     - assets/models/pomegranat_quality_model.tflite
     - assets/models/labels.txt
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon1.png"

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../dashboard_screen.dart';
+import '../../common/brand_color.dart';
 
-const _red = Color(0xFFC1121F);
+const _red = BrandColor.primary;
 const _redSoft = Color(0xFFFFEEF3);
 const _textDark = Color(0xFF1F2937);
 const _textSoft = Color(0xFF6B7280);
@@ -141,9 +142,7 @@ class _OnboardingAuthFlowState extends State<OnboardingAuthFlow> {
                     onPressed: () {
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const LoginScreen(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
                       );
                     },
                     child: const Text(
@@ -241,10 +240,7 @@ class LoginScreen extends StatelessWidget {
 
               const Text(
                 'Login to continue smart farming',
-                style: TextStyle(
-                  color: _textSoft,
-                  fontSize: 15,
-                ),
+                style: TextStyle(color: _textSoft, fontSize: 15),
               ),
 
               const SizedBox(height: 40),
@@ -277,10 +273,7 @@ class LoginScreen extends StatelessWidget {
                   },
                   child: const Text(
                     'Login',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
                 ),
               ),
@@ -292,9 +285,7 @@ class LoginScreen extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const SignupScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const SignupScreen()),
                     );
                   },
                   child: RichText(
@@ -371,10 +362,7 @@ class SignupScreen extends StatelessWidget {
 
               const Text(
                 'Start your smart farming journey',
-                style: TextStyle(
-                  color: _textSoft,
-                  fontSize: 15,
-                ),
+                style: TextStyle(color: _textSoft, fontSize: 15),
               ),
 
               const SizedBox(height: 40),
@@ -409,10 +397,7 @@ class SignupScreen extends StatelessWidget {
                   },
                   child: const Text(
                     'Create Account',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                   ),
                 ),
               ),

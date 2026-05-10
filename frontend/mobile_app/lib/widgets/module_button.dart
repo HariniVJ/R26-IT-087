@@ -91,7 +91,7 @@ class _ModuleButtonState extends State<ModuleButton> {
   Widget _openChip(Color color) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.22),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(AppConstants.chipRadius),
     ),
     child: const Row(
@@ -131,14 +131,14 @@ class _ModuleButtonState extends State<ModuleButton> {
 
   // ── Local text styles (use AppTextStyles if you prefer) ───────────────────
   static const _buttonTitle = TextStyle(
-    color: Color.fromARGB(255, 0, 0, 0),
+    color: Color.fromARGB(255, 255, 255, 255),
     fontWeight: FontWeight.w700,
     fontSize: 14,
     height: 1.2,
   );
 
   static final _buttonSubtitle = TextStyle(
-    color: Color.fromARGB(255, 0, 0, 0),
+    color: Color.fromARGB(255, 255, 255, 255),
     fontWeight: FontWeight.w700,
     fontSize: 12,
   );

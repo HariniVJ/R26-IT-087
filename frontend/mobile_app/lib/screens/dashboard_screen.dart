@@ -9,6 +9,7 @@ import '../models/dashboard_item.dart';
 import '../widgets/module_button.dart';
 import '../widgets/weather_card.dart';
 import '../services/weather_service.dart';
+import '../../common/brand_color.dart';
 
 import 'irrigation_screen.dart';
 import 'fertilizer_screen.dart';
@@ -28,35 +29,35 @@ const _modules = [
     title: 'Irrigation Advice',
     subtitle: 'Check water suitability',
     emoji: '💧',
-    color: Color(0xFFF3C6CF),
+    color:  BrandColor.primary,
     screenName: 'irrigation',
   ),
   DashboardItem(
     title: 'Fruit Growth',
     subtitle: 'Stage & Harvest',
     emoji: '🌿',
-    color: Color(0xFFF3C6CF),
+    color:  BrandColor.primary,
     screenName: 'growth',
   ),
   DashboardItem(
     title: 'Disease Detect',
     subtitle: 'Scan & Treat',
     emoji: '🔬',
-    color: Color(0xFFF3C6CF),
+    color:  BrandColor.primary,
     screenName: 'disease',
   ),
   DashboardItem(
     title: 'Quality Grading',
     subtitle: 'AI Analysis',
     emoji: '🍎',
-    color: Color(0xFFF3C6CF),
+    color:  BrandColor.primary,
     screenName: 'grading',
   ),
   DashboardItem(
     title: 'Fertilizer',
     subtitle: 'NPK & fertilizer amount',
     emoji: '🧪',
-    color: Color(0xFFF3C6CF),
+    color:  BrandColor.primary,
     screenName: 'fertilizer',
   ),
 ];
@@ -224,15 +225,15 @@ class _DashboardScreenState extends State<DashboardScreen>
 
               Container(
                 decoration: BoxDecoration(
-                  color: _redSoft,
+                  color:  BrandColor.primary,
                   borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _red.withOpacity(0.08),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  // boxShadow: [
+                  //   BoxShadow(
+                  //     color: BrandColor.primary,
+                  //     blurRadius: 18,
+                  //     offset: const Offset(0, 6),
+                  //   ),
+                  // ],
                 ),
                 child: WeatherCard(
                   isLoading: _weatherLoading,
@@ -283,6 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       decoration: BoxDecoration(
         color: _redCard,
+        //color: BrandColor.primary,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
@@ -301,7 +303,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       Container(
         width: 46,
         height: 46,
-        decoration: const BoxDecoration(shape: BoxShape.circle, color: _red),
+        decoration: const BoxDecoration(shape: BoxShape.circle, color: BrandColor.primary,
+        ),
         child: Center(
           child: Text(
             AppConstants.farmerName.substring(0, 2).toUpperCase(),
@@ -486,7 +489,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? AppBottomNavBar._red : AppBottomNavBar._soft;
+    final color = active ? BrandColor.primary : AppBottomNavBar._soft;
 
     return GestureDetector(
   onTap: onTap,
@@ -518,7 +521,7 @@ class _ScanButton extends StatelessWidget {
       width: 58,
       height: 58,
       decoration: BoxDecoration(
-        color: AppBottomNavBar._red,
+        color: BrandColor.primary,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
