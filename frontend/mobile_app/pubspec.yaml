@@ -59,6 +59,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - .env
     - assets/images/farm_bg.jpeg
     - assets/images/farm_bg1.jpeg
     - assets/images/farm_bg2.jpeg
