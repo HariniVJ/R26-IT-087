@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config.firebase_config import init_firebase
+
 from app.models.weather_model import IrrigationMobileInput
 from app.models.soil_model import FertilizerMobileInput
 
@@ -8,11 +10,12 @@ from app.services.irrigation_service import predict_irrigation_from_mobile
 from app.services.fertilizer_service import predict_fertilizer_from_mobile
 
 from app.routes.grading_routes import router as grading_router
+from app.routes.disease_detection_routes import router as disease_router
 
 
 app = FastAPI(
     title="AI-Based Intelligent Farming System",
-    description="Pomegranate yield and quality improvement backend",
+    description="Pomegranate yield, quality improvement, disease detection and treatment recommendation backend",
     version="1.0.0",
 )
 
@@ -26,24 +29,33 @@ app.add_middleware(
 )
 
 
+init_firebase()
+
+
 app.include_router(
     grading_router,
     prefix="/grading",
     tags=["Fruit Quality Grading"],
 )
 
+app.include_router(
+    disease_router,
+    tags=["Disease Detection"],
+)
+
 
 @app.get("/", tags=["Health"])
 def root():
     return {
-        "message": "AI Farming System Backend is running"
+        "success": True,
+        "message": "AI Farming System Backend is running",
     }
 
 
 @app.get("/health", tags=["Health"])
 def health_check():
     return {
-        "status": "healthy"
+        "status": "healthy",
     }
 
 

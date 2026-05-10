@@ -9,3 +9,7 @@ python-multipart==0.0.9
 firebase-admin==6.5.0
 Pillow==10.4.0
 python-dotenv==1.0.1
+
+numpy
+tensorflow
+

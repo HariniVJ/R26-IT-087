@@ -13,6 +13,7 @@ import '../services/weather_service.dart';
 import 'irrigation_screen.dart';
 import 'fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
+import '../screens/dashboard_view/dashboard_view.dart';
 import 'coming_soon_screen.dart';
 
 const _red = Color(0xFFC1121F);
@@ -151,6 +152,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         break;
       case 'fertilizer':
         screen = const FertilizerScreen();
+        break;
+      case 'disease':
+        screen = const DashboardView();
         break;
       case 'grading':
         screen = const QualityGradingScreen();
