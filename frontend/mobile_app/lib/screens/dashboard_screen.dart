@@ -16,6 +16,7 @@ import 'fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
 import '../screens/dashboard_view/dashboard_view.dart';
 import 'coming_soon_screen.dart';
+import '../screens/capture_screen.dart';
 import '../screens/profile_view/profile_view.dart';
 
 const _red = Color(0xFFC1121F);
@@ -158,6 +159,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       case 'disease':
         screen = const DashboardView();
         break;
+      case 'growth':
+        screen = const CaptureScreen();
+        break;
       case 'grading':
         screen = const QualityGradingScreen();
         break;
@@ -283,8 +287,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   Widget _moduleCard(DashboardItem item) {
     return Container(
       decoration: BoxDecoration(
-        color: _redCard,
-        //color: BrandColor.primary,
+        //color: _redCard,
+        color: BrandColor.primary,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(

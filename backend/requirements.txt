@@ -12,4 +12,5 @@ python-dotenv==1.0.1
 
 numpy
 tensorflow
+httpx>=0.25.0
 

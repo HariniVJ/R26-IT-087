@@ -22,6 +22,7 @@ dependencies:
   permission_handler: ^11.3.1
   shared_preferences: ^2.5.5
   fl_chart: ^0.68.0
+  http_parser: ^4.1.2
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -43,6 +44,15 @@ flutter:
     - assets/images/farm_bg4.jpeg
     - assets/models/pomegranat_quality_model.tflite
     - assets/models/labels.txt
+    - assets/images/pomegranate.jpeg
+    - assets/images/bud.png
+    - assets/images/early_fruit.png
+    - assets/images/mid_growth.png
+    - assets/images/Mature.png
+    - assets/images/Flower.jpg
+    - assets/images/Early_Fruit.jpg
+    - assets/images/Mature_fruit.jpg
+    - assets/images/Mid_Growth.jpg
 
 flutter_launcher_icons:
   android: true
