@@ -11,6 +11,7 @@ from app.services.fertilizer_service import predict_fertilizer_from_mobile
 
 from app.routes.grading_routes import router as grading_router
 from app.routes.disease_detection_routes import router as disease_router
+from app.controllers.growth_controller import router as growth_router
 
 
 app = FastAPI(
@@ -84,3 +85,15 @@ def predict_fertilizer(input_data: FertilizerMobileInput):
     )
 
     return result
+
+app.include_router(growth_router)
+
+@app.get("/")
+def root():
+    return {
+        "message": "Pomegranate Growth Stage Detection API is running!",
+        "docs": "Visit /docs for Swagger UI",
+        "endpoints": {
+            "detect_growth_stage_and_harvest_time": "POST /api/growth/predict"
+        }
+    }
