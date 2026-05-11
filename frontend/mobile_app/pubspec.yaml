@@ -48,3 +48,13 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/icons/app_icon1.png"
+  assets:
+    - assets/images/pomegranate.jpeg
+    - assets/images/bud.png
+    - assets/images/early_fruit.png
+    - assets/images/mid_growth.png
+    - assets/images/Mature.png
+    - assets/images/Flower.jpg
+    - assets/images/Early_Fruit.jpg
+    - assets/images/Mature_fruit.jpg
+    - assets/images/Mid_Growth.jpg
