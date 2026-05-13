@@ -1,3 +1,40 @@
+<div align="center">
+<!-- Animated Banner SVG -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=B22222&height=200&section=header&text=🌱%20AI-POMEGRANATE%20FARMING%20SYSTEM&fontSize=32&fontColor=fff&animation=twinkling&fontAlignY=38&desc=Intelligent%20Smart%20Agriculture%20Platform&descAlignY=58&descSize=16" width="100%"/>
+
+
+
+
+<br/>
+
+<!-- Badges Row 1 -->
+<img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
+<img src="https://img.shields.io/badge/Flutter-Mobile%20App-02569B?style=for-the-badge&logo=flutter&logoColor=white"/>
+<img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white"/>
+<img src="https://img.shields.io/badge/Firebase-Database-FFCA28?style=for-the-badge&logo=firebase&logoColor=black"/>
+
+<br/>
+
+<!-- Badges Row 2 -->
+<img src="https://img.shields.io/badge/TensorFlow-AI%20Engine-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white"/>
+<img src="https://img.shields.io/badge/OpenCV-Computer%20Vision-5C3EE8?style=for-the-badge&logo=opencv&logoColor=white"/>
+<img src="https://img.shields.io/badge/YOLO-Object%20Detection-00FFFF?style=for-the-badge&logo=yolo&logoColor=black"/>
+<img src="https://img.shields.io/badge/ESP32-IoT%20Hardware-E7352C?style=for-the-badge&logo=espressif&logoColor=white"/>
+
+<br/>
+
+<!-- Metrics Badges -->
+<img src="https://img.shields.io/badge/Dataset-10%2C000%20Records-8E44AD?style=for-the-badge&logo=databricks&logoColor=white"/>
+<img src="https://img.shields.io/badge/Pomegranate-3%2C996%20Samples-C0392B?style=for-the-badge"/>
+<img src="https://img.shields.io/badge/License-Academic%20Research-27AE60?style=for-the-badge"/>
+
+<br/><br/>
+
+<!-- Animated Divider -->
+<img src="https://user-images.githubusercontent.com/74038190/212284100-6a7f2f8d-2c9d-4e66-9c2d-7f8d3f8c5b4d.gif" width="700"/>
+
+</div>
+
 # R26-IT-087
 # AI-POMEGRANATE-FARMING-SYSTEM
 ### AI-Based Intelligent Farming System for Improving Pomegranate Yield and Quality
@@ -5,7 +42,10 @@
 AI-POMEGRANATE-FARMING-SYSTEM is an intelligent smart agriculture platform designed to support pomegranate farmers using Artificial Intelligence (AI), Machine Learning (ML), Deep Learning (DL), Computer Vision, and IoT technologies.  
 
 The system helps farmers improve pomegranate yield, fruit quality, irrigation management, disease control, fertilizer management, harvest prediction, and post-harvest utilization through intelligent AI-powered analysis and recommendations.
+
 <img width="1920" height="1080" alt="Dashboard" src="https://github.com/user-attachments/assets/d75e6997-4b4d-4fef-902b-95471b971ea7" />
+
+---
 
 # Features
 
@@ -68,13 +108,15 @@ The system helps farmers improve pomegranate yield, fruit quality, irrigation ma
 - Provides stage-based care tips and warnings
 - Uses YOLO and CNN-based image analysis
 - Supports better harvest planning and crop management
+
 <img width="1920" height="1080" alt="Purple Pink Gradient Mobile Application Presentation jpg" src="https://github.com/user-attachments/assets/eefcd0dd-91f0-452c-9c68-20ab7bb0924d" />
+
 ---
+
 # Tech Stack
 
 ## Frontend
--Flutter
-
+- Flutter
 
 ## Backend
 - Python 3.10+
@@ -94,8 +136,8 @@ The system helps farmers improve pomegranate yield, fruit quality, irrigation ma
 - SVM
 - KNN
 - ANN
--tflite
--Random Forest
+- tflite
+- Random Forest
 
 ## IoT & Hardware
 - ESP32 Microcontroller
@@ -115,7 +157,7 @@ The system helps farmers improve pomegranate yield, fruit quality, irrigation ma
 ## 1. Clone the Repository
 
 ```bash
-https://github.com/HariniVJ/R26-IT-087.git
+git clone https://github.com/HariniVJ/R26-IT-087.git
 cd R26-IT-087
 ```
 
@@ -124,7 +166,7 @@ cd R26-IT-087
 ## 2. Install Frontend Dependencies
 
 ```bash
-cd frontend 
+cd frontend
 flutter pub get
 ```
 
@@ -138,22 +180,24 @@ pip install -r requirements.txt
 ```
 
 ---
+
 ## 4. Configure Environment Variables
 
 Create a `.env` file inside the backend folder and add:
 
 ```env
 API_BASE_URL=http://127.0.0.1:8000
-OPENWEATHER_API_KEY
+OPENWEATHER_API_KEY=your_api_key_here
 ```
 
 ---
+
 ## 5. Run the Backend Server
 
 ```bash
 python -m uvicorn app.main:app --reload --port 8000
-
 ```
+
 ---
 
 ## 6. Run the Frontend
@@ -163,6 +207,7 @@ flutter run -d chrome
 ```
 
 ---
+
 ## 7. Open the Application
 
 ```bash
@@ -170,6 +215,7 @@ http://localhost:8000/docs
 ```
 
 ---
+
 # Project Structure
 
 ```bash
@@ -210,33 +256,43 @@ R26-IT-087/
 ├── .gitignore
 └── README.md
 ```
+
 ---
 
 # Screenshots
 
 Include screenshots for:
 - Dashboard Interface
-- Detecting Screen 
-- Diease Detection Screen
+- Detecting Screen
+- Disease Detection Screen
 - Capture Image Screen
 - Quality Grading Screen
 - Fertilizer Screen
 
 ---
+
 # Author
 
 - Thishoharini V
 - Sowmiya A
 - Banuja S
 - Kobiram T
+
 ---
 
 # License
 
 This project was developed for academic and research purposes.
 
+---
+
+<div align="center">
+
+<!-- Footer Wave -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=100&section=footer" width="100%"/>
 
 
+⭐ **Star this repo** if you find it useful!  
 
 
-
+</div>
