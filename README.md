@@ -1,6 +1,8 @@
 <div align="center">
+
 <!-- Animated Banner SVG -->
-<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=B22222&height=200&section=header&text=🌱%20AI-POMEGRANATE%20FARMING%20SYSTEM&fontSize=32&fontColor=fff&animation=twinkling&fontAlignY=38&desc=Intelligent%20Smart%20Agriculture%20Platform&descAlignY=58&descSize=16" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=B22222&height=200&section=header&text=🌱An%20AI-Based%20Intelligent%20Farming%20System&fontColor=ffffff&fontSize=28&animation=twinkling&fontAlignY=38&desc=for%20Improving%20Pomegranate%20Yield%20and%20Quality&descAlignY=58&descSize=16" width="100%"/>
+
 
 
 
