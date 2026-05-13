@@ -225,10 +225,10 @@ Include screenshots for:
 ---
 # Author
 
-Thishoharini V
-Sowmiya A
-Banuja S
-Kobiram T
+- Thishoharini V
+- Sowmiya A
+- Banuja S
+- Kobiram T
 ---
 
 # License
