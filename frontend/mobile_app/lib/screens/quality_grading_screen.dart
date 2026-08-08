@@ -1,0 +1,1127 @@
+// lib/screens/quality_grading_screen.dart
+// UI redesigned to match pomegranate app style (white bg, red accents, card-based)
+// All functions and logic preserved exactly.
+
+import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import '../models/grading_result.dart';
+import '../models/prediction_result.dart';
+import '../services/grading_api_service.dart';
+import '../services/tflite_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/glass_box.dart';
+import '../widgets/stack_storage_bar.dart';
+import '../widgets/date_range_pill.dart';
+import '../widgets/smart_insights_card.dart';
+import 'history_screen.dart';
+
+class QualityGradingScreen extends StatefulWidget {
+  const QualityGradingScreen({super.key});
+  @override
+  State<QualityGradingScreen> createState() => _QualityGradingScreenState();
+}
+
+enum _Phase { idle, analysing, result }
+
+class _QualityGradingScreenState extends State<QualityGradingScreen>
+    with TickerProviderStateMixin {
+  static const _userId = 'farmer_test_001';
+
+  // ── State ────────────────────────────────────────────────────────────────
+  File? _image;
+  GradingResult? _result;
+  PredictionResult? _prediction;
+  Map<String, double> _allScores = {};
+  _Phase _phase = _Phase.idle;
+  String? _error;
+  double _progress = 0;
+  int _stepIndex = 0;
+  bool _saving = false;
+  bool? _savedOk;
+
+  // ── Storage stats (from history backend) ─────────────────────────────────
+  int _highCount = 0;
+  int _mediumCount = 0;
+  int _lowCount = 0;
+  DateRange _selectedRange = DateRange.week;
+
+  final _steps = [
+    'Image preprocessing',
+    'Feature extraction',
+    'CNN classification',
+    'Generating result',
+  ];
+
+  late final AnimationController _pulseCtrl;
+  late final AnimationController _resultCtrl;
+  late final Animation<double> _resultAnim;
+
+  final _picker = ImagePicker();
+  final _service = GradingApiService();
+  final _tflite = TfliteService();
+
+  // Brand colors matching the image
+  static const _red = Color(0xFFC1121F);
+  static const _redLight = Color(0xFFFFEEEE);
+  static const _redMid = Color(0xFFFFD6D6);
+  static const _textDark = Color(0xFF1F2937);
+  static const _textMid = Color(0xFF6B7280);
+  static const _border = Color(0xFFE5E7EB);
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _resultCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _resultAnim = CurvedAnimation(
+      parent: _resultCtrl,
+      curve: Curves.elasticOut,
+    );
+
+    _tflite.loadModel().catchError((e) => debugPrint('⚠️ TFLite: $e'));
+    _loadStats();
+  }
+
+  @override
+  void dispose() {
+    _pulseCtrl.dispose();
+    _resultCtrl.dispose();
+    _tflite.dispose();
+    super.dispose();
+  }
+
+  // ── Load history → compute storage stats ─────────────────────────────────
+  Future<void> _loadStats() async {
+    try {
+      final all = await _service.getHistory(_userId);
+      final filtered = all.where((r) {
+        final dt = r.dateTime;
+        if (dt == null) return false;
+        return _selectedRange.contains(dt);
+      }).toList();
+
+      if (!mounted) return;
+      setState(() {
+        _highCount = filtered.where((r) => r.quality == 'high_quality').length;
+        _mediumCount = filtered
+            .where((r) => r.quality == 'medium_quality')
+            .length;
+        _lowCount = filtered.where((r) => r.quality == 'low_quality').length;
+      });
+    } catch (e) {
+      debugPrint('Stats load error: $e');
+    }
+  }
+
+  // ── Image picker ─────────────────────────────────────────────────────────
+  Future<void> _pick(ImageSource src) async {
+    final x = await _picker.pickImage(
+      source: src,
+      imageQuality: 85,
+      maxWidth: 1024,
+    );
+    if (x == null) return;
+    setState(() {
+      _image = File(x.path);
+      _result = null;
+      _prediction = null;
+      _allScores = {};
+      _error = null;
+      _phase = _Phase.idle;
+      _savedOk = null;
+    });
+  }
+
+  // ── Analyse flow ─────────────────────────────────────────────────────────
+  Future<void> _analyse() async {
+    if (_image == null) return;
+    setState(() {
+      _phase = _Phase.analysing;
+      _progress = 0;
+      _stepIndex = 0;
+      _error = null;
+      _savedOk = null;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    setState(() {
+      _stepIndex = 0;
+      _progress = 0.25;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 400));
+    if (!mounted) return;
+    setState(() {
+      _stepIndex = 1;
+      _progress = 0.50;
+    });
+
+    PredictionResult prediction;
+    Map<String, double> allScores;
+    try {
+      prediction = await _tflite.predict(_image!);
+      allScores = await _tflite.getAllScores(_image!);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Model error: ${e.toString().replaceFirst("Exception: ", "")}';
+        _phase = _Phase.idle;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _stepIndex = 2;
+      _progress = 0.75;
+    });
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (!mounted) return;
+    setState(() {
+      _stepIndex = 3;
+      _progress = 1.0;
+    });
+
+    final localResult = GradingResult(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      userId: _userId,
+      quality: prediction.quality,
+      confidence: prediction.confidenceDecimal,
+      recommendation: prediction.recommendation,
+      imageUrl: null,
+      createdAt: DateTime.now().toIso8601String(),
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _prediction = prediction;
+      _allScores = allScores;
+      _result = localResult;
+      _phase = _Phase.result;
+    });
+    _resultCtrl.forward(from: 0);
+    _saveToBackend(prediction);
+  }
+
+  Future<void> _saveToBackend(PredictionResult p) async {
+    if (!mounted) return;
+    setState(() {
+      _saving = true;
+    });
+
+    try {
+      final saved = await _service.saveResult(
+        userId: _userId,
+        quality: p.quality,
+        confidence: p.confidenceDecimal,
+        imageFile: _image,
+      );
+      if (!mounted) return;
+      setState(() {
+        _result = saved;
+        _savedOk = true;
+        _saving = false;
+      });
+      _loadStats();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _savedOk = false;
+        _saving = false;
+      });
+    }
+  }
+
+  void _reset() {
+    setState(() {
+      _image = null;
+      _result = null;
+      _prediction = null;
+      _allScores = {};
+      _phase = _Phase.idle;
+      _error = null;
+      _savedOk = null;
+      _saving = false;
+    });
+    _resultCtrl.reset();
+  }
+
+  // ── BUILD ────────────────────────────────────────────────────────────────
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          _appBar(),
+          Expanded(
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      if (_phase != _Phase.result) _storageStatsCard(),
+                      const SizedBox(height: 16),
+                      if (_phase == _Phase.idle) _idleBody(),
+                      if (_phase == _Phase.analysing) _analysingBody(),
+                      if (_phase == _Phase.result) _resultBody(),
+                      if (_error != null) _errorBanner(),
+                    ]),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── App bar ─────────────────────────────────────────────────────────────
+  Widget _appBar() => Container(
+    color: Colors.white,
+    child: SafeArea(
+      bottom: false,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border(bottom: BorderSide(color: _border, width: 1)),
+        ),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: _textDark,
+                size: 18,
+              ),
+              onPressed: () => Navigator.pop(context),
+            ),
+            const Expanded(
+              child: Text(
+                'Quality Grading',
+                style: TextStyle(
+                  color: _textDark,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.history_rounded,
+                    color: _textDark,
+                    size: 22,
+                  ),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const HistoryScreen(userId: _userId),
+                    ),
+                  ),
+                ),
+                if (_phase == _Phase.result || _image != null)
+                  IconButton(
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: _red,
+                      size: 22,
+                    ),
+                    onPressed: _reset,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  // ── Storage stats card ─────────────────────────────────────────────────
+  Widget _storageStatsCard() {
+    final total = _highCount + _mediumCount + _lowCount;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'STORAGE OVERVIEW',
+                  style: TextStyle(
+                    color: _textMid,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              DateRangePill(
+                selected: _selectedRange,
+                onChanged: (r) {
+                  setState(() => _selectedRange = r);
+                  _loadStats();
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                '$total',
+                style: const TextStyle(
+                  color: _textDark,
+                  fontSize: 30,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'graded ${_selectedRange.label.toLowerCase()}',
+                style: const TextStyle(
+                  color: _textMid,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          StackStorageBar(
+            high: _highCount,
+            medium: _mediumCount,
+            low: _lowCount,
+          ),
+          const SizedBox(height: 10),
+          StackStorageLegend(
+            high: _highCount,
+            medium: _mediumCount,
+            low: _lowCount,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Idle body ────────────────────────────────────────────────────────────
+  Widget _idleBody() => Column(
+    children: [
+      _uploadBox(),
+      const SizedBox(height: 12),
+      Row(
+        children: [
+          Expanded(
+            child: _pickButton(
+              Icons.camera_alt_rounded,
+              'Camera',
+              ImageSource.camera,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _pickButton(
+              Icons.photo_library_rounded,
+              'Gallery',
+              ImageSource.gallery,
+            ),
+          ),
+        ],
+      ),
+      const SizedBox(height: 12),
+      if (_image != null) _primaryButton(),
+      const SizedBox(height: 16),
+      SmartInsightsCard(high: _highCount, medium: _mediumCount, low: _lowCount),
+    ],
+  );
+
+  // ── Full-width upload box ────────────────────────────────────────────────
+  Widget _uploadBox() {
+    if (_image == null) {
+      return AnimatedBuilder(
+        animation: _pulseCtrl,
+        builder: (_, __) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+          decoration: BoxDecoration(
+            color: _redLight,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: _red.withOpacity(0.25 + 0.15 * _pulseCtrl.value),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _redMid, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _red.withOpacity(0.12),
+                      blurRadius: 16,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.add_photo_alternate_rounded,
+                  color: _red,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Tap to Upload Fruit Image',
+                style: TextStyle(
+                  color: _textDark,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'JPG · PNG · Max 10 MB',
+                style: TextStyle(color: _textMid, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Stack(
+        children: [
+          Image.file(
+            _image!,
+            height: 240,
+            width: double.infinity,
+            fit: BoxFit.cover,
+          ),
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [Colors.black.withOpacity(0.65), Colors.transparent],
+                ),
+              ),
+              padding: const EdgeInsets.all(14),
+              child: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Image ready — tap Analyse',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _pickButton(IconData icon, String label, ImageSource src) =>
+      GestureDetector(
+        onTap: () => _pick(src),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: _border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: _red, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: const TextStyle(
+                  color: _textDark,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  Widget _primaryButton() => GestureDetector(
+    onTap: _analyse,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      decoration: BoxDecoration(
+        color: _red,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _red.withOpacity(0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
+          SizedBox(width: 8),
+          Text(
+            'Analyse Quality',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  // ── Analysing body ──────────────────────────────────────────────────────
+  Widget _analysingBody() => Column(
+    children: [
+      AnimatedBuilder(
+        animation: _pulseCtrl,
+        builder: (_, __) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(28),
+          child: Center(
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Transform.scale(
+                  scale: 1.0 + 0.12 * _pulseCtrl.value,
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _red.withOpacity(0.08 + 0.06 * _pulseCtrl.value),
+                    ),
+                  ),
+                ),
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _red,
+                    boxShadow: [
+                      BoxShadow(
+                        color: _red.withOpacity(0.35),
+                        blurRadius: 20,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Colors.white,
+                    size: 36,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 14),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Analyzing Quality...',
+                  style: TextStyle(
+                    color: _textDark,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _redLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${(_progress * 100).toInt()}%',
+                    style: const TextStyle(
+                      color: _red,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: _progress,
+                minHeight: 8,
+                backgroundColor: _redLight,
+                valueColor: const AlwaysStoppedAnimation(_red),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ..._steps.asMap().entries.map((e) => _stepRow(e.key, e.value)),
+          ],
+        ),
+      ),
+    ],
+  );
+
+  Widget _stepRow(int idx, String label) {
+    final done = idx < _stepIndex;
+    final running = idx == _stepIndex;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: done
+                  ? AppColors.chartHigh
+                  : running
+                  ? _red
+                  : const Color(0xFFE5E7EB),
+            ),
+            child: Icon(
+              done
+                  ? Icons.check
+                  : running
+                  ? Icons.hourglass_top_rounded
+                  : Icons.circle,
+              size: 13,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            label,
+            style: TextStyle(
+              color: done || running ? _textDark : _textMid,
+              fontSize: 13,
+              fontWeight: running ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Result body ─────────────────────────────────────────────────────────
+  Widget _resultBody() {
+    final r = _result!;
+    final fg = QualityTheme.fgColor(r.quality);
+
+    return ScaleTransition(
+      scale: _resultAnim,
+      child: Column(
+        children: [
+          // Detected Result card — matches image style
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Detected Result',
+                  style: TextStyle(
+                    color: _textDark,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'AI-powered pomegranate quality detection',
+                  style: TextStyle(color: _textMid, fontSize: 11),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: fg.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: fg.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        QualityTheme.emoji(r.quality),
+                        style: const TextStyle(fontSize: 36),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              QualityTheme.label(r.quality),
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: _textDark,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    color: fg,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Confidence Score ${_prediction?.confidencePercent ?? r.confidencePercent}',
+                                  style: TextStyle(
+                                    color: fg,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Recommendation card
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _border),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _redLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.lightbulb_outline_rounded,
+                    color: _red,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'RECOMMENDATION',
+                        style: TextStyle(
+                          color: _textMid,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        r.recommendation,
+                        style: const TextStyle(
+                          color: _textDark,
+                          fontSize: 13,
+                          height: 1.5,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          // Model scores card
+          if (_allScores.isNotEmpty)
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: _border),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'MODEL SCORES',
+                    style: TextStyle(
+                      color: _textMid,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ..._allScores.entries.map((e) => _scoreLine(e.key, e.value)),
+                ],
+              ),
+            ),
+          const SizedBox(height: 16),
+          _primaryActionButton(
+            'Scan Another Fruit',
+            Icons.camera_alt_rounded,
+            _reset,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _scoreLine(String quality, double score) {
+    final color = QualityTheme.fgColor(quality);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    QualityTheme.emoji(quality),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    QualityTheme.label(quality),
+                    style: const TextStyle(
+                      color: _textDark,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                '${(score * 100).toStringAsFixed(1)}%',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(5),
+            child: LinearProgressIndicator(
+              value: score,
+              minHeight: 6,
+              backgroundColor: const Color(0xFFF3F4F6),
+              valueColor: AlwaysStoppedAnimation(color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _primaryActionButton(
+    String label,
+    IconData icon,
+    VoidCallback onTap,
+  ) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 15),
+      decoration: BoxDecoration(
+        color: _red,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: _red.withOpacity(0.35),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+
+  Widget _errorBanner() => Padding(
+    padding: const EdgeInsets.only(top: 10),
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFEF2F2),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFCA5A5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              _error!,
+              style: const TextStyle(
+                color: Color(0xFFDC2626),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
