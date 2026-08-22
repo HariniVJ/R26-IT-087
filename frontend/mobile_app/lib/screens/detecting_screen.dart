@@ -10,7 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import 'result_screen.dart';
 
 String get apiBaseUrl =>
-    kIsWeb ? 'http://localhost:8000' : 'http://172.20.10.7:8000';
+    kIsWeb ? 'http://localhost:8000' : 'http://127.0.0.1:8000';
 
 // ── Brand colors ─────────────────────────────────────────────────
 const Color kPrimary     = Color(0xFFB22222);

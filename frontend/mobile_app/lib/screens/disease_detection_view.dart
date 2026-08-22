@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../common/brand_color.dart';
 import '../../services/disease_service.dart';
 import '../../services/history_service.dart';
-import '../result_view/result_view.dart';
+import './result_view.dart';
 
 class DiseaseDetectionView extends StatefulWidget {
   const DiseaseDetectionView({super.key});

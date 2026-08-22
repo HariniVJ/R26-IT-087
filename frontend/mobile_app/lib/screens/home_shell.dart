@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
-import '../dashboard_view/dashboard_view.dart';
-import '../history_view/history_view.dart';
-import '../disease_detection_view/disease_detection_view.dart';
-import '../monthly_report_view/monthly_report_view.dart';
-import '../profile_view/profile_view.dart';
+import './dashboard_view.dart';
+import './history_view.dart';
+import './disease_detection_view.dart';
+import './monthly_report_view.dart';
+import './profile_view.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});

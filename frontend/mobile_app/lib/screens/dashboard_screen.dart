@@ -14,10 +14,10 @@ import '../../common/brand_color.dart';
 import 'irrigation_screen.dart';
 import 'fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
-import '../screens/dashboard_view/dashboard_view.dart';
+import '../screens/dashboard_view.dart';
 import 'coming_soon_screen.dart';
 import '../screens/capture_screen.dart';
-import '../screens/profile_view/profile_view.dart';
+import '../screens/profile_view.dart';
 
 const _red = Color(0xFFC1121F);
 const _redSoft = Color(0xFFFFEEF3);

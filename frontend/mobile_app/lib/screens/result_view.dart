@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
 import '../../models/prediction_result_model.dart';
-import '../dashboard_view/dashboard_view.dart';
+import './dashboard_view.dart';
 
 class ResultView extends StatelessWidget {
   final PredictionResultModel result;

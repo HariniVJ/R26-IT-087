@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
-import '../disease_detection_view/disease_detection_view.dart';
-import '../history_view/history_view.dart';
-import '../info_detail_view/info_detail_view.dart';
-import '../monthly_report_view/monthly_report_view.dart';
+import './disease_detection_view.dart';
+import './history_view.dart';
+import './info_detail_view.dart';
+import './monthly_report_view.dart';
 
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});

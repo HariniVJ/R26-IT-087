@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../dashboard_screen.dart';
+import './dashboard_screen.dart';
 import '../../common/brand_color.dart';
 
 const _red = BrandColor.primary;

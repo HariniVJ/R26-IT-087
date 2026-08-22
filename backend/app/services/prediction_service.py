@@ -7,7 +7,7 @@ from app.utils.image_preprocessing import preprocess_image
 from app.services.treatment_service import get_treatment_by_disease
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-MODEL_PATH = BASE_DIR / "ml_models" / "pomegranate_disease_model.tflite"
+MODEL_PATH = BASE_DIR / "ml_models" / "pomegranate_disease_model1.tflite"
 
 CLASS_NAMES = [
     "Alternaria",
