@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'common/brand_color.dart';
-import 'screens/splash_view.dart';
+import 'screens/disease/dashboard_view.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,7 +50,7 @@ class PomegranateApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const SplashView(),
+      home: const DashboardView(),
     );
   }
 }
