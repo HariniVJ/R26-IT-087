@@ -52,38 +52,17 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
   Future<void> _prepareLocationAndWeather() async {
     setState(() {
       _loadingLocation = true;
+      _loadingWeather = true;
       _locationError = null;
     });
 
-    try {
-      final location = await _locationService.getCurrentLocation();
-      if (!mounted) return;
-      setState(() {
-        _location = location;
-        _loadingLocation = false;
-      });
-      await _loadWeather(location);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loadingLocation = false;
-        _locationError = e.toString();
-      });
-      final cachedWeather = await _weatherService.loadCachedWeather();
-      if (!mounted) return;
-      setState(() => _weather = cachedWeather);
-    }
-  }
-
-  Future<void> _loadWeather(FarmLocation location) async {
-    setState(() => _loadingWeather = true);
-    final weather = await _weatherService.fetchWeather(
-      latitude: location.latitude,
-      longitude: location.longitude,
-    );
+    final snapshot = await _weatherService.loadForFarm(_locationService);
     if (!mounted) return;
     setState(() {
-      _weather = weather;
+      _location = snapshot.location;
+      _weather = snapshot.weather;
+      _locationError = snapshot.locationError;
+      _loadingLocation = false;
       _loadingWeather = false;
     });
   }
@@ -243,7 +222,8 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
     if (_loadingWeather) {
       message = 'Fetching live weather...';
     } else if (_weather == null) {
-      message = 'No weather data. Irrigation will use soil moisture only.';
+      message = _weatherService.lastError ??
+          'No weather data. Irrigation will use soil moisture only.';
       color = Colors.orange.shade800;
     } else if (_weather!.isCached) {
       message =
@@ -268,37 +248,11 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
             return ValueListenableBuilder<String>(
               valueListenable: _ble.status,
               builder: (context, status, child) {
-                return AppCard(
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Icon(
-                            connected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
-                            color: connected ? Colors.green : BrandColor.primary,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Text(
-                              status,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: connected ? Colors.green : BrandColor.primary,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      AppPrimaryButton(
-                        label: scanning ? 'Scanning...' : 'Connect Soil Sensor',
-                        icon: Icons.bluetooth_searching,
-                        isLoading: scanning,
-                        onPressed: scanning ? null : _ble.connect,
-                      ),
-                    ],
-                  ),
+                return BluetoothStatusCard(
+                  connected: connected,
+                  scanning: scanning,
+                  status: status,
+                  onConnect: _ble.connect,
                 );
               },
             );

@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
 import '../../services/fertilizer_local_service.dart';
+import '../../services/firestore_service.dart';
 import '../../services/soil_bluetooth_service.dart';
+import 'fertilizer_history_screen.dart';
 import 'fertilizer_result_screen.dart';
 
 class FertilizerScreen extends StatefulWidget {
@@ -90,6 +92,10 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
         treeAge: treeAge,
       );
 
+      try {
+        await FirestoreService.instance.saveFertilizer(advice);
+      } catch (_) {}
+
       if (!mounted) return;
       Navigator.push(
         context,
@@ -129,14 +135,32 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text(
-                'Pomegranate Fertilizer\nAdvisor',
-                style: TextStyle(
-                  color: Color(0xFF176B2C),
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  height: 1.15,
-                ),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Pomegranate Fertilizer\nAdvisor',
+                      style: TextStyle(
+                        color: Color(0xFF176B2C),
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        height: 1.15,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Fertilizer history',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FertilizerHistoryScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.history),
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               const Text(
@@ -188,56 +212,12 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
             return ValueListenableBuilder<String>(
               valueListenable: _ble.status,
               builder: (context, status, child) {
-                return AppCard(
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: connected
-                                ? Colors.green.shade50
-                                : Colors.red.shade50,
-                            child: Icon(
-                              connected
-                                  ? Icons.bluetooth_connected
-                                  : Icons.bluetooth_disabled,
-                              color: connected ? Colors.green : BrandColor.primary,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Sensor Status',
-                                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  status,
-                                  style: TextStyle(
-                                    color: connected ? Colors.green : BrandColor.primary,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      AppPrimaryButton(
-                        label: scanning ? 'Scanning...' : 'Connect the Sensor',
-                        icon: Icons.add,
-                        isLoading: scanning,
-                        onPressed: scanning ? null : _ble.connect,
-                      ),
-                    ],
-                  ),
+                return BluetoothStatusCard(
+                  connected: connected,
+                  scanning: scanning,
+                  status: status,
+                  connectLabel: 'Connect the Sensor',
+                  onConnect: _ble.connect,
                 );
               },
             );

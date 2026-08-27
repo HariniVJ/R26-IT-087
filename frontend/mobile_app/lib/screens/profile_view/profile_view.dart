@@ -199,6 +199,18 @@ class _ProfileViewState extends State<ProfileView> {
 
             // Info cards
             _InfoRow(
+              icon: Icons.email_outlined,
+              label: 'Email',
+              value: AuthService.instance.currentFarmer?.email ?? '-',
+            ),
+            const SizedBox(height: 12),
+            _InfoRow(
+              icon: Icons.phone_outlined,
+              label: 'Mobile',
+              value: AuthService.instance.currentFarmer?.mobile ?? '-',
+            ),
+            const SizedBox(height: 12),
+            _InfoRow(
               icon: Icons.location_on_outlined,
               label: _s.location,
               value: _s.locationValue,

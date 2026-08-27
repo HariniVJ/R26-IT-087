@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function ownedCreate() {
+      return isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    function ownedExisting() {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow read, update, delete: if isOwner(userId);
+      allow create: if isOwner(userId);
+    }
+
+    match /irrigation/{recordId} {
+      allow create: if ownedCreate();
+      allow read, update, delete: if ownedExisting();
+    }
+
+    match /weather/{recordId} {
+      allow create: if ownedCreate();
+      allow read, update, delete: if ownedExisting();
+    }
+
+    match /fertilizer/{recordId} {
+      allow create: if ownedCreate();
+      allow read, update, delete: if ownedExisting();
+    }
+
+    // Older backend documents used snake_case user_id.
+    match /quality_results/{recordId} {
+      allow create: if isSignedIn()
+        && request.resource.data.user_id == request.auth.uid;
+      allow read, update, delete: if isSignedIn()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    match /disease_predictions/{recordId} {
+      allow create: if isSignedIn()
+        && request.resource.data.user_id == request.auth.uid;
+      allow read, update, delete: if isSignedIn()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

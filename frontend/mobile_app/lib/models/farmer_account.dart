@@ -3,38 +3,43 @@ class FarmerAccount {
   final String fullName;
   final String mobile;
   final String email;
-  final String passwordHash;
-  final String passwordSalt;
+  final DateTime? createdAt;
 
   const FarmerAccount({
     required this.id,
     required this.fullName,
     required this.mobile,
     required this.email,
-    required this.passwordHash,
-    required this.passwordSalt,
+    this.createdAt,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'full_name': fullName,
+      'fullName': fullName,
       'mobile': mobile,
       'email': email,
-      'password_hash': passwordHash,
-      'password_salt': passwordSalt,
+      'createdAt': createdAt?.toIso8601String(),
     };
   }
 
-  factory FarmerAccount.fromJson(Map<String, dynamic> json) {
+  factory FarmerAccount.fromJson(String id, Map<String, dynamic> json) {
     return FarmerAccount(
-      id: json['id']?.toString() ?? '',
-      fullName: json['full_name']?.toString() ?? '',
+      id: id,
+      fullName: (json['fullName'] ?? json['full_name'])?.toString() ?? '',
       mobile: json['mobile']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      passwordHash: json['password_hash']?.toString() ?? '',
-      passwordSalt: json['password_salt']?.toString() ?? '',
+      createdAt: _parseTime(json['createdAt']),
     );
+  }
+
+  static DateTime? _parseTime(dynamic value) {
+    if (value == null) return null;
+    if (value is DateTime) return value;
+    try {
+      return (value as dynamic).toDate() as DateTime;
+    } catch (_) {
+      return DateTime.tryParse(value.toString());
+    }
   }
 }
 

@@ -175,3 +175,74 @@ class AppBanner extends StatelessWidget {
     );
   }
 }
+
+class BluetoothStatusCard extends StatelessWidget {
+  final bool connected;
+  final bool scanning;
+  final String status;
+  final VoidCallback? onConnect;
+  final String connectLabel;
+
+  const BluetoothStatusCard({
+    super.key,
+    required this.connected,
+    required this.scanning,
+    required this.status,
+    required this.onConnect,
+    this.connectLabel = 'Connect Soil Sensor',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      child: Column(
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor:
+                    connected ? Colors.green.shade50 : Colors.red.shade50,
+                child: Icon(
+                  connected
+                      ? Icons.bluetooth_connected
+                      : Icons.bluetooth_disabled,
+                  color: connected ? Colors.green : BrandColor.primary,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Sensor Status',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      status,
+                      style: TextStyle(
+                        color: connected ? Colors.green : BrandColor.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          AppPrimaryButton(
+            label: scanning ? 'Scanning...' : connectLabel,
+            icon: Icons.bluetooth_searching,
+            isLoading: scanning,
+            onPressed: scanning ? null : onConnect,
+          ),
+        ],
+      ),
+    );
+  }
+}
