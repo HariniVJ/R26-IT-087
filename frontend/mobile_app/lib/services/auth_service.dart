@@ -1,33 +1,42 @@
-import 'dart:convert';
-import 'dart:math';
-
-import 'package:crypto/crypto.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 import '../models/farmer_account.dart';
+import 'firestore_service.dart';
 
-/// Offline farmer accounts stored only on this phone.
+/// Firebase Authentication for separate farmer accounts.
+/// Passwords are stored by Firebase Auth, never in Firestore.
 class AuthService {
   AuthService._();
   static final AuthService instance = AuthService._();
 
-  static const _farmersKey = 'farmer_accounts';
-  static const _sessionKey = 'current_farmer_id';
-
+  FirebaseAuth get _auth => FirebaseAuth.instance;
   FarmerAccount? currentFarmer;
 
+  bool get isConfigured => Firebase.apps.isNotEmpty;
+  bool get isLoggedIn =>
+      isConfigured && _auth.currentUser != null && currentFarmer != null;
+  String? get uid => isConfigured ? _auth.currentUser?.uid : null;
+
   Future<void> loadSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    final id = prefs.getString(_sessionKey);
-    if (id == null) {
+    if (!isConfigured) {
       currentFarmer = null;
       return;
     }
-    final farmers = await _readFarmers();
-    currentFarmer = farmers.where((f) => f.id == id).firstOrNull;
+    final user = _auth.currentUser;
+    if (user == null) {
+      currentFarmer = null;
+      return;
+    }
+    currentFarmer = await FirestoreService.instance.getUser(user.uid);
+    currentFarmer ??= FarmerAccount(
+      id: user.uid,
+      fullName: user.displayName ?? '',
+      mobile: '',
+      email: user.email ?? '',
+    );
   }
-
-  bool get isLoggedIn => currentFarmer != null;
 
   AuthValidationResult validateRegistration({
     required String fullName,
@@ -52,14 +61,18 @@ class AuthService {
       errors['email'] = 'Enter a valid email address.';
     }
 
-    if (password.length < 8) {
+    if (password.isEmpty) {
+      errors['password'] = 'Password is required.';
+    } else if (password.length < 8) {
       errors['password'] = 'Password must be at least 8 characters.';
     } else if (!RegExp(r'[A-Za-z]').hasMatch(password) ||
         !RegExp(r'\d').hasMatch(password)) {
       errors['password'] = 'Password must include letters and numbers.';
     }
 
-    if (confirmPassword != password) {
+    if (confirmPassword.isEmpty) {
+      errors['confirmPassword'] = 'Please confirm your password.';
+    } else if (confirmPassword != password) {
       errors['confirmPassword'] = 'Passwords do not match.';
     }
 
@@ -67,15 +80,23 @@ class AuthService {
   }
 
   AuthValidationResult validateLogin({
-    required String identifier,
+    required String email,
     required String password,
   }) {
     final errors = <String, String>{};
-    if (identifier.trim().isEmpty) {
-      errors['identifier'] = 'Enter your email or mobile number.';
+    if (!_validEmail(email.trim())) {
+      errors['email'] = 'Enter the email address you registered with.';
     }
     if (password.isEmpty) {
       errors['password'] = 'Enter your password.';
+    }
+    return AuthValidationResult(isValid: errors.isEmpty, fieldErrors: errors);
+  }
+
+  AuthValidationResult validatePasswordReset({required String email}) {
+    final errors = <String, String>{};
+    if (!_validEmail(email.trim())) {
+      errors['email'] = 'Enter a valid email address.';
     }
     return AuthValidationResult(isValid: errors.isEmpty, fieldErrors: errors);
   }
@@ -86,86 +107,92 @@ class AuthService {
     required String email,
     required String password,
   }) async {
-    final farmers = await _readFarmers();
-    final emailLower = email.trim().toLowerCase();
-    final mobileClean = mobile.trim();
-
-    if (farmers.any((f) => f.email.toLowerCase() == emailLower)) {
-      return 'An account with this email already exists.';
+    if (!isConfigured) {
+      return 'Firebase is not configured. Restart the app after a full rebuild.';
     }
-    if (farmers.any((f) => f.mobile == mobileClean)) {
-      return 'An account with this mobile number already exists.';
+    try {
+      final credential = await _auth.createUserWithEmailAndPassword(
+        email: email.trim().toLowerCase(),
+        password: password,
+      );
+      final user = credential.user;
+      if (user == null) {
+        return 'Could not create the farmer account. Please try again.';
+      }
+
+      await user.updateDisplayName(fullName.trim());
+
+      final farmer = FarmerAccount(
+        id: user.uid,
+        fullName: fullName.trim(),
+        mobile: mobile.trim(),
+        email: email.trim().toLowerCase(),
+        createdAt: DateTime.now().toUtc(),
+      );
+
+      await FirestoreService.instance.saveUser(farmer);
+      currentFarmer = farmer;
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return _authMessage(e);
+    } catch (e) {
+      debugPrint('Register error: $e');
+      return 'Could not create the account. Check your internet connection.';
     }
-
-    final salt = _randomSalt();
-    final farmer = FarmerAccount(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      fullName: fullName.trim(),
-      mobile: mobileClean,
-      email: emailLower,
-      passwordSalt: salt,
-      passwordHash: _hashPassword(password, salt),
-    );
-
-    farmers.add(farmer);
-    await _writeFarmers(farmers);
-    await _setSession(farmer);
-    return null;
   }
 
   Future<String?> login({
-    required String identifier,
+    required String email,
     required String password,
   }) async {
-    final farmers = await _readFarmers();
-    final key = identifier.trim().toLowerCase();
-    final farmer = farmers
-        .where(
-          (f) => f.email.toLowerCase() == key || f.mobile == identifier.trim(),
-        )
-        .firstOrNull;
-
-    if (farmer == null) {
-      return 'No farmer account found for that email or mobile number.';
+    if (!isConfigured) {
+      return 'Firebase is not configured. Restart the app after a full rebuild.';
     }
+    try {
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email.trim().toLowerCase(),
+        password: password,
+      );
+      final user = credential.user;
+      if (user == null) {
+        return 'Login failed. Please try again.';
+      }
 
-    final hash = _hashPassword(password, farmer.passwordSalt);
-    if (hash != farmer.passwordHash) {
-      return 'Incorrect password.';
+      currentFarmer = await FirestoreService.instance.getUser(user.uid);
+      currentFarmer ??= FarmerAccount(
+        id: user.uid,
+        fullName: user.displayName ?? '',
+        mobile: '',
+        email: user.email ?? email.trim().toLowerCase(),
+      );
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return _authMessage(e);
+    } catch (e) {
+      debugPrint('Login error: $e');
+      return 'Could not log in. Check your internet connection.';
     }
+  }
 
-    await _setSession(farmer);
-    return null;
+  Future<String?> sendPasswordReset(String email) async {
+    if (!isConfigured) {
+      return 'Firebase is not configured. Restart the app after a full rebuild.';
+    }
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim().toLowerCase());
+      return null;
+    } on FirebaseAuthException catch (e) {
+      return _authMessage(e);
+    } catch (_) {
+      return 'Could not send the reset email. Check your internet connection.';
+    }
   }
 
   Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_sessionKey);
+    if (isConfigured) {
+      await _auth.signOut();
+    }
     currentFarmer = null;
-  }
-
-  Future<List<FarmerAccount>> _readFarmers() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_farmersKey);
-    if (raw == null || raw.isEmpty) return [];
-    final list = jsonDecode(raw) as List<dynamic>;
-    return list
-        .map((item) => FarmerAccount.fromJson(item as Map<String, dynamic>))
-        .toList();
-  }
-
-  Future<void> _writeFarmers(List<FarmerAccount> farmers) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _farmersKey,
-      jsonEncode(farmers.map((f) => f.toJson()).toList()),
-    );
-  }
-
-  Future<void> _setSession(FarmerAccount farmer) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_sessionKey, farmer.id);
-    currentFarmer = farmer;
   }
 
   bool _validEmail(String email) {
@@ -178,13 +205,31 @@ class AuthService {
         RegExp(r'^\+?\d{9,12}$').hasMatch(compact);
   }
 
-  String _randomSalt() {
-    final random = Random.secure();
-    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
-    return base64Encode(bytes);
-  }
-
-  String _hashPassword(String password, String salt) {
-    return sha256.convert(utf8.encode('$salt$password')).toString();
+  String _authMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'email-already-in-use':
+        return 'An account with this email already exists.';
+      case 'invalid-email':
+        return 'Enter a valid email address.';
+      case 'weak-password':
+        return 'Password is too weak. Use at least 8 characters with letters and numbers.';
+      case 'user-not-found':
+        return 'No farmer account found for that email.';
+      case 'wrong-password':
+      case 'invalid-credential':
+        return 'Incorrect email or password.';
+      case 'user-disabled':
+        return 'This farmer account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please wait and try again.';
+      case 'network-request-failed':
+        return 'No internet connection. Connect to the internet to sign in.';
+      case 'operation-not-allowed':
+        return 'Email/password sign-in is not enabled in Firebase Authentication.';
+      case 'configuration-not-found':
+        return 'Firebase Authentication is not enabled for this project yet.';
+      default:
+        return e.message ?? 'Authentication failed. Please try again.';
+    }
   }
 }

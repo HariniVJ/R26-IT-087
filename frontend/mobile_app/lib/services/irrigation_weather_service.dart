@@ -1,21 +1,53 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/farm_location.dart';
 import '../models/irrigation_weather.dart';
+import 'location_service.dart';
 
-/// Fetches the same Open-Meteo fields used by the previous irrigation backend.
+/// Open-Meteo weather for the irrigation TFLite model.
 /// Network code stays here so screens never call the weather API directly.
 class IrrigationWeatherService {
   static const _cacheKey = 'irrigation_weather_cache';
   static const _endpoint = 'https://api.open-meteo.com/v1/forecast';
+
+  String? lastError;
+
+  Future<FarmWeatherSnapshot> loadForFarm(FarmLocationService locationService) async {
+    lastError = null;
+    FarmLocation? location;
+    try {
+      location = await locationService.getCurrentLocation();
+    } catch (e) {
+      lastError = e.toString();
+      return FarmWeatherSnapshot(
+        location: await locationService.loadLastLocation(),
+        weather: await loadCachedWeather(),
+        locationError: e.toString(),
+      );
+    }
+
+    final weather = await fetchWeather(
+      latitude: location.latitude,
+      longitude: location.longitude,
+    );
+    return FarmWeatherSnapshot(
+      location: location,
+      weather: weather,
+      locationError: null,
+    );
+  }
 
   Future<IrrigationWeather?> fetchWeather({
     required double latitude,
     required double longitude,
   }) async {
     try {
+      lastError = null;
       final uri = Uri.parse(_endpoint).replace(
         queryParameters: {
           'latitude': latitude.toString(),
@@ -48,13 +80,22 @@ class IrrigationWeatherService {
 
       final response = await http.get(uri).timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) {
+        lastError =
+            'Weather API returned ${response.statusCode}. Using saved weather if available.';
         return loadCachedWeather();
       }
 
       final weather = _parse(jsonDecode(response.body) as Map<String, dynamic>);
       await _saveCache(weather);
       return weather;
+    } on SocketException {
+      lastError = 'No internet connection. Using saved weather if available.';
+      return loadCachedWeather();
+    } on TimeoutException {
+      lastError = 'Weather request timed out. Using saved weather if available.';
+      return loadCachedWeather();
     } catch (_) {
+      lastError = 'Could not load live weather. Using saved weather if available.';
       return loadCachedWeather();
     }
   }
@@ -106,4 +147,16 @@ class IrrigationWeatherService {
       isCached: false,
     );
   }
+}
+
+class FarmWeatherSnapshot {
+  final FarmLocation? location;
+  final IrrigationWeather? weather;
+  final String? locationError;
+
+  const FarmWeatherSnapshot({
+    required this.location,
+    required this.weather,
+    this.locationError,
+  });
 }

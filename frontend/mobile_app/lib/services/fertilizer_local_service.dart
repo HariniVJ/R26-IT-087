@@ -33,6 +33,10 @@ class FertilizerLocalService {
       nitrogen: nitrogen,
       phosphorus: phosphorus,
       potassium: potassium,
+      moisture: moisture,
+      temp: temp,
+      ph: ph,
+      createdAt: DateTime.now().toUtc(),
     );
   }
 

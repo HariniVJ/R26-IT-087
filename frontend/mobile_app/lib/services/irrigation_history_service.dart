@@ -1,10 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
 import '../models/irrigation_history_record.dart';
 import '../models/irrigation_result.dart';
+import 'firestore_service.dart';
 
 /// Local SQLite store for irrigation predictions. Works fully offline.
+/// When a farmer is signed in, the same record is also written to Firestore.
 class IrrigationHistoryService {
   IrrigationHistoryService._();
   static final IrrigationHistoryService instance = IrrigationHistoryService._();
@@ -51,9 +54,22 @@ class IrrigationHistoryService {
   Future<void> save(IrrigationResult result) async {
     final db = await _database;
     await db.insert('irrigation_history', result.toHistoryMap());
+
+    try {
+      await FirestoreService.instance.saveIrrigation(result);
+    } catch (e) {
+      debugPrint('Firestore irrigation save deferred/failed: $e');
+    }
   }
 
   Future<List<IrrigationHistoryRecord>> getAll() async {
+    try {
+      final cloud = await FirestoreService.instance.getIrrigationHistory();
+      if (cloud.isNotEmpty) return cloud;
+    } catch (e) {
+      debugPrint('Firestore irrigation history fallback to local: $e');
+    }
+
     final db = await _database;
     final rows = await db.query(
       'irrigation_history',
