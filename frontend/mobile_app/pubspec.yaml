@@ -23,6 +23,10 @@ dependencies:
   shared_preferences: ^2.5.5
   fl_chart: ^0.68.0
   http_parser: ^4.1.2
+  geolocator: ^13.0.2
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  crypto: ^3.0.6
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -44,6 +48,8 @@ flutter:
     - assets/images/farm_bg4.jpeg
     - assets/models/pomegranat_quality_model.tflite
     - assets/models/labels.txt
+    - assets/models/pomegranate_irrigation_model.tflite
+    - assets/models/irrigation_labels.txt
     - assets/images/pomegranate.jpeg
     - assets/images/bud.png
     - assets/images/early_fruit.png

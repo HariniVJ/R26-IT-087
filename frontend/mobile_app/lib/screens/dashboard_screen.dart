@@ -10,9 +10,10 @@ import '../widgets/module_button.dart';
 import '../widgets/weather_card.dart';
 import '../services/weather_service.dart';
 import '../../common/brand_color.dart';
+import '../services/auth_service.dart';
 
-import 'irrigation_screen.dart';
-import 'fertilizer_screen.dart';
+import 'irrigation/irrigation_screen.dart';
+import 'fertilizer/fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
 import '../screens/dashboard_view/dashboard_view.dart';
 import 'coming_soon_screen.dart';
@@ -172,6 +173,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
   }
 
+  String get _farmerName {
+    return AuthService.instance.currentFarmer?.fullName ?? AppConstants.farmerName;
+  }
+
+  String get _farmName {
+    final name = AuthService.instance.currentFarmer?.fullName;
+    if (name == null || name.isEmpty) return AppConstants.farmName;
+    return "$name's Farm";
+  }
+
   String get _clock {
     return '${_now.hour.toString().padLeft(2, '0')}:${_now.minute.toString().padLeft(2, '0')}';
   }
@@ -311,7 +322,9 @@ class _DashboardScreenState extends State<DashboardScreen>
         ),
         child: Center(
           child: Text(
-            AppConstants.farmerName.substring(0, 2).toUpperCase(),
+            _farmerName.length >= 2
+                ? _farmerName.substring(0, 2).toUpperCase()
+                : _farmerName.toUpperCase(),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
@@ -326,7 +339,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              AppConstants.farmName,
+              _farmName,
               style: const TextStyle(
                 color: _textDark,
                 fontSize: 15,
@@ -386,7 +399,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ],
       ),
       Text(
-        AppConstants.farmerName,
+        _farmerName,
         style: const TextStyle(
           color: _textDark,
           fontSize: 25,

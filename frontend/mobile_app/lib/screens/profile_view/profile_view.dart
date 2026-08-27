@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../common/brand_color.dart';
+import '../../services/auth_service.dart';
+import '../auth/login_screen.dart';
 
 // Bilingual string set
 class _LangStrings {
@@ -69,6 +71,15 @@ class _ProfileViewState extends State<ProfileView> {
   bool _isTamil = false;
 
   _LangStrings get _s => _isTamil ? _tamil : _english;
+
+  String get _initials {
+    final name = AuthService.instance.currentFarmer?.fullName ?? 'AK';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.toUpperCase();
+  }
 
   void _toggleLanguage() => setState(() => _isTamil = !_isTamil);
 
@@ -148,10 +159,10 @@ class _ProfileViewState extends State<ProfileView> {
                   ),
                 ],
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  'AK',
-                  style: TextStyle(
+                  _initials,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 36,
                     fontWeight: FontWeight.w800,
@@ -162,7 +173,7 @@ class _ProfileViewState extends State<ProfileView> {
             const SizedBox(height: 20),
 
             Text(
-              _s.farmName,
+              AuthService.instance.currentFarmer?.fullName ?? _s.farmName,
               style: const TextStyle(
                 color: BrandColor.darkText,
                 fontSize: 22,
@@ -203,6 +214,34 @@ class _ProfileViewState extends State<ProfileView> {
               icon: Icons.smart_toy_outlined,
               label: _s.aiModel,
               value: _s.aiValue,
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  await AuthService.instance.logout();
+                  if (!context.mounted) return;
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                    (_) => false,
+                  );
+                },
+                icon: const Icon(Icons.logout),
+                label: const Text(
+                  'Logout',
+                  style: TextStyle(fontWeight: FontWeight.w800),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BrandColor.primary,
+                  side: const BorderSide(color: BrandColor.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
             ),
           ],
         ),

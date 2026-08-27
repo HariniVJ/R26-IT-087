@@ -4,11 +4,13 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'common/brand_color.dart';
 import 'screens/splash_view/splash_view.dart';
+import 'services/auth_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await dotenv.load(fileName: ".env");
+  await AuthService.instance.loadSession();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
