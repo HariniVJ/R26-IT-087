@@ -4,6 +4,7 @@ import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
 import '../../services/auth_service.dart';
 import '../dashboard_screen.dart';
+import 'forgot_password_screen.dart';
 import 'registration_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -14,7 +15,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _identifierController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   Map<String, String> _errors = {};
   String? _formError;
@@ -22,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     final validation = AuthService.instance.validateLogin(
-      identifier: _identifierController.text,
+      email: _emailController.text,
       password: _passwordController.text,
     );
 
@@ -41,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final error = await AuthService.instance.login(
-      identifier: _identifierController.text,
+      email: _emailController.text,
       password: _passwordController.text,
     );
 
@@ -62,7 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _identifierController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -88,15 +89,16 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Login once on this phone. You can use the app later without internet.',
+                'Sign in with your farmer account. Irrigation and fertilizer predictions still run on this phone if the internet drops.',
                 style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
               ),
               const SizedBox(height: 40),
               AppTextField(
-                label: 'Email or Mobile Number',
-                controller: _identifierController,
-                icon: Icons.person_outline,
-                errorText: _errors['identifier'],
+                label: 'Email',
+                controller: _emailController,
+                icon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+                errorText: _errors['email'],
               ),
               const SizedBox(height: 18),
               AppTextField(
@@ -106,15 +108,35 @@ class _LoginScreenState extends State<LoginScreen> {
                 obscure: true,
                 errorText: _errors['password'],
               ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ForgotPasswordScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    'Forgot password?',
+                    style: TextStyle(
+                      color: BrandColor.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
               if (_formError != null) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 AppBanner(
                   message: _formError!,
                   color: BrandColor.primary,
                   icon: Icons.error_outline,
                 ),
               ],
-              const SizedBox(height: 30),
+              const SizedBox(height: 18),
               AppPrimaryButton(
                 label: 'Login',
                 icon: Icons.login,

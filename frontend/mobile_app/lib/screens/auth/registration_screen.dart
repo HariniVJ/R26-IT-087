@@ -100,7 +100,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Your account is saved on this phone so you can log in without internet.',
+                'Create a separate farmer account. Predictions still run on this phone after you sign in once.',
                 style: TextStyle(color: Color(0xFF6B7280), fontSize: 15),
               ),
               const SizedBox(height: 32),
