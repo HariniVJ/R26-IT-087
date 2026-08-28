@@ -97,118 +97,77 @@ class WeatherCard extends StatelessWidget {
   }
 
   Widget _data(WeatherData w) {
+    final hours = w.rainExpectedInHours;
+    final rainLine = hours == null
+        ? t('noRainSoon')
+        : LanguageController.instance.tf('rainInHours', {
+            'h': '${hours < 1 ? 1 : hours}',
+          });
+    final updated =
+        '${w.updatedAt.hour.toString().padLeft(2, '0')}:${w.updatedAt.minute.toString().padLeft(2, '0')}';
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 20, 18, 16),
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(w.weatherEmoji, style: const TextStyle(fontSize: 44)),
-                    const SizedBox(height: 4),
-                    Text(
-                      w.temp,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 38,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    Text(
-                      w.condition,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(width: 1, height: 124, color: Colors.white24),
-              const SizedBox(width: 18),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _metric(
-                    Icons.water_drop_rounded,
-                    t('humidity'),
-                    w.humidityText,
-                  ),
-                  const SizedBox(height: 12),
-                  _metric(Icons.air_rounded, t('wind'), w.wind),
-                  const SizedBox(height: 12),
-                  _metric(
-                    Icons.thermostat_rounded,
-                    t('feelsLike'),
-                    w.feelsLike,
-                  ),
-                ],
-              ),
-            ],
+          Text(
+            t('currentWeather'),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+            ),
           ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  w.locationLabel,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-              ),
-              TextButton(
-                onPressed: onRetry,
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white70,
-                  padding: EdgeInsets.zero,
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-                child: Text(t('refresh')),
-              ),
-            ],
+          const SizedBox(height: 10),
+          Text(
+            '${t('temperature')}: ${w.temp}',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${t('humidity')}: ${w.humidityText}',
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          Text(
+            '${t('rainProbability')}: ${w.rainProbabilityText}',
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          Text(
+            '${t('condition')}: ${w.condition}',
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          Text(
+            '${t('precipitation')}: ${w.precipitation}',
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            t('upcomingRain'),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          Text(
+            rainLine,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            '${t('location')}: ${w.locationLabel}',
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+          Text(
+            '${t('updated')}: $updated',
+            style: const TextStyle(color: Colors.white54, fontSize: 11),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _metric(IconData icon, String label, String value) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: Colors.white, size: 20),
-        const SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white60, fontSize: 11),
-            ),
-            Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ],
     );
   }
 }

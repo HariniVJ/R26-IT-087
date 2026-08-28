@@ -43,7 +43,11 @@ class LanguageController extends ChangeNotifier {
     return value;
   }
 
-  static const _tables = {AppLang.en: _en, AppLang.si: _si, AppLang.ta: _ta};
+  static const _tables = {
+    AppLang.en: _en,
+    AppLang.si: _si,
+    AppLang.ta: _ta,
+  };
 }
 
 String t(String key) => LanguageController.instance.t(key);
@@ -95,9 +99,7 @@ const _en = {
   'currentWeather': 'Current Weather',
   'currentSoil': 'Current Soil Condition',
   'temperature': 'Temperature',
-  'feelsLike': 'Feels like',
   'humidity': 'Humidity',
-  'wind': 'Wind',
   'rainProbability': 'Rain Probability',
   'condition': 'Condition',
   'upcomingRain': 'Upcoming Rain',
@@ -106,7 +108,6 @@ const _en = {
   'weatherUnavailable': 'Weather information is temporarily unavailable.',
   'fetchingWeather': 'Fetching weather...',
   'retry': 'Retry',
-  'refresh': 'Refresh',
   'recentAlerts': 'Recent Alerts',
   'noAlerts': 'No alerts yet.',
   'markRead': 'Mark as read',
@@ -172,7 +173,6 @@ const _en = {
   'clear': 'Clear',
   'cloudy': 'Cloudy',
   'rain': 'Rain',
-  'storm': 'Thunderstorm',
   'loading': 'Loading...',
   'tree': 'Tree',
   'treeAge': 'Tree age',
@@ -234,9 +234,7 @@ const _si = {
   'currentWeather': 'වත්මන් කාලගුණය',
   'currentSoil': 'වත්මන් පස් තත්ත්වය',
   'temperature': 'උෂ්ණත්වය',
-  'feelsLike': 'දැනෙන උෂ්ණත්වය',
   'humidity': 'ආර්ද්‍රතාව',
-  'wind': 'සුළඟ',
   'rainProbability': 'වැසි සම්භාවිතාව',
   'condition': 'තත්ත්වය',
   'upcomingRain': 'ඉදිරි වැස්ස',
@@ -245,7 +243,6 @@ const _si = {
   'weatherUnavailable': 'කාලගුණ තොරතුරු තාවකාලිකව ලබාගත නොහැක.',
   'fetchingWeather': 'කාලගුණය ලබා ගනිමින්...',
   'retry': 'නැවත උත්සාහ කරන්න',
-  'refresh': 'නැවුම් කරන්න',
   'recentAlerts': 'මෑත ඇඟවීම්',
   'noAlerts': 'ඇඟවීම් නැත.',
   'markRead': 'කියවූ ලෙස සලකුණු කරන්න',
@@ -311,7 +308,6 @@ const _si = {
   'clear': 'පැහැදිලිය',
   'cloudy': 'වළාකුළු සහිතය',
   'rain': 'වැස්ස',
-  'storm': 'ගිගුරුම් සහිත වැස්ස',
   'loading': 'පූරණය වෙමින්...',
   'tree': 'ගස',
   'treeAge': 'ගසේ වයස',
@@ -373,9 +369,7 @@ const _ta = {
   'currentWeather': 'தற்போதைய வானிலை',
   'currentSoil': 'தற்போதைய மண் நிலை',
   'temperature': 'வெப்பநிலை',
-  'feelsLike': 'உணரப்படும் வெப்பநிலை',
   'humidity': 'ஈரப்பதம்',
-  'wind': 'காற்று',
   'rainProbability': 'மழை வாய்ப்பு',
   'condition': 'நிலை',
   'upcomingRain': 'வரவிருக்கும் மழை',
@@ -384,7 +378,6 @@ const _ta = {
   'weatherUnavailable': 'வானிலை தகவல் தற்காலிகமாக கிடைக்கவில்லை.',
   'fetchingWeather': 'வானிலை பெறப்படுகிறது...',
   'retry': 'மீண்டும் முயலவும்',
-  'refresh': 'புதுப்பிக்கவும்',
   'recentAlerts': 'சமீபத்திய எச்சரிக்கைகள்',
   'noAlerts': 'எச்சரிக்கைகள் இல்லை.',
   'markRead': 'படித்ததாக குறிக்கவும்',
@@ -450,7 +443,6 @@ const _ta = {
   'clear': 'தெளிவு',
   'cloudy': 'மேகமூட்டம்',
   'rain': 'மழை',
-  'storm': 'இடியுடன் கூடிய மழை',
   'loading': 'ஏற்றுகிறது...',
   'tree': 'மரம்',
   'treeAge': 'மர வயது',
