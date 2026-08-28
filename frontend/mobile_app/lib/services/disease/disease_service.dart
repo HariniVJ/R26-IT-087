@@ -3,8 +3,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import '../common/api_config.dart';
-import '../models/prediction_result_model.dart';
+import '../../common/api_config.dart';
+import '../../models/prediction_result_model.dart';
 
 class DiseaseService {
   /// Upload image and run complete disease analysis.

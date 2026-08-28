@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
-import '../../services/disease_service.dart';
+import '../../services/disease/disease_service.dart';
 import 'classification_result_view.dart';
 
 class ImagePreviewView extends StatefulWidget {

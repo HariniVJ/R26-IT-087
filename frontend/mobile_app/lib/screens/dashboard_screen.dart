@@ -21,7 +21,7 @@ import 'irrigation/irrigation_screen.dart';
 import 'fertilizer/fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
 import '../screens/disease/dashboard_view.dart';
-import '../screens/dashboard_view/dashboard_view.dart';
+import '../screens/disease/dashboard_view.dart';
 import 'coming_soon_screen.dart';
 import '../screens/capture_screen.dart';
 import 'notifications/notifications_screen.dart';

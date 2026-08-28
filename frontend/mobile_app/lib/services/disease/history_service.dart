@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../common/api_config.dart';
-import '../models/prediction_result_model.dart';
+import '../../common/api_config.dart';
+import '../../models/prediction_result_model.dart';
 
 class HistoryService {
   // Temporary demo user.

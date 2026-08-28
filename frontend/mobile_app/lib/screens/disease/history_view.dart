@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
 import '../../models/prediction_result_model.dart';
-import '../../services/history_service.dart';
+import '../../services/disease/history_service.dart';
 import 'history_detail_view.dart';
 
 class HistoryView extends StatefulWidget {

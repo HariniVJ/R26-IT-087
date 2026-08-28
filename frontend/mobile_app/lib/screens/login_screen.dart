@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
 import '../../services/auth/auth_service.dart';
-import '../dashboard_screen.dart';
+import 'dashboard_screen.dart';
 import 'forgot_password_screen.dart';
 import 'registration_screen.dart';
 

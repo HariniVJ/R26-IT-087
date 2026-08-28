@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
 import '../dashboard_screen.dart';
-import '../auth/onboarding_auth_flow.dart';
+import '../onboarding_auth_flow.dart';
 import '../../services/auth/auth_service.dart';
 
 class SplashView extends StatefulWidget {

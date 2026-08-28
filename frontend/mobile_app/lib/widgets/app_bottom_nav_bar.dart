@@ -4,7 +4,7 @@ import '../common/brand_color.dart';
 import '../l10n/app_strings.dart';
 import '../screens/history/research_history_screen.dart';
 import '../screens/irrigation/irrigation_screen.dart';
-import '../screens/profile_view/profile_view.dart';
+import '../screens/disease/profile_view.dart';
 import '../screens/reports/research_reports_screen.dart';
 
 enum AppNavTab { home, history, reports, profile }
