@@ -1,17 +1,17 @@
-// lib/services/grading_service.dart
+// lib/services/grading/grading_service.dart
 import 'dart:io';
 import '../../models/grading_result.dart';
-import '../local_db_service.dart';
+import 'grading_firestore_service.dart';
+import 'recommendation_service.dart';
 
 class GradingService {
-  final LocalDbService _db = LocalDbService();
+  final GradingFirestoreService _firestore = GradingFirestoreService.instance;
+  final RecommendationService _recommendation = RecommendationService.instance;
 
   Future<void> init() async {
-    await _db.init();
+    
   }
 
-  /// Saves a completed grading result to local offline history.
-  /// Called by the UI screen after TfliteService.predict() returns.
   Future<GradingResult> saveResult({
     required String userId,
     required String quality,
@@ -21,7 +21,7 @@ class GradingService {
     double? severityPercent,
     int? weightGrams,
   }) async {
-    final ruleRow = await _db.getRecommendation(
+    final ruleRow = await _recommendation.getRecommendation(
       quality: quality,
       defectType: defectType,
       severityPercent: severityPercent,
@@ -29,12 +29,11 @@ class GradingService {
     );
 
     final recommendation =
-        ruleRow?["recommended_usage"] as String? ??
-        "Manual inspection recommended";
+        ruleRow?['recommended_usage'] as String? ??
+        'Manual inspection recommended';
 
-    final id = DateTime.now().millisecondsSinceEpoch.toString();
-    final result = GradingResult(
-      id: id,
+    final draft = GradingResult(
+      id: '',
       userId: userId,
       quality: quality,
       confidence: confidence,
@@ -46,20 +45,13 @@ class GradingService {
       createdAt: DateTime.now().toIso8601String(),
     );
 
-    await _db.saveHistory(result.toJson()..["id"] = id);
-    return result;
+    return await _firestore.saveResult(draft);
   }
 
-  Future<List<GradingResult>> getHistory(String userId) async {
-    final rows = await _db.getHistory(userId);
-    return rows.map((r) => GradingResult.fromJson(r)).toList();
-  }
+  Future<List<GradingResult>> getHistory(String userId) =>
+      _firestore.getHistory(userId);
 
-  Future<void> deleteOne(String id) async {
-    await _db.deleteOne(id);
-  }
+  Future<void> deleteOne(String id) => _firestore.deleteOne(id);
 
-  Future<void> deleteAll(String userId) async {
-    await _db.deleteAll(userId);
-  }
+  Future<void> deleteAll(String userId) => _firestore.deleteAll(userId);
 }

@@ -1,5 +1,4 @@
 // lib/screens/history_screen.dart
-
 import 'dart:math' as math;
 import 'package:PomCare/services/grading/grading_service.dart';
 import 'package:flutter/material.dart';
@@ -27,7 +26,6 @@ class _HistoryScreenState extends State<HistoryScreen>
   String? _error;
 
   _QFilter _qFilter = _QFilter.all;
-
   late final AnimationController _listCtrl;
 
   static const _red = Color(0xFFC1121F);
@@ -64,25 +62,23 @@ class _HistoryScreenState extends State<HistoryScreen>
     try {
       final results = await _service.getHistory(widget.userId);
       if (!mounted) return;
-
       setState(() {
         _all = results;
         _loading = false;
         _isOffline = false;
         _error = null;
       });
-
       _applyFilters();
       _listCtrl.forward(from: 0);
     } catch (e) {
       if (!mounted) return;
-
       final msg = e.toString().replaceFirst('Exception: ', '');
+      // 🔧 FIX: recognize Firestore-specific network/permission error patterns
       final isConn =
+          msg.contains('unavailable') ||
+          msg.contains('network') ||
           msg.contains('timed out') ||
-          msg.contains('Cannot') ||
-          msg.contains('connect');
-
+          msg.contains('DEADLINE_EXCEEDED');
       setState(() {
         _loading = false;
         _isOffline = isConn;
@@ -93,17 +89,14 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   void _applyFilters() {
     var list = List<GradingResult>.from(_all);
-
     if (_qFilter != _QFilter.all) {
       final key = {
         _QFilter.high: 'high_quality',
         _QFilter.medium: 'medium_quality',
         _QFilter.low: 'low_quality',
       }[_qFilter]!;
-
       list = list.where((r) => r.quality == key).toList();
     }
-
     setState(() => _filtered = list);
   }
 
@@ -112,9 +105,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       'Delete this result?',
       'This cannot be undone.',
     );
-
     if (!ok) return;
-
     try {
       await _service.deleteOne(item.id);
       setState(() {
@@ -123,20 +114,17 @@ class _HistoryScreenState extends State<HistoryScreen>
       });
       _showSnack('Result deleted');
     } catch (e) {
-      _showSnack('Delete failed — check backend connection', isError: true);
+      _showSnack('Delete failed — check your connection', isError: true);
     }
   }
 
   Future<void> _deleteAll() async {
     if (_all.isEmpty) return;
-
     final ok = await _confirmDialog(
       'Clear all history?',
       'All ${_all.length} results will be permanently deleted.',
     );
-
     if (!ok) return;
-
     try {
       await _service.deleteAll(widget.userId);
       setState(() {
@@ -145,7 +133,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       });
       _showSnack('All history cleared');
     } catch (e) {
-      _showSnack('Failed — check backend connection', isError: true);
+      _showSnack('Failed — check your connection', isError: true);
     }
   }
 
@@ -229,27 +217,14 @@ class _HistoryScreenState extends State<HistoryScreen>
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Grading History',
-                style: TextStyle(
-                  color: _textDark,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              // Text(
-              //   '${_filtered.length} of ${_all.length} results',
-              //   style: const TextStyle(
-              //     color: _textSoft,
-              //     fontSize: 11,
-              //     fontWeight: FontWeight.w500,
-              //   ),
-              // ),
-            ],
+        const Expanded(
+          child: Text(
+            'Grading History',
+            style: TextStyle(
+              color: _textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
         if (_all.isNotEmpty) ...[
@@ -290,6 +265,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     ),
   );
 
+  // 🔧 FIX: updated messaging — no backend server anymore, this is network connectivity
   Widget _buildOfflineBanner() => Container(
     margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -304,7 +280,7 @@ class _HistoryScreenState extends State<HistoryScreen>
         SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Backend offline — start backend server to load history',
+            'Weak or no connection — showing cached results',
             style: TextStyle(
               fontSize: 12,
               color: _red,
@@ -338,7 +314,6 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   Widget _qTab(_QFilter f, String label, Color color) {
     final selected = _qFilter == f;
-
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -367,14 +342,8 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Widget _buildBody() {
-    if (_loading) {
+    if (_loading)
       return const Center(child: CircularProgressIndicator(color: _red));
-    }
-
-    if (_isOffline && _all.isEmpty) {
-      return _buildOfflineState();
-    }
-
     if (_filtered.isEmpty) return _buildEmpty();
 
     return ListView.builder(
@@ -382,12 +351,10 @@ class _HistoryScreenState extends State<HistoryScreen>
       itemCount: _filtered.length,
       itemBuilder: (_, i) {
         final delay = i * 0.05;
-
         return AnimatedBuilder(
           animation: _listCtrl,
           builder: (_, child) {
             final t = ((_listCtrl.value - delay) / (1 - delay)).clamp(0.0, 1.0);
-
             return Transform.translate(
               offset: Offset(0, 30 * (1 - t)),
               child: Opacity(opacity: t, child: child),
@@ -424,48 +391,11 @@ class _HistoryScreenState extends State<HistoryScreen>
       ],
     ),
   );
-
-  Widget _buildOfflineState() => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: _redSoft,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.cloud_off_rounded, size: 36, color: _red),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Backend not reachable',
-            style: TextStyle(
-              color: _textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'History needs backend server to load.',
-            style: TextStyle(color: _textSoft, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    ),
-  );
 }
 
 class _HistoryCard extends StatelessWidget {
   final GradingResult result;
   final VoidCallback onDelete;
-
   const _HistoryCard({required this.result, required this.onDelete});
 
   static const _red = Color(0xFFC1121F);
@@ -550,6 +480,17 @@ class _HistoryCard extends StatelessWidget {
                               height: 1.3,
                             ),
                           ),
+                          if (result.defectType != null) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              '${result.defectType} · ${result.severityPercent?.toStringAsFixed(1) ?? "N/A"}%',
+                              style: const TextStyle(
+                                color: _textSoft,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 4),
                           Text(
                             result.displayDate,
@@ -602,7 +543,6 @@ class _HistoryCard extends StatelessWidget {
 class _ConfidenceArc extends StatelessWidget {
   final double value;
   final Color color;
-
   const _ConfidenceArc({required this.value, required this.color});
 
   @override
@@ -618,14 +558,12 @@ class _ConfidenceArc extends StatelessWidget {
 class _ArcPainter extends CustomPainter {
   final double value;
   final Color color;
-
   _ArcPainter({required this.value, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
     final r = size.width / 2 - 3;
-
     canvas.drawArc(
       Rect.fromCircle(center: c, radius: r),
       -math.pi * 0.8,
@@ -637,7 +575,6 @@ class _ArcPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round,
     );
-
     canvas.drawArc(
       Rect.fromCircle(center: c, radius: r),
       -math.pi * 0.8,

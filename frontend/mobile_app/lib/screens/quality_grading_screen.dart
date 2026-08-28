@@ -1,9 +1,6 @@
 // lib/screens/quality_grading_screen.dart
-// UI redesigned to match pomegranate app style (white bg, red accents, card-based)
-// Model Scores card removed — single result only, per requirement.
-// Defect type + severity card added.
-
 import 'dart:io';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/grading_result.dart';
@@ -15,6 +12,7 @@ import '../widgets/glass_box.dart';
 import '../widgets/stack_storage_bar.dart';
 import '../widgets/date_range_pill.dart';
 import '../widgets/smart_insights_card.dart';
+import '../l10n/q_app_strings.dart';
 import 'history_screen.dart';
 
 class QualityGradingScreen extends StatefulWidget {
@@ -27,9 +25,9 @@ enum _Phase { idle, analysing, result }
 
 class _QualityGradingScreenState extends State<QualityGradingScreen>
     with TickerProviderStateMixin {
-  static const _userId = 'farmer_test_001';
+  // 🔑 FIX: real Firebase Auth UID instead of hardcoded fake string
+  String? get _userId => FirebaseAuth.instance.currentUser?.uid;
 
-  // ── State ────────────────────────────────────────────────────────────────
   File? _image;
   GradingResult? _result;
   PredictionResult? _prediction;
@@ -40,7 +38,9 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   bool _saving = false;
   bool? _savedOk;
 
-  // ── Storage stats (from local history) ────────────────────────────────
+  int? _weightGrams;
+  final _weightController = TextEditingController();
+
   int _highCount = 0;
   int _mediumCount = 0;
   int _lowCount = 0;
@@ -61,7 +61,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   final _service = GradingService();
   final _tflite = TfliteService();
 
-  // Brand colors matching the image
   static const _red = Color(0xFFC1121F);
   static const _redLight = Color(0xFFFFEEEE);
   static const _redMid = Color(0xFFFFD6D6);
@@ -86,7 +85,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
 
     _tflite.loadModel().catchError((e) => debugPrint('⚠️ TFLite: $e'));
-    _service.init().catchError((e) => debugPrint('⚠️ DB: $e'));
     _loadStats();
   }
 
@@ -94,14 +92,16 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   void dispose() {
     _pulseCtrl.dispose();
     _resultCtrl.dispose();
+    _weightController.dispose();
     _tflite.dispose();
     super.dispose();
   }
 
-  // ── Load history → compute storage stats ─────────────────────────────────
   Future<void> _loadStats() async {
+    final uid = _userId;
+    if (uid == null) return;
     try {
-      final all = await _service.getHistory(_userId);
+      final all = await _service.getHistory(uid);
       final filtered = all.where((r) {
         final dt = r.dateTime;
         if (dt == null) return false;
@@ -121,7 +121,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     }
   }
 
-  // ── Image picker ─────────────────────────────────────────────────────────
   Future<void> _pick(ImageSource src) async {
     final x = await _picker.pickImage(
       source: src,
@@ -139,9 +138,15 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     });
   }
 
-  // ── Analyse flow ─────────────────────────────────────────────────────────
   Future<void> _analyse() async {
     if (_image == null) return;
+
+    final uid = _userId;
+    if (uid == null) {
+      setState(() => _error = 'Please log in before analysing a fruit.');
+      return;
+    }
+
     setState(() {
       _phase = _Phase.analysing;
       _progress = 0;
@@ -188,13 +193,16 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _progress = 1.0;
     });
 
+    _weightGrams = int.tryParse(_weightController.text.trim());
+
     final localResult = GradingResult(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      userId: _userId,
+      userId: uid,
       quality: prediction.quality,
       confidence: prediction.confidenceDecimal,
       defectType: prediction.defectType,
       severityPercent: prediction.severityPercent,
+      weightGrams: _weightGrams,
       recommendation: prediction.recommendation,
       imageUrl: null,
       createdAt: DateTime.now().toIso8601String(),
@@ -207,23 +215,22 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _phase = _Phase.result;
     });
     _resultCtrl.forward(from: 0);
-    _saveToHistory(prediction);
+    _saveToHistory(prediction, uid);
   }
 
-  Future<void> _saveToHistory(PredictionResult p) async {
+  Future<void> _saveToHistory(PredictionResult p, String uid) async {
     if (!mounted) return;
-    setState(() {
-      _saving = true;
-    });
+    setState(() => _saving = true);
 
     try {
       final saved = await _service.saveResult(
-        userId: _userId,
+        userId: uid,
         quality: p.quality,
         confidence: p.confidenceDecimal,
         imageFile: _image,
         defectType: p.defectType,
         severityPercent: p.severityPercent,
+        weightGrams: _weightGrams,
       );
       if (!mounted) return;
       setState(() {
@@ -233,10 +240,13 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       });
       _loadStats();
     } catch (e) {
+      debugPrint('🔴 SAVE ERROR: $e');
       if (!mounted) return;
       setState(() {
         _savedOk = false;
         _saving = false;
+        _error =
+            'Could not save result: ${e.toString().replaceFirst("Exception: ", "")}';
       });
     }
   }
@@ -250,11 +260,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _error = null;
       _savedOk = null;
       _saving = false;
+      _weightController.clear();
+      _weightGrams = null;
     });
     _resultCtrl.reset();
   }
 
-  // ── BUILD ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -286,7 +297,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  // ── App bar ─────────────────────────────────────────────────────────────
   Widget _appBar() => Container(
     color: Colors.white,
     child: SafeArea(
@@ -307,10 +317,10 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               ),
               onPressed: () => Navigator.pop(context),
             ),
-            const Expanded(
+            Expanded(
               child: Text(
-                'Quality Grading',
-                style: TextStyle(
+                AppStrings.get("quality_grading"),
+                style: const TextStyle(
                   color: _textDark,
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -326,12 +336,19 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                     color: _textDark,
                     size: 22,
                   ),
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const HistoryScreen(userId: _userId),
-                    ),
-                  ),
+                  onPressed: () {
+                    final uid = _userId;
+                    if (uid == null) {
+                      setState(() => _error = 'Please log in to view history.');
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => HistoryScreen(userId: uid),
+                      ),
+                    );
+                  },
                 ),
                 if (_phase == _Phase.result || _image != null)
                   IconButton(
@@ -350,7 +367,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     ),
   );
 
-  // ── Storage stats card ─────────────────────────────────────────────────
   Widget _storageStatsCard() {
     final total = _highCount + _mediumCount + _lowCount;
     return Container(
@@ -433,7 +449,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  // ── Idle body ────────────────────────────────────────────────────────────
   Widget _idleBody() => Column(
     children: [
       _uploadBox(),
@@ -457,6 +472,24 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           ),
         ],
       ),
+      // 🆕 Weight input (optional, used for High/Medium quality grading)
+      if (_image != null) ...[
+        const SizedBox(height: 12),
+        TextField(
+          controller: _weightController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: AppStrings.get("enter_weight"),
+            filled: true,
+            fillColor: Colors.white,
+            prefixIcon: const Icon(Icons.scale_rounded, color: _red, size: 18),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: _border),
+            ),
+          ),
+        ),
+      ],
       const SizedBox(height: 12),
       if (_image != null) _primaryButton(),
       const SizedBox(height: 16),
@@ -464,7 +497,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     ],
   );
 
-  // ── Full-width upload box ────────────────────────────────────────────────
   Widget _uploadBox() {
     if (_image == null) {
       return AnimatedBuilder(
@@ -504,9 +536,9 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                 ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Tap to Upload Fruit Image',
-                style: TextStyle(
+              Text(
+                AppStrings.get("tap_to_upload"),
+                style: const TextStyle(
                   color: _textDark,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
@@ -617,14 +649,14 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           ),
         ],
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
-          SizedBox(width: 8),
+          const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
+          const SizedBox(width: 8),
           Text(
-            'Analyse Quality',
-            style: TextStyle(
+            AppStrings.get("analyse_quality"),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
               fontWeight: FontWeight.w700,
@@ -635,7 +667,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     ),
   );
 
-  // ── Analysing body ──────────────────────────────────────────────────────
   Widget _analysingBody() => Column(
     children: [
       AnimatedBuilder(
@@ -804,7 +835,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  // ── Result body ─────────────────────────────────────────────────────────
   Widget _resultBody() {
     final r = _result!;
     final fg = QualityTheme.fgColor(r.quality);
@@ -813,7 +843,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       scale: _resultAnim,
       child: Column(
         children: [
-          // Detected Result card
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -831,9 +860,9 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Detected Result',
-                  style: TextStyle(
+                Text(
+                  AppStrings.get("detected_result"),
+                  style: const TextStyle(
                     color: _textDark,
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -903,14 +932,10 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
             ),
           ),
           const SizedBox(height: 14),
-
-          // 🆕 Defect & Severity card — only shown when a defect was detected
           if (_prediction?.defectType != null) ...[
             _defectInfoCard(),
             const SizedBox(height: 14),
           ],
-
-          // Recommendation card
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -945,9 +970,9 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'RECOMMENDATION',
-                        style: TextStyle(
+                      Text(
+                        AppStrings.get("recommendation").toUpperCase(),
+                        style: const TextStyle(
                           color: _textMid,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -972,7 +997,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           ),
           const SizedBox(height: 16),
           _primaryActionButton(
-            'Scan Another Fruit',
+            AppStrings.get("scan_another"),
             Icons.camera_alt_rounded,
             _reset,
           ),
@@ -981,7 +1006,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  // 🆕 Defect + Severity display card
   Widget _defectInfoCard() {
     final defectType = _prediction!.defectType!;
     final severity = _prediction!.severityDisplay;
@@ -1020,9 +1044,9 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'DEFECT DETECTED',
-                  style: TextStyle(
+                Text(
+                  AppStrings.get("defect_detected").toUpperCase(),
+                  style: const TextStyle(
                     color: _textMid,
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -1040,7 +1064,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Severity: $severity',
+                  '${AppStrings.get("severity")}: $severity',
                   style: const TextStyle(
                     color: _textMid,
                     fontSize: 13,
