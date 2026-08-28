@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwnerUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function ownerCreate(field) {
+      return isSignedIn() && request.resource.data[field] == request.auth.uid;
+    }
+
+    function ownerExisting(field) {
+      return isSignedIn() && resource.data[field] == request.auth.uid;
+    }
+
+    function ownsFarmerDoc() {
+      return ownerExisting('farmerId') || ownerExisting('userId');
+    }
+
+    function createsFarmerDoc() {
+      return ownerCreate('farmerId') || ownerCreate('userId');
+    }
+
+    // Profile only. Password stays in Firebase Auth, never here.
+    match /users/{userId} {
+      allow read, create, update: if isOwnerUser(userId);
+      allow delete: if false;
+    }
+
+    match /farms/{farmId} {
+      allow create: if createsFarmerDoc();
+      allow read, update: if ownsFarmerDoc();
+      allow delete: if ownsFarmerDoc();
+    }
+
+    match /trees/{treeId} {
+      allow create: if createsFarmerDoc();
+      allow read, update: if ownsFarmerDoc();
+      allow delete: if ownsFarmerDoc();
+    }
+
+    // Historical IoT samples. Append-only from the phone or backend Admin SDK.
+    match /sensor_readings/{readingId} {
+      allow create: if createsFarmerDoc();
+      allow read: if ownsFarmerDoc();
+      allow update, delete: if false;
+    }
+
+    match /weather/{recordId} {
+      allow create: if createsFarmerDoc();
+      allow read: if ownsFarmerDoc();
+      allow update, delete: if false;
+    }
+
+    // ML outputs are immutable after create so farmers cannot edit predictions.
+    match /irrigation_predictions/{recordId} {
+      allow create: if createsFarmerDoc();
+      allow read: if ownsFarmerDoc();
+      allow update, delete: if false;
+    }
+
+    match /fertilizer_predictions/{recordId} {
+      allow create: if createsFarmerDoc();
+      allow read: if ownsFarmerDoc();
+      allow update, delete: if false;
+    }
+
+    // Application logs can be completed later (end time, actual amount).
+    match /irrigation_logs/{recordId} {
+      allow create: if createsFarmerDoc();
+      allow read: if ownsFarmerDoc();
+      allow update: if ownsFarmerDoc();
+      allow delete: if ownsFarmerDoc();
+    }
+
+    match /fertilizer_logs/{recordId} {
+      allow create: if createsFarmerDoc();
+      allow read: if ownsFarmerDoc();
+      allow update: if ownsFarmerDoc();
+      allow delete: if ownsFarmerDoc();
+    }
+
+    match /notifications/{notificationId} {
+      allow create: if createsFarmerDoc();
+      allow read: if ownsFarmerDoc();
+      allow update: if ownsFarmerDoc()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      allow delete: if ownsFarmerDoc();
+    }
+
+    match /irrigation/{recordId} {
+      allow create: if createsFarmerDoc();
+      allow read, update, delete: if ownsFarmerDoc();
+    }
+
+    match /fertilizer/{recordId} {
+      allow create: if createsFarmerDoc();
+      allow read, update, delete: if ownsFarmerDoc();
+    }
+
+    match /quality_results/{recordId} {
+      allow create: if isSignedIn()
+        && request.resource.data.user_id == request.auth.uid;
+      allow read, update, delete: if isSignedIn()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    match /disease_predictions/{recordId} {
+      allow create: if isSignedIn()
+        && request.resource.data.user_id == request.auth.uid;
+      allow read, update, delete: if isSignedIn()
+        && resource.data.user_id == request.auth.uid;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

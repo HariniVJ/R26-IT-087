@@ -1,10 +1,9 @@
 // lib/screens/history_screen.dart
 
 import 'dart:math' as math;
-import 'package:PomCare/services/grading_service.dart';
+import 'package:PomCare/services/grading/grading_service.dart';
 import 'package:flutter/material.dart';
 import '../models/grading_result.dart';
-import '../services/grading_service.dart';
 import '../theme/app_theme.dart';
 
 class HistoryScreen extends StatefulWidget {

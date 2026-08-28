@@ -26,6 +26,12 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>PomCare needs your location once to fetch local weather for irrigation advice. Location is not tracked continuously.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>PomCare uses Bluetooth to read soil moisture from your farm sensor.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>PomCare uses Bluetooth to connect to your soil sensor.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

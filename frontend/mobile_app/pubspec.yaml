@@ -23,10 +23,15 @@ dependencies:
   shared_preferences: ^2.5.5
   fl_chart: ^0.68.0
   http_parser: ^4.1.2
-  sqflite: ^2.3.0             
-  path_provider: ^2.1.2       
-  path: ^1.8.3                 
-  intl: ^0.19.0   
+  sqflite: ^2.4.1
+  path_provider: ^2.1.2
+  intl: ^0.19.0
+  geolocator: ^13.0.2
+  path: ^1.9.0
+  crypto: ^3.0.6
+  firebase_core: ^4.14.0
+  firebase_auth: ^6.6.0
+  cloud_firestore: ^6.9.0
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -48,6 +53,8 @@ flutter:
     - assets/images/farm_bg4.jpeg
     - assets/models/pomegranat_quality_model.tflite
     - assets/models/labels.txt
+    - assets/models/pomegranate_irrigation_model.tflite
+    - assets/models/irrigation_labels.txt
     - assets/images/pomegranate.jpeg
     - assets/images/bud.png
     - assets/images/early_fruit.png

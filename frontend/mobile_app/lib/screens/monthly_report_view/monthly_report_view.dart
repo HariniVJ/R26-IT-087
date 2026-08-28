@@ -3,7 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 
 import '../../common/brand_color.dart';
 import '../../models/prediction_result_model.dart';
-import '../../services/history_service.dart';
+import '../../services/disease/history_service.dart';
 
 class MonthlyReportView extends StatefulWidget {
   const MonthlyReportView({super.key});

@@ -1,62 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../../common/brand_color.dart';
-
-// Bilingual string set
-class _LangStrings {
-  final String profile;
-  final String farmName;
-  final String subtitle;
-  final String location;
-  final String locationValue;
-  final String cropType;
-  final String cropValue;
-  final String aiModel;
-  final String aiValue;
-  final String language;
-  final String languageValue;
-
-  const _LangStrings({
-    required this.profile,
-    required this.farmName,
-    required this.subtitle,
-    required this.location,
-    required this.locationValue,
-    required this.cropType,
-    required this.cropValue,
-    required this.aiModel,
-    required this.aiValue,
-    required this.language,
-    required this.languageValue,
-  });
-}
-
-const _english = _LangStrings(
-  profile: 'Profile',
-  farmName: 'Akaran Farm',
-  subtitle: 'AI-Based Intelligent Farming System',
-  location: 'Location',
-  locationValue: 'Sri Lanka',
-  cropType: 'Crop Type',
-  cropValue: 'Pomegranate',
-  aiModel: 'AI Model',
-  aiValue: 'PomCare v1.0',
-  language: 'Language',
-  languageValue: 'English',
-);
-
-const _tamil = _LangStrings(
-  profile: 'சுயவிவரம்',
-  farmName: 'மாதுளை பண்ணை',
-  subtitle: 'AI அடிப்படையிலான நுண்ணிய விவசாய அமைப்பு',
-  location: 'இடம்',
-  locationValue: 'இலங்கை',
-  cropType: 'பயிர் வகை',
-  cropValue: 'மாதுளை',
-  aiModel: 'AI மாதிரி',
-  aiValue: 'நோய் கண்டறிதல் v1.0',
-  language: 'மொழி',
-  languageValue: 'தமிழ்',
-);
+import '../../l10n/app_strings.dart';
+import '../../services/auth/auth_service.dart';
+import '../../widgets/app_bottom_nav_bar.dart';
+import '../auth/login_screen.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -66,165 +14,158 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
-  bool _isTamil = false;
-
-  _LangStrings get _s => _isTamil ? _tamil : _english;
-
-  void _toggleLanguage() => setState(() => _isTamil = !_isTamil);
+  String get _initials {
+    final name = AuthService.instance.currentFarmer?.fullName ?? 'AK';
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.length >= 2
+        ? name.substring(0, 2).toUpperCase()
+        : name.toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: BrandColor.background,
-      bottomNavigationBar: _BottomNavBar(context),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        surfaceTintColor: Colors.white,
-        automaticallyImplyLeading: false,
-        title: Text(
-          _s.profile,
-          style: const TextStyle(
-            color: BrandColor.darkText,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        actions: [
-          // AppBar language toggle chip
-          Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: GestureDetector(
-              onTap: _toggleLanguage,
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: BrandColor.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: BrandColor.primary.withOpacity(0.22),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('🌐', style: TextStyle(fontSize: 13)),
-                    const SizedBox(width: 5),
-                    Text(
-                      _isTamil ? 'EN' : 'த',
-                      style: const TextStyle(
-                        color: BrandColor.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            const SizedBox(height: 20),
-
-            // Avatar
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: BrandColor.primary,
-                borderRadius: BorderRadius.circular(30),
-                boxShadow: [
-                  BoxShadow(
-                    color: BrandColor.primary.withOpacity(0.30),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: const Center(
-                child: Text(
-                  'AK',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            Text(
-              _s.farmName,
+    return ListenableBuilder(
+      listenable: LanguageController.instance,
+      builder: (context, _) {
+        final lang = LanguageController.instance.lang;
+        return Scaffold(
+          backgroundColor: BrandColor.background,
+          bottomNavigationBar:
+              const AppBottomNavBar(current: AppNavTab.profile),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            surfaceTintColor: Colors.white,
+            automaticallyImplyLeading: false,
+            title: Text(
+              t('profile'),
               style: const TextStyle(
                 color: BrandColor.darkText,
-                fontSize: 22,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              _s.subtitle,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: BrandColor.lightText, fontSize: 13),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                const SizedBox(height: 20),
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    color: BrandColor.primary,
+                    borderRadius: BorderRadius.circular(30),
+                    boxShadow: [
+                      BoxShadow(
+                        color: BrandColor.primary.withOpacity(0.30),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Center(
+                    child: Text(
+                      _initials,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 36,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  AuthService.instance.currentFarmer?.fullName ?? t('profile'),
+                  style: const TextStyle(
+                    color: BrandColor.darkText,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  t('subtitle'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: BrandColor.lightText, fontSize: 13),
+                ),
+                const SizedBox(height: 32),
+                _LanguageCard(current: lang),
+                const SizedBox(height: 12),
+                _InfoRow(
+                  icon: Icons.email_outlined,
+                  label: t('email'),
+                  value: AuthService.instance.currentFarmer?.email ?? '-',
+                ),
+                const SizedBox(height: 12),
+                _InfoRow(
+                  icon: Icons.phone_outlined,
+                  label: t('mobile'),
+                  value: AuthService.instance.currentFarmer?.mobile ?? '-',
+                ),
+                const SizedBox(height: 12),
+                _InfoRow(
+                  icon: Icons.location_on_outlined,
+                  label: t('location'),
+                  value: t('sriLanka'),
+                ),
+                const SizedBox(height: 12),
+                _InfoRow(
+                  icon: Icons.eco_outlined,
+                  label: t('cropType'),
+                  value: t('cropValue'),
+                ),
+                const SizedBox(height: 12),
+                _InfoRow(
+                  icon: Icons.smart_toy_outlined,
+                  label: t('aiModel'),
+                  value: 'PomCare v1.0',
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      await AuthService.instance.logout();
+                      if (!context.mounted) return;
+                      Navigator.pushAndRemoveUntil(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                        (_) => false,
+                      );
+                    },
+                    icon: const Icon(Icons.logout),
+                    label: Text(
+                      t('logout'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: BrandColor.primary,
+                      side: const BorderSide(color: BrandColor.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 32),
-
-            // Language switch card
-            _LanguageCard(
-              isTamil: _isTamil,
-              label: _s.language,
-              currentLang: _s.languageValue,
-              onToggle: _toggleLanguage,
-            ),
-            const SizedBox(height: 12),
-
-            // Info cards
-            _InfoRow(
-              icon: Icons.location_on_outlined,
-              label: _s.location,
-              value: _s.locationValue,
-            ),
-            const SizedBox(height: 12),
-            _InfoRow(
-              icon: Icons.eco_outlined,
-              label: _s.cropType,
-              value: _s.cropValue,
-            ),
-            const SizedBox(height: 12),
-            _InfoRow(
-              icon: Icons.smart_toy_outlined,
-              label: _s.aiModel,
-              value: _s.aiValue,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
 
-// ── Language switch card ──────────────────────────────────────────────────────
-
 class _LanguageCard extends StatelessWidget {
-  final bool isTamil;
-  final String label;
-  final String currentLang;
-  final VoidCallback onToggle;
+  final AppLang current;
 
-  const _LanguageCard({
-    required this.isTamil,
-    required this.label,
-    required this.currentLang,
-    required this.onToggle,
-  });
+  const _LanguageCard({required this.current});
 
   @override
   Widget build(BuildContext context) {
@@ -234,104 +175,66 @@ class _LanguageCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Icon
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: BrandColor.primary.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: const Center(
-              child: Text('🌐', style: TextStyle(fontSize: 20)),
-            ),
+          Text(
+            t('language'),
+            style: TextStyle(color: BrandColor.softText, fontSize: 11),
           ),
-          const SizedBox(width: 14),
-
-          // Label + current language
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(color: BrandColor.softText, fontSize: 11),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  currentLang,
-                  style: const TextStyle(
-                    color: BrandColor.darkText,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // EN / த toggle pill
-          GestureDetector(
-            onTap: onToggle,
-            child: Container(
-              decoration: BoxDecoration(
-                color: BrandColor.primary.withOpacity(0.06),
-                borderRadius: BorderRadius.circular(26),
-                border: Border.all(color: BrandColor.primary.withOpacity(0.18)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _LangPill(label: 'EN', active: !isTamil),
-                  _LangPill(label: 'த', active: isTamil),
-                ],
-              ),
-            ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _pill('EN', t('english'), AppLang.en, current == AppLang.en),
+              const SizedBox(width: 8),
+              _pill('සි', t('sinhala'), AppLang.si, current == AppLang.si),
+              const SizedBox(width: 8),
+              _pill('த', t('tamil'), AppLang.ta, current == AppLang.ta),
+            ],
           ),
         ],
       ),
     );
   }
-}
 
-class _LangPill extends StatelessWidget {
-  final String label;
-  final bool active;
-
-  const _LangPill({required this.label, required this.active});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: active ? BrandColor.primary : Colors.transparent,
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: active ? Colors.white : BrandColor.primary,
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
+  Widget _pill(String short, String label, AppLang value, bool active) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => LanguageController.instance.setLang(value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: active
+                ? BrandColor.primary
+                : BrandColor.primary.withOpacity(0.06),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            children: [
+              Text(
+                short,
+                style: TextStyle(
+                  color: active ? Colors.white : BrandColor.primary,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: active ? Colors.white : BrandColor.primary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-
-// ── Shared info row ───────────────────────────────────────────────────────────
 
 class _InfoRow extends StatelessWidget {
   final IconData icon;
@@ -352,13 +255,6 @@ class _InfoRow extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE5E7EB)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Row(
         children: [
@@ -396,96 +292,4 @@ class _InfoRow extends StatelessWidget {
       ),
     );
   }
-}
-
-Widget _BottomNavBar(BuildContext context) {
-  return Container(
-    height: 78,
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.08),
-          blurRadius: 18,
-          offset: const Offset(0, -5),
-        ),
-      ],
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _navItem(
-          context,
-          icon: Icons.home_rounded,
-          label: 'Home',
-          onTap: () {
-            Navigator.pop(context);
-          },
-        ),
-
-        _navItem(context, icon: Icons.history_rounded, label: 'History'),
-
-        Container(
-          width: 58,
-          height: 58,
-          decoration: BoxDecoration(
-            color: BrandColor.primary,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: BrandColor.primary.withOpacity(0.35),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: const Icon(
-            Icons.crop_free_rounded,
-            color: Colors.white,
-            size: 28,
-          ),
-        ),
-
-        _navItem(context, icon: Icons.bar_chart_rounded, label: 'Reports'),
-
-        _navItem(
-          context,
-          icon: Icons.person_outline_rounded,
-          label: 'Profile',
-          active: true,
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _navItem(
-  BuildContext context, {
-  required IconData icon,
-  required String label,
-  bool active = false,
-  VoidCallback? onTap,
-}) {
-  final color = active ? BrandColor.primary : Colors.grey;
-
-  return GestureDetector(
-    onTap: onTap,
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 10,
-            fontWeight: active ? FontWeight.w800 : FontWeight.w500,
-          ),
-        ),
-      ],
-    ),
-  );
 }
