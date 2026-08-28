@@ -3,9 +3,11 @@ from firebase_admin import firestore as fs
 
 from app.config.firebase_config import db
 
-# Collections
 QUALITY_COLLECTION = "quality_results"
 DISEASE_COLLECTION = "disease_predictions"
+SENSOR_COLLECTION = "sensor_readings"
+IRRIGATION_PREDICTIONS = "irrigation_predictions"
+FERTILIZER_PREDICTIONS = "fertilizer_predictions"
 
 
 # ─────────────────────────────────────────────
@@ -144,3 +146,36 @@ def delete_prediction_by_id(prediction_id: str):
 
     doc_ref.delete()
     return True
+
+def save_sensor_reading(
+    farmer_id: str,
+    farm_id: str | None,
+    moisture: float,
+    temperature: float,
+    ph: float,
+    nitrogen: float,
+    phosphorus: float,
+    potassium: float,
+    ec: float | None = None,
+    tree_id: str | None = None,
+) -> dict:
+    data = {
+        "farmerId": farmer_id,
+        "farmId": farm_id,
+        "treeId": tree_id,
+        "soilMoisture": float(moisture),
+        "soilTemperature": float(temperature),
+        "soilPh": float(ph),
+        "nitrogen": float(nitrogen),
+        "phosphorus": float(phosphorus),
+        "potassium": float(potassium),
+        "soilEc": None if ec is None else float(ec),
+        "timestamp": datetime.now(timezone.utc),
+        "source": "esp32_http",
+    }
+    doc_ref = db.collection(SENSOR_COLLECTION).document()
+    doc_ref.set(data)
+    saved = {"id": doc_ref.id, **data}
+    if hasattr(saved.get("timestamp"), "isoformat"):
+        saved["timestamp"] = saved["timestamp"].isoformat()
+    return saved
