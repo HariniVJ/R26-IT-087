@@ -12,6 +12,8 @@ import 'services/auth/auth_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  
+
   await dotenv.load(fileName: ".env");
 
   try {
