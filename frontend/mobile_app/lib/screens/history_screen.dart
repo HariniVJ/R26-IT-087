@@ -1,9 +1,10 @@
 // lib/screens/history_screen.dart
 
 import 'dart:math' as math;
+import 'package:PomCare/services/grading_service.dart';
 import 'package:flutter/material.dart';
 import '../models/grading_result.dart';
-import '../services/grading_api_service.dart';
+import '../services/grading_service.dart';
 import '../theme/app_theme.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -18,7 +19,7 @@ enum _QFilter { all, high, medium, low }
 
 class _HistoryScreenState extends State<HistoryScreen>
     with SingleTickerProviderStateMixin {
-  final _service = GradingApiService();
+  final _service = GradingService();
 
   List<GradingResult> _all = [];
   List<GradingResult> _filtered = [];

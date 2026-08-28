@@ -1,161 +1,175 @@
-// YOUR FILE — Member 4: Fruit Quality Grading
 // lib/services/tflite_service.dart
-//
-// Connects pomegranate_quality_model.tflite to Flutter.
-// Model trained with MobileNetV2 CNN (has Rescaling(1./255) layer built in).
-// Input:  [1, 224, 224, 3] — raw pixel values 0-255 (NOT normalized in Dart)
-// Output: [1, 3] — softmax probabilities for 3 classes
-//
-// labels.txt order (from training sorted() call):
-//   0 -> high_quality
-//   1 -> low_quality
-//   2 -> medium_quality
-
 import 'dart:io';
-import 'package:flutter/services.dart';
-import 'package:image/image.dart' as img;
+import 'dart:typed_data';
 import 'package:tflite_flutter/tflite_flutter.dart';
+import 'package:image/image.dart' as img;
 import '../models/prediction_result.dart';
 
 class TfliteService {
-  Interpreter? _interpreter;
-  List<String> _labels = [];
-  bool _isLoaded = false;
+  Interpreter? _binaryInterpreter;
+  Interpreter? _qualityInterpreter;
+  Interpreter? _defectInterpreter;
 
-  bool get isLoaded => _isLoaded;
+  static const int imgSize = 224;
+  final List<String> binaryClasses = ["not_pomegranate", "pomegranate"];
+  final List<String> qualityClasses = [
+    "high_quality",
+    "low_quality",
+    "medium_quality",
+  ];
+  final List<String> defectClasses = ["crack", "disease", "rot", "sunburn"];
 
-  // Load model + labels
+  bool _loaded = false;
+  bool get isLoaded => _loaded;
+
   Future<void> loadModel() async {
-    if (_isLoaded) return;
-
-    try {
-      _interpreter = await Interpreter.fromAsset(
-        'assets/models/pomegranat_quality_model.tflite',
-      );
-
-      final raw = await rootBundle.loadString('assets/models/labels.txt');
-      _labels = raw
-          .split('\n')
-          .map((l) => l.trim())
-          .where((l) => l.isNotEmpty)
-          .toList();
-
-      _isLoaded = true;
-    } catch (e) {
-      _isLoaded = false;
-      throw Exception(
-        'Failed to load TFLite model.\n'
-        'Make sure these files exist and are declared in pubspec.yaml:\n'
-        '  assets/models/pomegranat_quality_model.tflite\n'
-        '  assets/models/labels.txt\n'
-        'Error: $e',
-      );
-    }
+    if (_loaded) return;
+    _binaryInterpreter = await Interpreter.fromAsset(
+      'assets/models/quality/binary_validation.tflite',
+    );
+    _qualityInterpreter = await Interpreter.fromAsset(
+      'assets/models/quality/quality_model.tflite',
+    );
+    _defectInterpreter = await Interpreter.fromAsset(
+      'assets/models/quality/defect_type_model.tflite',
+    );
+    _loaded = true;
   }
 
-  // Predict quality from image file
-  Future<PredictionResult> predict(File imageFile) async {
-    if (!_isLoaded) await loadModel();
+  Float32List _preprocess(img.Image image) {
+    final resized = img.copyResize(image, width: imgSize, height: imgSize);
+    final input = Float32List(1 * imgSize * imgSize * 3);
+    int idx = 0;
+    for (int y = 0; y < imgSize; y++) {
+      for (int x = 0; x < imgSize; x++) {
+        final p = resized.getPixel(x, y);
+        input[idx++] = p.r / 255.0;
+        input[idx++] = p.g / 255.0;
+        input[idx++] = p.b / 255.0;
+      }
+    }
+    return input;
+  }
 
-    // Decode image
-    final bytes = await imageFile.readAsBytes();
-    final decoded = img.decodeImage(bytes);
-    if (decoded == null) throw Exception('Could not decode image file.');
+  Map<String, dynamic> _classify(
+    Interpreter interpreter,
+    Float32List input,
+    List<String> classNames,
+  ) {
+    final inputTensor = input.reshape([1, imgSize, imgSize, 3]);
+    final outputShape = interpreter.getOutputTensor(0).shape;
+    final output = List.filled(
+      outputShape[1],
+      0.0,
+    ).reshape([1, outputShape[1]]);
 
-    // Resize to 224x224
-    final resized = img.copyResize(
-      decoded,
-      width: 224,
-      height: 224,
-      interpolation: img.Interpolation.linear,
-    );
+    interpreter.run(inputTensor, output);
 
-    // Build input tensor [1, 224, 224, 3]
-    // Pass raw 0-255 values — model has Rescaling(1./255) built in
-    final input = _buildInputTensor(resized);
-    final output = List.generate(1, (_) => List.filled(_labels.length, 0.0));
-
-    // Run inference
-    _interpreter!.run(input, output);
-
-    // Model output is already softmax probabilities
-    final probs = List<double>.from(output[0] as List);
-
-    // Find highest probability class
-    int maxIdx = 0;
-    double maxVal = probs[0];
+    final probs = List<double>.from(output[0]);
+    int maxIndex = 0;
+    double maxProb = probs[0];
     for (int i = 1; i < probs.length; i++) {
-      if (probs[i] > maxVal) {
-        maxVal = probs[i];
-        maxIdx = i;
+      if (probs[i] > maxProb) {
+        maxProb = probs[i];
+        maxIndex = i;
       }
     }
 
-    final label = maxIdx < _labels.length ? _labels[maxIdx] : 'unknown';
-    final confidence = double.parse((maxVal * 100).toStringAsFixed(2));
+    final scores = <String, double>{};
+    for (int i = 0; i < classNames.length; i++) {
+      scores[classNames[i]] = probs[i];
+    }
 
-    return PredictionResult(
-      quality: label,
-      confidence: confidence,
-      recommendation: _getRecommendation(label),
-    );
+    return {
+      "label": classNames[maxIndex],
+      "confidence": maxProb,
+      "all_scores": scores,
+    };
   }
 
-  // Get all 3 class scores for breakdown bars in result screen
-  Future<Map<String, double>> getAllScores(File imageFile) async {
-    if (!_isLoaded) await loadModel();
+  /// Full pipeline: Binary -> Quality -> Defect-Type (if low quality)
+  Future<Map<String, dynamic>> runFullPipeline(File imageFile) async {
+    if (!_loaded) await loadModel();
 
     final bytes = await imageFile.readAsBytes();
-    final decoded = img.decodeImage(bytes);
-    if (decoded == null) return {};
+    final image = img.decodeImage(bytes);
+    if (image == null) throw Exception("Could not decode image");
 
-    final resized = img.copyResize(decoded, width: 224, height: 224);
-    final input = _buildInputTensor(resized);
-    final output = List.generate(1, (_) => List.filled(_labels.length, 0.0));
+    final input = _preprocess(image);
 
-    _interpreter!.run(input, output);
-
-    final probs = List<double>.from(output[0] as List);
-    final scores = <String, double>{};
-
-    for (int i = 0; i < _labels.length && i < probs.length; i++) {
-      scores[_labels[i]] = double.parse(probs[i].toStringAsFixed(4));
+    // Stage 1: Binary validation
+    final binResult = _classify(_binaryInterpreter!, input, binaryClasses);
+    if (binResult["label"] == "not_pomegranate") {
+      return {
+        "isPomegranate": false,
+        "binaryConfidence": binResult["confidence"],
+      };
     }
 
-    return scores;
+    // Stage 2: Quality classification
+    final qualityResult = _classify(
+      _qualityInterpreter!,
+      input,
+      qualityClasses,
+    );
+
+    String? defectType;
+    double? defectConfidence;
+
+    // Stage 3: Defect-type router (only for low_quality)
+    if (qualityResult["label"] == "low_quality") {
+      final defectResult = _classify(_defectInterpreter!, input, defectClasses);
+      defectType = defectResult["label"];
+      defectConfidence = defectResult["confidence"];
+    }
+
+    return {
+      "isPomegranate": true,
+      "quality": qualityResult["label"],
+      "qualityConfidence": qualityResult["confidence"],
+      "allQualityScores": qualityResult["all_scores"],
+      "defectType": defectType,
+      "defectConfidence": defectConfidence,
+    };
   }
 
-  // Build input tensor [1, 224, 224, 3] with raw 0-255 float values
-  List _buildInputTensor(img.Image image) {
-    return List.generate(
-      1,
-      (_) => List.generate(
-        224,
-        (y) => List.generate(224, (x) {
-          final pixel = image.getPixel(x, y);
-          return [pixel.r.toDouble(), pixel.g.toDouble(), pixel.b.toDouble()];
-        }),
-      ),
+  // tflite_service.dart-ல், dispose() method-க்கு முன் சேருங்க
+
+  Map<String, dynamic>? _lastPipelineResult;
+
+  /// Returns a PredictionResult — matches what the UI screen expects
+  Future<PredictionResult> predict(File imageFile) async {
+    final pipelineResult = await runFullPipeline(imageFile);
+    _lastPipelineResult = pipelineResult;
+
+    if (pipelineResult["isPomegranate"] == false) {
+      throw Exception(
+        "Not recognized as a pomegranate. Please retake the photo.",
+      );
+    }
+
+    return PredictionResult(
+      quality: pipelineResult["quality"] as String,
+      confidence: (pipelineResult["qualityConfidence"] as double) * 100,
+      defectType: pipelineResult["defectType"] as String?,
+      severityPercent: null, // segmentation model integration pending
+      recommendation: "", // filled in later via DB lookup
     );
   }
 
-  // Recommendation text per quality label
-  String _getRecommendation(String label) {
-    switch (label) {
-      case 'high_quality':
-        return 'Suitable for export and premium market sale.';
-      case 'medium_quality':
-        return 'Suitable for juice, jam, or food processing.';
-      case 'low_quality':
-        return 'Suitable for compost or organic fertilizer production.';
-      default:
-        return 'No recommendation available.';
+  /// Returns quality class scores as a Map — matches what the UI screen expects
+  Future<Map<String, double>> getAllScores(File imageFile) async {
+    if (_lastPipelineResult == null) {
+      await predict(imageFile);
     }
+    final raw =
+        _lastPipelineResult?["allQualityScores"] as Map<String, double>?;
+    return raw ?? {};
   }
 
-  // Cleanup
   void dispose() {
-    _interpreter?.close();
-    _isLoaded = false;
+    _binaryInterpreter?.close();
+    _qualityInterpreter?.close();
+    _defectInterpreter?.close();
   }
 }

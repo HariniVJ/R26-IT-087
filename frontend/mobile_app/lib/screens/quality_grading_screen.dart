@@ -1,13 +1,14 @@
 // lib/screens/quality_grading_screen.dart
 // UI redesigned to match pomegranate app style (white bg, red accents, card-based)
-// All functions and logic preserved exactly.
+// Model Scores card removed — single result only, per requirement.
+// Defect type + severity card added.
 
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/grading_result.dart';
 import '../models/prediction_result.dart';
-import '../services/grading_api_service.dart';
+import '../services/grading_service.dart';
 import '../services/tflite_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_box.dart';
@@ -32,7 +33,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   File? _image;
   GradingResult? _result;
   PredictionResult? _prediction;
-  Map<String, double> _allScores = {};
   _Phase _phase = _Phase.idle;
   String? _error;
   double _progress = 0;
@@ -40,7 +40,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   bool _saving = false;
   bool? _savedOk;
 
-  // ── Storage stats (from history backend) ─────────────────────────────────
+  // ── Storage stats (from local history) ────────────────────────────────
   int _highCount = 0;
   int _mediumCount = 0;
   int _lowCount = 0;
@@ -58,7 +58,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   late final Animation<double> _resultAnim;
 
   final _picker = ImagePicker();
-  final _service = GradingApiService();
+  final _service = GradingService();
   final _tflite = TfliteService();
 
   // Brand colors matching the image
@@ -86,6 +86,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
 
     _tflite.loadModel().catchError((e) => debugPrint('⚠️ TFLite: $e'));
+    _service.init().catchError((e) => debugPrint('⚠️ DB: $e'));
     _loadStats();
   }
 
@@ -132,7 +133,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _image = File(x.path);
       _result = null;
       _prediction = null;
-      _allScores = {};
       _error = null;
       _phase = _Phase.idle;
       _savedOk = null;
@@ -165,10 +165,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     });
 
     PredictionResult prediction;
-    Map<String, double> allScores;
     try {
       prediction = await _tflite.predict(_image!);
-      allScores = await _tflite.getAllScores(_image!);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -195,6 +193,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       userId: _userId,
       quality: prediction.quality,
       confidence: prediction.confidenceDecimal,
+      defectType: prediction.defectType,
+      severityPercent: prediction.severityPercent,
       recommendation: prediction.recommendation,
       imageUrl: null,
       createdAt: DateTime.now().toIso8601String(),
@@ -203,15 +203,14 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     if (!mounted) return;
     setState(() {
       _prediction = prediction;
-      _allScores = allScores;
       _result = localResult;
       _phase = _Phase.result;
     });
     _resultCtrl.forward(from: 0);
-    _saveToBackend(prediction);
+    _saveToHistory(prediction);
   }
 
-  Future<void> _saveToBackend(PredictionResult p) async {
+  Future<void> _saveToHistory(PredictionResult p) async {
     if (!mounted) return;
     setState(() {
       _saving = true;
@@ -223,6 +222,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         quality: p.quality,
         confidence: p.confidenceDecimal,
         imageFile: _image,
+        defectType: p.defectType,
+        severityPercent: p.severityPercent,
       );
       if (!mounted) return;
       setState(() {
@@ -245,7 +246,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _image = null;
       _result = null;
       _prediction = null;
-      _allScores = {};
       _phase = _Phase.idle;
       _error = null;
       _savedOk = null;
@@ -813,7 +813,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       scale: _resultAnim,
       child: Column(
         children: [
-          // Detected Result card — matches image style
+          // Detected Result card
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -903,6 +903,13 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
             ),
           ),
           const SizedBox(height: 14),
+
+          // 🆕 Defect & Severity card — only shown when a defect was detected
+          if (_prediction?.defectType != null) ...[
+            _defectInfoCard(),
+            const SizedBox(height: 14),
+          ],
+
           // Recommendation card
           Container(
             decoration: BoxDecoration(
@@ -963,40 +970,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          // Model scores card
-          if (_allScores.isNotEmpty)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _border),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'MODEL SCORES',
-                    style: TextStyle(
-                      color: _textMid,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ..._allScores.entries.map((e) => _scoreLine(e.key, e.value)),
-                ],
-              ),
-            ),
           const SizedBox(height: 16),
           _primaryActionButton(
             'Scan Another Fruit',
@@ -1008,51 +981,73 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  Widget _scoreLine(String quality, double score) {
-    final color = QualityTheme.fgColor(quality);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(
+  // 🆕 Defect + Severity display card
+  Widget _defectInfoCard() {
+    final defectType = _prediction!.defectType!;
+    final severity = _prediction!.severityDisplay;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    QualityTheme.emoji(quality),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    QualityTheme.label(quality),
-                    style: const TextStyle(
-                      color: _textDark,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '${(score * 100).toStringAsFixed(1)}%',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _redLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: _red,
+              size: 20,
+            ),
           ),
-          const SizedBox(height: 5),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: LinearProgressIndicator(
-              value: score,
-              minHeight: 6,
-              backgroundColor: const Color(0xFFF3F4F6),
-              valueColor: AlwaysStoppedAnimation(color),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'DEFECT DETECTED',
+                  style: TextStyle(
+                    color: _textMid,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  defectType[0].toUpperCase() + defectType.substring(1),
+                  style: const TextStyle(
+                    color: _textDark,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Severity: $severity',
+                  style: const TextStyle(
+                    color: _textMid,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

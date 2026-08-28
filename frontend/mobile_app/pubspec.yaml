@@ -23,6 +23,10 @@ dependencies:
   shared_preferences: ^2.5.5
   fl_chart: ^0.68.0
   http_parser: ^4.1.2
+  sqflite: ^2.3.0             
+  path_provider: ^2.1.2       
+  path: ^1.8.3                 
+  intl: ^0.19.0   
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -53,6 +57,10 @@ flutter:
     - assets/images/Early_Fruit.jpg
     - assets/images/Mature_fruit.jpg
     - assets/images/Mid_Growth.jpg
+    - assets/models/quality/binary_validation.tflite
+    - assets/models/quality/quality_model.tflite
+    - assets/models/quality/defect_type_model.tflite
+    - assets/models/quality/segmentation_model.tflite
 
 flutter_launcher_icons:
   android: true
