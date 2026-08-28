@@ -1,6 +1,4 @@
-/// Parsed 7-in-1 soil sensor CSV from the existing ESP32 BLE characteristic.
-/// Format from `fertilizer_screen.dart`:
-/// moisture,temp,ec,ph,nitrogen,phosphorus,potassium
+
 class SoilSensorReading {
   final double moisture;
   final double temp;

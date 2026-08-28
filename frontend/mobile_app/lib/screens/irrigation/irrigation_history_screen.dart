@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
 import '../../models/irrigation_history_record.dart';
-import '../../services/irrigation_history_service.dart';
+import '../../services/irrigation/irrigation_history_service.dart';
 
 class IrrigationHistoryScreen extends StatefulWidget {
   const IrrigationHistoryScreen({super.key});

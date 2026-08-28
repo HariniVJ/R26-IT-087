@@ -1,8 +1,5 @@
-import '../models/fertilizer_advice.dart';
+import '../../models/fertilizer_advice.dart';
 
-/// On-device fertilizer rules copied from
-/// `backend/app/services/fertilizer_service.py`.
-/// EC is not used by the remaining fertilizer logic.
 class FertilizerLocalService {
   FertilizerAdvice predict({
     required double moisture,

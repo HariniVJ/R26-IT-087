@@ -9,6 +9,8 @@ class IrrigationResult {
   final String? finalPrediction;
   final IrrigationWeather? weatherUsed;
   final double soilMoisture;
+  final double? soilTemperature;
+  final double? modelConfidence;
   final double? latitude;
   final double? longitude;
   final String weatherSource;
@@ -22,6 +24,8 @@ class IrrigationResult {
     required this.soilMoisture,
     required this.weatherSource,
     required this.createdAt,
+    this.soilTemperature,
+    this.modelConfidence,
     this.modelPrediction,
     this.finalPrediction,
     this.weatherUsed,

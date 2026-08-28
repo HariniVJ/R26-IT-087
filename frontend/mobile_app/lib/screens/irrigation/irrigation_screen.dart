@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/farm_location.dart';
 import '../../models/irrigation_result.dart';
 import '../../models/irrigation_weather.dart';
-import '../../services/irrigation_history_service.dart';
-import '../../services/irrigation_prediction_service.dart';
-import '../../services/irrigation_weather_service.dart';
-import '../../services/location_service.dart';
-import '../../services/soil_bluetooth_service.dart';
+import '../../models/soil_sensor_reading.dart';
+import '../../services/irrigation/irrigation_history_service.dart';
+import '../../services/irrigation/irrigation_prediction_service.dart';
+import '../../services/irrigation/irrigation_weather_service.dart';
+import '../../services/irrigation/location_service.dart';
+import '../../services/sensor/soil_bluetooth_service.dart';
+import '../../services/firebase/firestore_service.dart';
 import 'irrigation_history_screen.dart';
 
 class IrrigationScreen extends StatefulWidget {
@@ -20,7 +23,6 @@ class IrrigationScreen extends StatefulWidget {
 }
 
 class _IrrigationScreenState extends State<IrrigationScreen> {
-  final _soilController = TextEditingController();
   final _locationService = FarmLocationService();
   final _weatherService = IrrigationWeatherService();
   final _predictionService = IrrigationPredictionService();
@@ -39,14 +41,14 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
   @override
   void initState() {
     super.initState();
-    _ble.latestReading.addListener(_onSensorReading);
     _prepareLocationAndWeather();
+    _connectSensorIfNeeded();
   }
 
-  void _onSensorReading() {
-    final reading = _ble.latestReading.value;
-    if (reading == null || !mounted) return;
-    _soilController.text = reading.moisture.toStringAsFixed(1);
+  Future<void> _connectSensorIfNeeded() async {
+    if (!_ble.isConnected.value && !_ble.isScanning.value) {
+      await _ble.connect();
+    }
   }
 
   Future<void> _prepareLocationAndWeather() async {
@@ -65,14 +67,23 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
       _loadingLocation = false;
       _loadingWeather = false;
     });
+    if (_weather != null) {
+      FirestoreService.instance.notifyRainIfNeeded(_weather!);
+    }
   }
 
   Future<void> _predict() async {
-    final soil = double.tryParse(_soilController.text.trim());
-    if (soil == null) {
-      setState(() => _message = 'Connect the soil sensor or enter soil moisture.');
+    final reading = _ble.latestReading.value;
+    if (reading == null) {
+      setState(() {
+        _message =
+            'Connect the IoT soil sensor. Soil moisture is read automatically from the device.';
+      });
+      _connectSensorIfNeeded();
       return;
     }
+
+    final soil = reading.moisture;
 
     setState(() {
       _predicting = true;
@@ -82,6 +93,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
 
     final result = await _predictionService.predict(
       soilMoisture: soil,
+      soilTemperature: reading.temp,
       weather: _weather,
       latitude: _location?.latitude,
       longitude: _location?.longitude,
@@ -98,9 +110,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
 
   @override
   void dispose() {
-    _ble.latestReading.removeListener(_onSensorReading);
     _ble.disconnect();
-    _soilController.dispose();
     super.dispose();
   }
 
@@ -109,7 +119,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
-        title: const Text('Irrigation Advice'),
+        title: Text(t('irrigationRecommendation')),
         backgroundColor: BrandColor.primary,
         foregroundColor: Colors.white,
         actions: [
@@ -134,14 +144,14 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
           children: [
             const Icon(Icons.water_drop, size: 64, color: BrandColor.primary),
             const SizedBox(height: 8),
-            const Text(
-              'Check Irrigation Suitability',
+            Text(
+              t('checkIrrigation'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
             const Text(
-              'The irrigation model runs on this phone. Weather is used when the internet is available.',
+              'Soil moisture comes from the IoT sensor. Weather is loaded automatically when the internet is available.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
             ),
@@ -152,16 +162,10 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
             const SizedBox(height: 12),
             _sensorCard(),
             const SizedBox(height: 12),
-            AppTextField(
-              label: 'Soil Moisture (%)',
-              hint: 'Filled from the sensor, or enter manually',
-              controller: _soilController,
-              icon: Icons.grass,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            ),
+            _liveSensorReadings(),
             const SizedBox(height: 16),
             AppPrimaryButton(
-              label: 'Check Irrigation',
+              label: t('checkIrrigation'),
               icon: Icons.search,
               isLoading: _predicting,
               onPressed: _predict,
@@ -194,7 +198,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Farm Location', style: TextStyle(fontWeight: FontWeight.w800)),
+                Text(t('farmLocation'), style: const TextStyle(fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
                 Text(
                   _loadingLocation
@@ -230,9 +234,15 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
           'Using saved weather from ${_formatTime(_weather!.fetchedAt)}. This is not live weather.';
       color = Colors.orange.shade800;
     } else {
+      final hours = _weather!.rainExpectedInHours;
+      final rain = hours == null
+          ? t('noRainSoon')
+          : t('waitRainReason').replaceAll('{hours}', '${hours < 1 ? 1 : hours}');
       message =
-          'Live weather loaded. Forecast rain 24h: ${_weather!.forecastRain24h} mm';
-      color = Colors.green.shade800;
+          '${t('currentWeather')}. ${t('rainForecast')}: ${_weather!.forecastRain24h} mm. $rain';
+      color = _weather!.rainWithinTwoHours
+          ? Colors.blue.shade800
+          : Colors.green.shade800;
     }
 
     return AppBanner(message: message, color: color, icon: Icons.cloud_outlined);
@@ -252,6 +262,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
                   connected: connected,
                   scanning: scanning,
                   status: status,
+                  connectLabel: t('connectSensor'),
                   onConnect: _ble.connect,
                 );
               },
@@ -259,6 +270,102 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _liveSensorReadings() {
+    return ValueListenableBuilder<SoilSensorReading?>(
+      valueListenable: _ble.latestReading,
+      builder: (context, reading, _) {
+        final live = reading != null;
+        return AppCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'IoT Sensor Readings',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  Text(
+                    live ? t('live') : t('waiting'),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                      color: live ? Colors.green.shade700 : Colors.black38,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _sensorMetric(
+                      t('soilMoisture'),
+                      reading == null
+                          ? '--'
+                          : '${reading.moisture.toStringAsFixed(1)} %',
+                      Icons.grass,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _sensorMetric(
+                      t('soilTemperature'),
+                      reading == null
+                          ? '--'
+                          : '${reading.temp.toStringAsFixed(1)} °C',
+                      Icons.thermostat,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                live
+                    ? 'Values are updating from the ESP32 soil sensor.'
+                    : 'Turn on the ESP32 soil sensor. Moisture is filled automatically — no typing needed.',
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _sensorMetric(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7F7),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: BrandColor.primary),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(fontSize: 11, color: Colors.black54),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
     );
   }
 
@@ -348,20 +455,38 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
   }
 
   Color _statusColor(String status) {
-    if (status == 'Suitable Now' || status == 'Suitable Based on Soil') {
+    if (status == t('waitForRain') || status.contains('RAIN')) {
+      return Colors.blue.shade800;
+    }
+    if (status == t('suitableNow') ||
+        status == 'Suitable Now' ||
+        status == 'Suitable Based on Soil') {
       return Colors.green;
     }
-    if (status == 'Not Suitable Now') return BrandColor.primary;
-    if (status == 'No Urgent Irrigation Needed') return Colors.orange;
+    if (status == t('soilAlreadyWet') || status == 'Not Suitable Now') {
+      return BrandColor.primary;
+    }
+    if (status == t('noUrgent') || status == 'No Urgent Irrigation Needed') {
+      return Colors.orange;
+    }
     return Colors.grey;
   }
 
   IconData _statusIcon(String status) {
-    if (status == 'Suitable Now' || status == 'Suitable Based on Soil') {
+    if (status == t('waitForRain') || status.contains('RAIN')) {
+      return Icons.cloud;
+    }
+    if (status == t('suitableNow') ||
+        status == 'Suitable Now' ||
+        status == 'Suitable Based on Soil') {
       return Icons.check_circle;
     }
-    if (status == 'Not Suitable Now') return Icons.cancel;
-    if (status == 'No Urgent Irrigation Needed') return Icons.info;
+    if (status == t('soilAlreadyWet') || status == 'Not Suitable Now') {
+      return Icons.cancel;
+    }
+    if (status == t('noUrgent') || status == 'No Urgent Irrigation Needed') {
+      return Icons.info;
+    }
     return Icons.warning;
   }
 

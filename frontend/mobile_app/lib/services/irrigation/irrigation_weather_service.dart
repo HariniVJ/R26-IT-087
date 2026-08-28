@@ -5,8 +5,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/farm_location.dart';
-import '../models/irrigation_weather.dart';
+import '../../models/farm_location.dart';
+import '../../models/irrigation_weather.dart';
 import 'location_service.dart';
 
 /// Open-Meteo weather for the irrigation TFLite model.
@@ -24,9 +24,19 @@ class IrrigationWeatherService {
       location = await locationService.getCurrentLocation();
     } catch (e) {
       lastError = e.toString();
+      location = await locationService.loadLastLocation() ??
+          const FarmLocation(
+            latitude: 6.9271,
+            longitude: 79.8612,
+            source: 'colombo_fallback',
+          );
+      final weather = await fetchWeather(
+        latitude: location.latitude,
+        longitude: location.longitude,
+      );
       return FarmWeatherSnapshot(
-        location: await locationService.loadLastLocation(),
-        weather: await loadCachedWeather(),
+        location: location,
+        weather: weather,
         locationError: e.toString(),
       );
     }
@@ -56,6 +66,7 @@ class IrrigationWeatherService {
             'temperature_2m',
             'apparent_temperature',
             'precipitation',
+            'relative_humidity_2m',
             'weather_code',
             'wind_speed_10m',
             'wind_gusts_10m',
@@ -73,7 +84,12 @@ class IrrigationWeatherService {
             'et0_fao_evapotranspiration',
             'weather_code',
           ].join(','),
-          'forecast_days': '1',
+          'hourly': [
+            'precipitation',
+            'precipitation_probability',
+            'weather_code',
+          ].join(','),
+          'forecast_days': '2',
           'timezone': 'auto',
         },
       );
@@ -131,6 +147,8 @@ class IrrigationWeatherService {
             (daily['apparent_temperature_min'][0] as num)) /
         2;
 
+    final rainHint = _parseHourlyRain(weather['hourly'] as Map<String, dynamic>?);
+
     return IrrigationWeather(
       tempMean: double.parse(tempMean.toStringAsFixed(2)),
       apparentTempMean: double.parse(apparentTempMean.toStringAsFixed(2)),
@@ -143,10 +161,59 @@ class IrrigationWeatherService {
       et0: (daily['et0_fao_evapotranspiration'][0] as num).toDouble(),
       weatherCode: (current['weather_code'] as num?)?.toDouble() ?? 0,
       dailyWeatherCode: (daily['weather_code'][0] as num).toDouble(),
+      humidity: (current['relative_humidity_2m'] as num?)?.toDouble(),
+      rainProbability: rainHint.probability,
+      rainExpectedInHours: rainHint.inHours,
+      conditionLabel: weatherConditionLabel(
+        (current['weather_code'] as num?)?.toDouble() ?? 0,
+      ),
       fetchedAt: DateTime.now(),
       isCached: false,
     );
   }
+
+  ({int? inHours, double? probability}) _parseHourlyRain(
+    Map<String, dynamic>? hourly,
+  ) {
+    if (hourly == null) return (inHours: null, probability: null);
+    final times = (hourly['time'] as List?) ?? [];
+    final precip = (hourly['precipitation'] as List?) ?? [];
+    final probs = (hourly['precipitation_probability'] as List?) ?? [];
+    if (times.isEmpty) return (inHours: null, probability: null);
+
+    final now = DateTime.now();
+    var currentIdx = 0;
+    for (var i = 0; i < times.length; i++) {
+      final parsed = DateTime.tryParse(times[i].toString());
+      if (parsed != null && !parsed.isAfter(now)) currentIdx = i;
+    }
+
+    double? currentProb;
+    if (currentIdx < probs.length && probs[currentIdx] != null) {
+      currentProb = (probs[currentIdx] as num).toDouble();
+    }
+
+    for (var i = currentIdx + 1; i < times.length && i <= currentIdx + 6; i++) {
+      final mm = i < precip.length && precip[i] != null
+          ? (precip[i] as num).toDouble()
+          : 0.0;
+      final p = i < probs.length && probs[i] != null
+          ? (probs[i] as num).toDouble()
+          : 0.0;
+      if (mm >= 0.2 || p >= 40) {
+        return (inHours: i - currentIdx, probability: p > 0 ? p : currentProb);
+      }
+    }
+    return (inHours: null, probability: currentProb);
+  }
+}
+
+String weatherConditionLabel(double code) {
+  final c = code.round();
+  if (c == 0) return 'clear';
+  if (c <= 3) return 'partlyCloudy';
+  if (c <= 48) return 'cloudy';
+  return 'rain';
 }
 
 class FarmWeatherSnapshot {

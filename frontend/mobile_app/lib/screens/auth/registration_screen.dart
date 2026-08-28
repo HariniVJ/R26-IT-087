@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
-import '../../services/auth_service.dart';
+import '../../services/auth/auth_service.dart';
 import '../dashboard_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {

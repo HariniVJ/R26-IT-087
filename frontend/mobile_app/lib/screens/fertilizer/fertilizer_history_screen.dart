@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/fertilizer_advice.dart';
-import '../../services/firestore_service.dart';
+import '../../services/firebase/firestore_service.dart';
 
 class FertilizerHistoryScreen extends StatefulWidget {
   const FertilizerHistoryScreen({super.key});
@@ -72,7 +73,17 @@ class _FertilizerHistoryScreenState extends State<FertilizerHistoryScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Urea ${record.ureaG} g  •  TSP ${record.tspG} g  •  MOP ${record.mopG} g',
+                      '${t('tree')}: ${record.treeId == null || record.treeId!.isEmpty ? 'POM-001' : record.treeId}',
+                    ),
+                    Text('N: ${record.nitrogen.toStringAsFixed(0)}  P: ${record.phosphorus.toStringAsFixed(0)}  K: ${record.potassium.toStringAsFixed(0)}'),
+                    Text('${t('soilPh')}: ${record.ph?.toStringAsFixed(1) ?? '--'}'),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${t('recommendedFertilizer')}: ${record.fertilizerClass}',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      '${t('urea')} ${record.ureaG} g  •  ${t('tsp')} ${record.tspG} g  •  ${t('mop')} ${record.mopG} g',
                     ),
                     const SizedBox(height: 4),
                     Text(

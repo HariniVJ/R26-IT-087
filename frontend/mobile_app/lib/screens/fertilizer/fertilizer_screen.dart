@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
-import '../../services/fertilizer_local_service.dart';
-import '../../services/firestore_service.dart';
-import '../../services/soil_bluetooth_service.dart';
+import '../../l10n/app_strings.dart';
+import '../../services/fertilizer/fertilizer_local_service.dart';
+import '../../services/firebase/firestore_service.dart';
+import '../../services/sensor/soil_bluetooth_service.dart';
 import 'fertilizer_history_screen.dart';
 import 'fertilizer_result_screen.dart';
 
@@ -71,7 +72,8 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
         phosphorus == null ||
         potassium == null) {
       setState(() {
-        _errorMessage = 'Please connect the sensor or enter all sensor readings.';
+        _errorMessage =
+            'Please connect the sensor or enter all sensor readings.';
       });
       return;
     }
@@ -137,10 +139,10 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
             children: [
               Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Pomegranate Fertilizer\nAdvisor',
-                      style: TextStyle(
+                      t('fertilizerRecommendation'),
+                      style: const TextStyle(
                         color: Color(0xFF176B2C),
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -165,25 +167,35 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
               const SizedBox(height: 10),
               const Text(
                 'Connect your 7-in-1 soil sensor and enter tree age to get a per-tree fertilizer recommendation on this phone.',
-                style: TextStyle(color: Colors.black54, fontSize: 13, height: 1.45),
+                style: TextStyle(
+                  color: Colors.black54,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
               ),
               const SizedBox(height: 22),
               _bleCard(),
               const SizedBox(height: 18),
               AppCard(
-                child: AppTextField(
-                  label: 'Tree Age (Years)',
-                  hint: 'Example: 5',
-                  controller: _ageController,
-                  icon: Icons.calendar_month,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                child: Column(
+                  children: [
+                    AppTextField(
+                      label: t('treeAge'),
+                      hint: 'Example: 5',
+                      controller: _ageController,
+                      icon: Icons.calendar_month,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 18),
               _readingsCard(),
               const SizedBox(height: 18),
               AppPrimaryButton(
-                label: 'CHECK FERTILIZER',
+                label: t('fertilizerRecommendation'),
                 isLoading: _isLoading,
                 onPressed: _checkFertilizer,
               ),
@@ -216,7 +228,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
                   connected: connected,
                   scanning: scanning,
                   status: status,
-                  connectLabel: 'Connect the Sensor',
+                  connectLabel: t('connectSensor'),
                   onConnect: _ble.connect,
                 );
               },
@@ -255,7 +267,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
             children: [
               Expanded(
                 child: AppTextField(
-                  label: 'Soil Moisture (%)',
+                  label: t('soilMoisture'),
                   hint: '--',
                   controller: _moistureController,
                   icon: Icons.water_drop,
@@ -265,7 +277,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: AppTextField(
-                  label: 'Temperature (°C)',
+                  label: t('soilTemperature'),
                   hint: '--',
                   controller: _tempController,
                   icon: Icons.thermostat,
@@ -276,7 +288,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
           ),
           const SizedBox(height: 10),
           AppTextField(
-            label: 'pH',
+            label: t('soilPh'),
             hint: '--',
             controller: _phController,
             icon: Icons.science,
@@ -287,7 +299,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
             children: [
               Expanded(
                 child: AppTextField(
-                  label: 'Nitrogen (N)',
+                  label: t('nitrogen'),
                   hint: '--',
                   controller: _nitrogenController,
                   icon: Icons.grass,
@@ -297,7 +309,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: AppTextField(
-                  label: 'Phosphorus (P)',
+                  label: t('phosphorus'),
                   hint: '--',
                   controller: _phosphorusController,
                   icon: Icons.eco,
@@ -307,7 +319,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: AppTextField(
-                  label: 'Potassium (K)',
+                  label: t('potassium'),
                   hint: '--',
                   controller: _potassiumController,
                   icon: Icons.spa,

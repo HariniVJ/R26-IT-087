@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import '../models/prediction_result_model.dart';
+import '../../models/prediction_result_model.dart';
 
 class DiseaseService {
   // Windows testing

@@ -17,6 +17,10 @@ class IrrigationHistoryRecord {
   final double? weatherCode;
   final String? modelPrediction;
   final String? finalPrediction;
+  final double? modelConfidence;
+  final String? pumpStatus;
+  final int? rainExpectedInHours;
+  final double? rainProbability;
   final String status;
   final String reason;
   final String weatherSource;
@@ -43,12 +47,16 @@ class IrrigationHistoryRecord {
     this.weatherCode,
     this.modelPrediction,
     this.finalPrediction,
+    this.modelConfidence,
+    this.pumpStatus,
+    this.rainExpectedInHours,
+    this.rainProbability,
   });
 
   factory IrrigationHistoryRecord.fromMap(Map<String, dynamic> map) {
     return IrrigationHistoryRecord(
       id: map['id']?.toString() ?? '',
-      createdAt: _parseTime(map['created_at'] ?? map['createdAt']),
+      createdAt: _parseTime(map['created_at'] ?? map['createdAt'] ?? map['predictedAt']),
       latitude: (map['latitude'] as num?)?.toDouble(),
       longitude: (map['longitude'] as num?)?.toDouble(),
       soilMoisture: (map['soil_moisture'] as num?)?.toDouble() ??
@@ -65,7 +73,8 @@ class IrrigationHistoryRecord {
       rainHours: (map['rain_hours'] as num?)?.toDouble() ??
           (map['rainHours'] as num?)?.toDouble(),
       forecastRain24h: (map['forecast_rain_24h'] as num?)?.toDouble() ??
-          (map['forecastRainfall'] as num?)?.toDouble(),
+          (map['forecastRainfall'] as num?)?.toDouble() ??
+          (map['rainfallForecast'] as num?)?.toDouble(),
       windSpeedMax: (map['wind_speed_max'] as num?)?.toDouble() ??
           (map['windSpeedMax'] as num?)?.toDouble(),
       et0: (map['et0'] as num?)?.toDouble(),
@@ -73,8 +82,17 @@ class IrrigationHistoryRecord {
           (map['weatherCode'] as num?)?.toDouble(),
       modelPrediction: (map['model_prediction'] ?? map['modelPrediction'])
           ?.toString(),
-      finalPrediction:
-          (map['final_prediction'] ?? map['prediction'])?.toString(),
+      finalPrediction: (map['final_prediction'] ??
+              map['finalPrediction'] ??
+              map['prediction'])
+          ?.toString(),
+      modelConfidence: (map['modelConfidence'] as num?)?.toDouble() ??
+          (map['model_confidence'] as num?)?.toDouble(),
+      pumpStatus: (map['pumpStatus'] ?? map['pump_status'])?.toString(),
+      rainExpectedInHours: (map['rainExpectedInHours'] as num?)?.toInt() ??
+          (map['rain_expected_in_hours'] as num?)?.toInt(),
+      rainProbability: (map['rainProbability'] as num?)?.toDouble() ??
+          (map['rain_probability'] as num?)?.toDouble(),
       status: map['status']?.toString() ?? 'Unknown',
       reason: map['reason']?.toString() ?? '',
       weatherSource: (map['weather_source'] ?? map['weatherSource'])
@@ -91,7 +109,7 @@ class IrrigationHistoryRecord {
     return IrrigationHistoryRecord.fromMap({
       'id': id,
       ...data,
-      'created_at': data['createdAt'],
+      'created_at': data['createdAt'] ?? data['predictedAt'],
     });
   }
 
@@ -125,6 +143,10 @@ extension IrrigationResultHistory on IrrigationResult {
       weatherCode: weatherUsed?.weatherCode,
       modelPrediction: modelPrediction,
       finalPrediction: finalPrediction,
+      modelConfidence: modelConfidence,
+      pumpStatus: 'off',
+      rainExpectedInHours: weatherUsed?.rainExpectedInHours,
+      rainProbability: weatherUsed?.rainProbability,
       status: status,
       reason: reason,
       weatherSource: weatherSource,

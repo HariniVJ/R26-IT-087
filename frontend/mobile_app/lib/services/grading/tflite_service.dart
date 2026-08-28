@@ -1,5 +1,5 @@
 // YOUR FILE — Member 4: Fruit Quality Grading
-// lib/services/tflite_service.dart
+// lib/services/grading/tflite_service.dart
 //
 // Connects pomegranate_quality_model.tflite to Flutter.
 // Model trained with MobileNetV2 CNN (has Rescaling(1./255) layer built in).
@@ -15,7 +15,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
-import '../models/prediction_result.dart';
+import '../../models/prediction_result.dart';
 
 class TfliteService {
   Interpreter? _interpreter;

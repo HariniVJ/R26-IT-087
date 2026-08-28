@@ -3,6 +3,8 @@ class FarmerAccount {
   final String fullName;
   final String mobile;
   final String email;
+  final String role;
+  final String? defaultFarmId;
   final DateTime? createdAt;
 
   const FarmerAccount({
@@ -10,6 +12,8 @@ class FarmerAccount {
     required this.fullName,
     required this.mobile,
     required this.email,
+    this.role = 'farmer',
+    this.defaultFarmId,
     this.createdAt,
   });
 
@@ -18,6 +22,8 @@ class FarmerAccount {
       'fullName': fullName,
       'mobile': mobile,
       'email': email,
+      'role': role,
+      'defaultFarmId': defaultFarmId,
       'createdAt': createdAt?.toIso8601String(),
     };
   }
@@ -26,8 +32,10 @@ class FarmerAccount {
     return FarmerAccount(
       id: id,
       fullName: (json['fullName'] ?? json['full_name'])?.toString() ?? '',
-      mobile: json['mobile']?.toString() ?? '',
+      mobile: json['mobile']?.toString() ?? json['phone']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
+      role: json['role']?.toString() ?? 'farmer',
+      defaultFarmId: json['defaultFarmId']?.toString(),
       createdAt: _parseTime(json['createdAt']),
     );
   }

@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
-import '../models/farmer_account.dart';
-import 'firestore_service.dart';
+import '../../models/farmer_account.dart';
+import '../firebase/firestore_service.dart';
 
 /// Firebase Authentication for separate farmer accounts.
 /// Passwords are stored by Firebase Auth, never in Firestore.
@@ -36,6 +36,18 @@ class AuthService {
       mobile: '',
       email: user.email ?? '',
     );
+    try {
+      await FirestoreService.instance.ensureDefaultFarm(
+        farmerId: user.uid,
+        farmName: currentFarmer!.fullName.isEmpty
+            ? 'My Farm'
+            : "${currentFarmer!.fullName}'s Farm",
+      );
+      currentFarmer = await FirestoreService.instance.getUser(user.uid) ??
+          currentFarmer;
+    } catch (e) {
+      debugPrint('ensureDefaultFarm failed: $e');
+    }
   }
 
   AuthValidationResult validateRegistration({
@@ -110,34 +122,84 @@ class AuthService {
     if (!isConfigured) {
       return 'Firebase is not configured. Restart the app after a full rebuild.';
     }
+
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanName = fullName.trim();
+    final cleanMobile = mobile.trim();
+
     try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: email.trim().toLowerCase(),
-        password: password,
-      );
-      final user = credential.user;
+      User? user;
+      try {
+        final credential = await _auth.createUserWithEmailAndPassword(
+          email: cleanEmail,
+          password: password,
+        );
+        user = credential.user;
+      } on FirebaseAuthException catch (e) {
+        if (e.code != 'email-already-in-use') {
+          return _authMessage(e);
+        }
+        // Auth user was created on a previous tap, then Firestore failed.
+        // Sign in with the same password and finish the profile.
+        try {
+          final credential = await _auth.signInWithEmailAndPassword(
+            email: cleanEmail,
+            password: password,
+          );
+          user = credential.user;
+        } on FirebaseAuthException {
+          return 'An account with this email already exists. Please log in.';
+        }
+      }
+
       if (user == null) {
         return 'Could not create the farmer account. Please try again.';
       }
 
-      await user.updateDisplayName(fullName.trim());
+      try {
+        await user.updateDisplayName(cleanName);
+      } catch (e) {
+        debugPrint('updateDisplayName failed: $e');
+      }
 
       final farmer = FarmerAccount(
         id: user.uid,
-        fullName: fullName.trim(),
-        mobile: mobile.trim(),
-        email: email.trim().toLowerCase(),
+        fullName: cleanName,
+        mobile: cleanMobile,
+        email: cleanEmail,
         createdAt: DateTime.now().toUtc(),
       );
-
-      await FirestoreService.instance.saveUser(farmer);
       currentFarmer = farmer;
+      await _saveProfileBestEffort(farmer);
       return null;
     } on FirebaseAuthException catch (e) {
       return _authMessage(e);
     } catch (e) {
       debugPrint('Register error: $e');
+      if (currentFarmer != null && _auth.currentUser != null) {
+        return null;
+      }
       return 'Could not create the account. Check your internet connection.';
+    }
+  }
+
+  Future<void> _saveProfileBestEffort(FarmerAccount farmer) async {
+    try {
+      await FirestoreService.instance.saveUser(farmer);
+    } catch (e) {
+      debugPrint('saveUser failed: $e');
+    }
+    try {
+      await FirestoreService.instance.ensureDefaultFarm(
+        farmerId: farmer.id,
+        farmName: farmer.fullName.isEmpty
+            ? 'My Farm'
+            : "${farmer.fullName}'s Farm",
+      );
+      currentFarmer =
+          await FirestoreService.instance.getUser(farmer.id) ?? farmer;
+    } catch (e) {
+      debugPrint('ensureDefaultFarm failed: $e');
     }
   }
 
@@ -165,6 +227,7 @@ class AuthService {
         mobile: '',
         email: user.email ?? email.trim().toLowerCase(),
       );
+      await _saveProfileBestEffort(currentFarmer!);
       return null;
     } on FirebaseAuthException catch (e) {
       return _authMessage(e);

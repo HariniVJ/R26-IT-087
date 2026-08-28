@@ -5,7 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
-import '../models/soil_sensor_reading.dart';
+import '../../models/soil_sensor_reading.dart';
+import '../firebase/firestore_service.dart';
 
 /// Bluetooth service for the existing ESP32 soil sensor.
 /// Device name, service UUID, characteristic UUID, and CSV layout are taken
@@ -172,6 +173,7 @@ class SoilBluetoothService {
 
       latestReading.value = reading;
       errorMessage.value = null;
+      FirestoreService.instance.saveSensorReading(reading);
     } catch (e) {
       errorMessage.value = 'Sensor parse error: $e';
     }

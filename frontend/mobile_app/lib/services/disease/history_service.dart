@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-import '../models/prediction_result_model.dart';
+import '../../models/prediction_result_model.dart';
 
 class HistoryService {
   static const String baseUrl = 'http://172.20.10.7:8000';

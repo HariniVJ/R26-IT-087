@@ -1,6 +1,4 @@
-/// Weather fields used by the irrigation TFLite model.
-/// Keys match the existing backend Open-Meteo mapping in
-/// `backend/app/services/weather_service.py`.
+
 class IrrigationWeather {
   final double tempMean;
   final double apparentTempMean;
@@ -13,6 +11,10 @@ class IrrigationWeather {
   final double et0;
   final double weatherCode;
   final double dailyWeatherCode;
+  final double? humidity;
+  final double? rainProbability;
+  final int? rainExpectedInHours;
+  final String? conditionLabel;
   final DateTime fetchedAt;
   final bool isCached;
 
@@ -29,8 +31,17 @@ class IrrigationWeather {
     required this.weatherCode,
     required this.dailyWeatherCode,
     required this.fetchedAt,
+    this.humidity,
+    this.rainProbability,
+    this.rainExpectedInHours,
+    this.conditionLabel,
     this.isCached = false,
   });
+
+  bool get rainWithinTwoHours =>
+      rainExpectedInHours != null &&
+      rainExpectedInHours! >= 0 &&
+      rainExpectedInHours! <= 2;
 
   IrrigationWeather copyWith({bool? isCached}) {
     return IrrigationWeather(
@@ -45,6 +56,10 @@ class IrrigationWeather {
       et0: et0,
       weatherCode: weatherCode,
       dailyWeatherCode: dailyWeatherCode,
+      humidity: humidity,
+      rainProbability: rainProbability,
+      rainExpectedInHours: rainExpectedInHours,
+      conditionLabel: conditionLabel,
       fetchedAt: fetchedAt,
       isCached: isCached ?? this.isCached,
     );
@@ -82,6 +97,10 @@ class IrrigationWeather {
       'et0': et0,
       'weather_code': weatherCode,
       'daily_weather_code': dailyWeatherCode,
+      'humidity': humidity,
+      'rain_probability': rainProbability,
+      'rain_expected_in_hours': rainExpectedInHours,
+      'condition_label': conditionLabel,
       'fetched_at': fetchedAt.toIso8601String(),
       'is_cached': isCached,
     };
@@ -100,6 +119,10 @@ class IrrigationWeather {
       et0: (json['et0'] as num).toDouble(),
       weatherCode: (json['weather_code'] as num).toDouble(),
       dailyWeatherCode: (json['daily_weather_code'] as num).toDouble(),
+      humidity: (json['humidity'] as num?)?.toDouble(),
+      rainProbability: (json['rain_probability'] as num?)?.toDouble(),
+      rainExpectedInHours: (json['rain_expected_in_hours'] as num?)?.toInt(),
+      conditionLabel: json['condition_label']?.toString(),
       fetchedAt: DateTime.tryParse(json['fetched_at']?.toString() ?? '') ??
           DateTime.now(),
       isCached: json['is_cached'] == true,

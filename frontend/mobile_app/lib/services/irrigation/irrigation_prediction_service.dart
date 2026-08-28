@@ -1,5 +1,6 @@
-import '../models/irrigation_result.dart';
-import '../models/irrigation_weather.dart';
+import '../../l10n/app_strings.dart';
+import '../../models/irrigation_result.dart';
+import '../../models/irrigation_weather.dart';
 import 'irrigation_tflite_service.dart';
 
 /// Combines TFLite inference with the existing backend safety rules.
@@ -12,6 +13,7 @@ class IrrigationPredictionService {
 
   Future<IrrigationResult> predict({
     required double soilMoisture,
+    double? soilTemperature,
     IrrigationWeather? weather,
     double? latitude,
     double? longitude,
@@ -25,6 +27,7 @@ class IrrigationPredictionService {
         status: 'Cannot Predict',
         reason: 'Invalid soil moisture reading. Please check the sensor.',
         soilMoisture: soilMoisture,
+        soilTemperature: soilTemperature,
         weatherSource: 'none',
         createdAt: now,
         latitude: latitude,
@@ -35,6 +38,7 @@ class IrrigationPredictionService {
     if (weather == null) {
       return _soilOnlyDecision(
         soilMoisture: soilMoisture,
+        soilTemperature: soilTemperature,
         latitude: latitude,
         longitude: longitude,
         createdAt: now,
@@ -49,6 +53,7 @@ class IrrigationPredictionService {
         status: 'Cannot Predict',
         reason: errors.join(' '),
         soilMoisture: soilMoisture,
+        soilTemperature: soilTemperature,
         weatherUsed: weather,
         weatherSource: weather.isCached ? 'cached' : 'live',
         createdAt: now,
@@ -66,8 +71,9 @@ class IrrigationPredictionService {
         modelPrediction: modelOutput.label,
         soilMoisture: soilMoisture,
         forecastRain24h: weather.forecastRain24h,
+        rainExpectedInHours: weather.rainExpectedInHours,
       );
-      final message = _farmerMessage(finalPrediction);
+      final message = _farmerMessage(finalPrediction, weather);
 
       return IrrigationResult(
         success: true,
@@ -76,7 +82,9 @@ class IrrigationPredictionService {
         reason: message.$2,
         modelPrediction: modelOutput.label,
         finalPrediction: finalPrediction,
+        modelConfidence: modelOutput.confidence,
         soilMoisture: soilMoisture,
+        soilTemperature: soilTemperature,
         weatherUsed: weather,
         weatherSource: weather.isCached ? 'cached' : 'live',
         createdAt: now,
@@ -86,6 +94,7 @@ class IrrigationPredictionService {
     } catch (e) {
       return _soilOnlyDecision(
         soilMoisture: soilMoisture,
+        soilTemperature: soilTemperature,
         latitude: latitude,
         longitude: longitude,
         createdAt: now,
@@ -97,6 +106,7 @@ class IrrigationPredictionService {
   IrrigationResult _soilOnlyDecision({
     required double soilMoisture,
     required DateTime createdAt,
+    double? soilTemperature,
     double? latitude,
     double? longitude,
     String? extraReason,
@@ -128,6 +138,7 @@ class IrrigationPredictionService {
       reason: extraReason == null ? reason : '$reason $extraReason',
       finalPrediction: prediction,
       soilMoisture: soilMoisture,
+      soilTemperature: soilTemperature,
       weatherSource: 'none',
       createdAt: createdAt,
       latitude: latitude,
@@ -169,35 +180,45 @@ class IrrigationPredictionService {
     required String modelPrediction,
     required double soilMoisture,
     required double forecastRain24h,
+    int? rainExpectedInHours,
   }) {
     if (soilMoisture >= 70) return 'SKIP_SOIL_ALREADY_WET';
+    if (rainExpectedInHours != null &&
+        rainExpectedInHours >= 0 &&
+        rainExpectedInHours <= 2) {
+      return 'SKIP_RAIN_EXPECTED';
+    }
     if (forecastRain24h >= 2.0) return 'SKIP_RAIN_EXPECTED';
     return modelPrediction;
   }
 
-  (String, String) _farmerMessage(String prediction) {
+  (String, String) _farmerMessage(String prediction, [IrrigationWeather? weather]) {
     switch (prediction) {
       case 'SUITABLE_TO_IRRIGATE':
       case 'SUITABLE_BASED_ON_SOIL':
         return (
+          t('suitableNow'),
           prediction == 'SUITABLE_BASED_ON_SOIL'
-              ? 'Suitable Based on Soil'
-              : 'Suitable Now',
-          prediction == 'SUITABLE_BASED_ON_SOIL'
-              ? 'Soil moisture is low. Weather forecast is unavailable in offline mode.'
-              : 'Soil moisture is low and no rainfall forecast detected.',
+              ? t('soilTooLowTitle')
+              : t('irrigateTitle'),
         );
       case 'SKIP_RAIN_EXPECTED':
+        final hours = _displayHours(weather?.rainExpectedInHours);
         return (
-          'Not Suitable Now',
-          'Rainfall is expected, so irrigation can be skipped.',
+          t('waitForRain'),
+          t('waitRainReason').replaceAll('{hours}', '$hours'),
         );
       case 'SKIP_SOIL_ALREADY_WET':
-        return ('Not Suitable Now', 'Soil is already wet.');
+        return (t('soilAlreadyWet'), t('soilWetTitle'));
       case 'NO_URGENT_IRRIGATION':
-        return ('No Urgent Irrigation Needed', 'Soil moisture is moderate.');
+        return (t('noUrgent'), t('noUrgent'));
       default:
         return ('Unknown', 'Unable to generate irrigation advice.');
     }
+  }
+
+  int _displayHours(int? hours) {
+    if (hours == null || hours < 1) return 1;
+    return hours;
   }
 }

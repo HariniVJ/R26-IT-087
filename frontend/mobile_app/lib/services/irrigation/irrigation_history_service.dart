@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 
-import '../models/irrigation_history_record.dart';
-import '../models/irrigation_result.dart';
-import 'firestore_service.dart';
+import '../../models/irrigation_history_record.dart';
+import '../../models/irrigation_result.dart';
+import '../firebase/firestore_service.dart';
 
 /// Local SQLite store for irrigation predictions. Works fully offline.
 /// When a farmer is signed in, the same record is also written to Firestore.

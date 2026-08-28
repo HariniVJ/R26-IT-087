@@ -1,7 +1,7 @@
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../models/farm_location.dart';
+import '../../models/farm_location.dart';
 
 /// One-shot location for weather lookup. Does not track the farmer.
 class FarmLocationService {

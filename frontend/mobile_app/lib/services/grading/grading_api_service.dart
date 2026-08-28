@@ -4,8 +4,8 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 
-import '../config/api_config.dart';
-import '../models/grading_result.dart';
+import '../../config/api_config.dart';
+import '../../models/grading_result.dart';
 
 class GradingApiService {
   Future<GradingResult> saveResult({
