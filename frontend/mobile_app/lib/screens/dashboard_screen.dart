@@ -5,9 +5,6 @@ import 'package:flutter/material.dart';
 
 import '../config/app_constants.dart';
 import '../models/dashboard_item.dart';
-import '../models/app_notification.dart';
-import '../models/fertilizer_advice.dart';
-import '../models/irrigation_history_record.dart';
 import '../widgets/module_button.dart';
 import '../widgets/weather_card.dart';
 import '../widgets/app_bottom_nav_bar.dart';
@@ -25,8 +22,6 @@ import 'coming_soon_screen.dart';
 import '../screens/capture_screen.dart';
 import 'notifications/notifications_screen.dart';
 import 'weather/weather_details_screen.dart';
-import 'history/research_history_screen.dart';
-import 'reports/research_reports_screen.dart';
 
 const _red = Color(0xFFC1121F);
 const _redSoft = Color(0xFFFFEEF3);
@@ -87,11 +82,6 @@ class _DashboardScreenState extends State<DashboardScreen>
   WeatherData? _weather;
   bool _weatherLoading = true;
   String? _weatherError;
-  int _unread = 0;
-  Map<String, dynamic>? _latestSoil;
-  IrrigationHistoryRecord? _latestIrrigation;
-  FertilizerAdvice? _latestFertilizer;
-  List<AppNotification> _recentAlerts = [];
 
   late final List<AnimationController> _btnCtrls;
   late final List<Animation<double>> _btnAnims;
@@ -124,7 +114,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     _loadWeather();
-    _loadSummary();
   }
 
   @override
@@ -153,7 +142,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           _weather = d;
           _weatherLoading = false;
         });
-        _loadSummary();
       }
     } catch (_) {
       if (mounted) {
@@ -163,24 +151,6 @@ class _DashboardScreenState extends State<DashboardScreen>
         });
       }
     }
-  }
-
-  Future<void> _loadSummary() async {
-    try {
-      final fs = FirestoreService.instance;
-      final sensors = await fs.getSensorHistory(limit: 1);
-      final irrigation = await fs.getIrrigationHistory();
-      final fertilizer = await fs.getFertilizerHistory();
-      final notes = await fs.getNotifications(limit: 5);
-      if (!mounted) return;
-      setState(() {
-        _latestSoil = sensors.isEmpty ? null : sensors.first;
-        _latestIrrigation = irrigation.isEmpty ? null : irrigation.first;
-        _latestFertilizer = fertilizer.isEmpty ? null : fertilizer.first;
-        _recentAlerts = notes.take(3).toList();
-        _unread = notes.where((n) => !n.isRead).length;
-      });
-    } catch (_) {}
   }
 
   void _openScreen(DashboardItem item) {
@@ -294,7 +264,6 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
 
               const SizedBox(height: 16),
-              _summaryCards(),
 
               const SizedBox(height: AppConstants.sectionGap),
               _sectionTitle(),
@@ -431,7 +400,6 @@ class _DashboardScreenState extends State<DashboardScreen>
           context,
           MaterialPageRoute(builder: (_) => const NotificationsScreen()),
         );
-        _loadSummary();
       },
       child: Stack(
         clipBehavior: Clip.none,
@@ -446,26 +414,6 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
             child: const Icon(Icons.notifications_none_rounded, color: _red),
           ),
-          if (_unread > 0)
-            Positioned(
-              right: -2,
-              top: -2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                decoration: const BoxDecoration(
-                  color: BrandColor.primary,
-                  borderRadius: BorderRadius.all(Radius.circular(10)),
-                ),
-                child: Text(
-                  _unread > 9 ? '9+' : '$_unread',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
@@ -533,142 +481,4 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     ],
   );
-
-  Widget _summaryCards() {
-    final soil = _latestSoil;
-    final irrigation = irrigationDecisionLabel(
-      _latestIrrigation?.finalPrediction,
-      _latestIrrigation?.status ?? '--',
-    );
-    final fertilizer = _latestFertilizer?.fertilizerClass ?? '--';
-    final alert = _recentAlerts.isEmpty
-        ? t('noAlerts')
-        : _recentAlerts.first.title;
-
-    return Column(
-      children: [
-        _tapCard(
-          t('currentSoil'),
-          soil == null
-              ? t('noRecords')
-              : '${t('soilMoisture')} ${soil['soilMoisture'] ?? '--'}%\nN ${soil['nitrogen'] ?? '--'}  P ${soil['phosphorus'] ?? '--'}  K ${soil['potassium'] ?? '--'}\n${t('soilPh')} ${soil['soilPh'] ?? '--'}',
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const FertilizerScreen()),
-          ),
-        ),
-        const SizedBox(height: 10),
-        _tapCard(
-          t('currentWeather'),
-          _weather == null
-              ? t('weatherUnavailable')
-              : '${_weather!.temp}  •  ${t('humidity')} ${_weather!.humidityText}  •  ${t('rainProbability')} ${_weather!.rainProbabilityText}',
-          _weather == null
-              ? _loadWeather
-              : () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => WeatherDetailsScreen(data: _weather!),
-                    ),
-                  );
-                },
-        ),
-        const SizedBox(height: 10),
-        _tapCard(
-          t('irrigationRecommendation'),
-          irrigation,
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const IrrigationScreen()),
-          ),
-        ),
-        const SizedBox(height: 10),
-        _tapCard(
-          t('fertilizerRecommendation'),
-          fertilizer,
-          () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const FertilizerScreen()),
-          ),
-        ),
-        const SizedBox(height: 10),
-        _tapCard(t('recentAlerts'), alert, () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
-          );
-          _loadSummary();
-        }),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _tapCard(
-                t('history'),
-                t('history'),
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ResearchHistoryScreen(),
-                  ),
-                ),
-                compact: true,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _tapCard(
-                t('reports'),
-                t('reports'),
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ResearchReportsScreen(),
-                  ),
-                ),
-                compact: true,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _tapCard(
-    String title,
-    String body,
-    VoidCallback onTap, {
-    bool compact = false,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: EdgeInsets.all(compact ? 14 : 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFE5E7EB)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-            ),
-            if (!compact) ...[
-              const SizedBox(height: 6),
-              Text(
-                body,
-                style: const TextStyle(color: _textSoft, height: 1.35),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
 }
