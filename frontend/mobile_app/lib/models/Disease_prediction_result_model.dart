@@ -1,6 +1,10 @@
 class PredictionResultModel {
   final String? predictionId;
 
+  // Binary validator (pomegranate vs not)
+  final bool isPomegranate;
+  final double validatorConfidence;
+
   // Disease classification
   final String diseaseName;
   final double confidence;
@@ -15,12 +19,12 @@ class PredictionResultModel {
   final List<String> prevention;
   final int followUpDays;
 
+  // Follow-up tracking
+  final DateTime? followUpDueDate;
+  final bool followUpDone;
+
   // Image
   final String imagePath;
-
-  // Explainability / segmentation
-  final String? segmentationImageUrl;
-  final String? gradCamImageUrl;
 
   // Other information
   final double responseTimeSeconds;
@@ -28,6 +32,8 @@ class PredictionResultModel {
 
   PredictionResultModel({
     this.predictionId,
+    this.isPomegranate = true,
+    this.validatorConfidence = 0.0,
     required this.diseaseName,
     required this.confidence,
     this.isDisease = true,
@@ -36,9 +42,9 @@ class PredictionResultModel {
     required this.treatment,
     this.prevention = const [],
     this.followUpDays = 0,
+    this.followUpDueDate,
+    this.followUpDone = false,
     required this.imagePath,
-    this.segmentationImageUrl,
-    this.gradCamImageUrl,
     this.responseTimeSeconds = 0.0,
     required this.detectedAt,
   });
@@ -50,4 +56,16 @@ class PredictionResultModel {
   bool get isMediumConfidence => confidence >= 60 && confidence < 80;
 
   bool get isLowConfidence => confidence < 60;
+
+  /// True when a follow-up is due (date has passed) and not yet completed.
+  bool get isFollowUpPending {
+    if (followUpDone || followUpDueDate == null) return false;
+    return DateTime.now().isAfter(followUpDueDate!);
+  }
+
+  /// Days remaining until follow-up is due (negative = overdue).
+  int? get daysUntilFollowUp {
+    if (followUpDueDate == null) return null;
+    return followUpDueDate!.difference(DateTime.now()).inDays;
+  }
 }

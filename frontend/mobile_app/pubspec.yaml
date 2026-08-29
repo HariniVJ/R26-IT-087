@@ -30,6 +30,7 @@ dependencies:
   firebase_core: ^4.14.0
   firebase_auth: ^6.6.0
   cloud_firestore: ^6.9.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1

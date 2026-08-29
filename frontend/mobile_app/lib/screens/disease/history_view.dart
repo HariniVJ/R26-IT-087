@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 
 import '../../common/brand_color.dart';
-import '../../models/prediction_result_model.dart';
+import '../../models/Disease_prediction_result_model.dart';
 import '../../services/disease/history_service.dart';
 import 'history_detail_view.dart';
 

@@ -20,8 +20,7 @@ import '../l10n/app_strings.dart';
 import 'irrigation/irrigation_screen.dart';
 import 'fertilizer/fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
-import '../screens/disease/dashboard_view.dart';
-import '../screens/disease/dashboard_view.dart';
+import 'disease/disease_view.dart';
 import 'coming_soon_screen.dart';
 import '../screens/capture_screen.dart';
 import 'notifications/notifications_screen.dart';
@@ -196,7 +195,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         screen = const FertilizerScreen();
         break;
       case 'disease':
-        screen = const DashboardView();
+        screen = const DiseaseView();
         break;
       case 'growth':
         screen = const CaptureScreen();

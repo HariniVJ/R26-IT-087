@@ -1,218 +1,117 @@
-import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:http/http.dart' as http;
-
-import '../../common/api_config.dart';
-import '../../models/prediction_result_model.dart';
+import '../../models/Disease_prediction_result_model.dart';
 
 class HistoryService {
-  // Temporary demo user.
-  // Later replace with actual logged-in user ID.
-  static const String userId = 'user001';
+  static final _db = FirebaseFirestore.instance;
+  static const _collection = 'disease_predictions';
 
-  /// -------------------------------------------
-  /// GET ALL AVAILABLE DISEASES
-  /// -------------------------------------------
-  static Future<List<String>> getAllDiseases() async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}/api/disease/all-diseases');
-
-    try {
-      final response = await http.get(uri);
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode != 200) {
-        throw Exception(
-          data['detail'] ?? data['message'] ?? 'Failed to load diseases',
-        );
-      }
-
-      if (data['success'] != true) {
-        throw Exception(data['message'] ?? 'Failed to load diseases');
-      }
-
-      final List items = data['data'] is List ? data['data'] : [];
-
-      return items.map<String>((item) {
-        if (item is Map && item['disease_name'] != null) {
-          return item['disease_name'].toString();
-        }
-
-        return item.toString();
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load diseases: $e');
-    }
-  }
-
-  /// -------------------------------------------
-  /// GET USER DETECTION HISTORY
-  /// -------------------------------------------
+  /// Fetches full detection history for the logged-in farmer.
+  /// Works offline: Firestore serves from local cache automatically
+  /// when there's no network, then quietly refreshes once reconnected.
   static Future<List<PredictionResultModel>> getFirebaseHistory() async {
-    final uri = Uri.parse('${ApiConfig.baseUrl}/api/disease/history/$userId');
-
-    try {
-      final response = await http.get(uri);
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode != 200) {
-        throw Exception(
-          data['detail'] ?? data['message'] ?? 'Failed to load history',
-        );
-      }
-
-      if (data['success'] != true) {
-        throw Exception(data['message'] ?? 'Failed to load history');
-      }
-
-      final List items = data['data'] is List ? data['data'] : [];
-
-      return items.map<PredictionResultModel>((rawItem) {
-        final Map<String, dynamic> item = Map<String, dynamic>.from(
-          rawItem as Map,
-        );
-
-        // -------------------------
-        // Treatment
-        // -------------------------
-        final dynamic rawTreatmentInfo = item['treatment_info'];
-
-        final Map<String, dynamic> treatmentInfo = rawTreatmentInfo is Map
-            ? Map<String, dynamic>.from(rawTreatmentInfo)
-            : <String, dynamic>{};
-
-        final String treatment = treatmentInfo['treatment']?.toString() ?? '';
-
-        // -------------------------
-        // Prevention
-        // -------------------------
-        List<String> prevention = [];
-
-        final preventionRaw = treatmentInfo['prevention'];
-
-        if (preventionRaw is List) {
-          prevention = preventionRaw.map((e) => e.toString()).toList();
-        } else if (preventionRaw is String && preventionRaw.trim().isNotEmpty) {
-          prevention = [preventionRaw];
-        }
-
-        // -------------------------
-        // Follow-up
-        // -------------------------
-        final dynamic followUpRaw =
-            treatmentInfo['follow_up_days'] ?? item['follow_up_days'];
-
-        int followUpDays = 0;
-
-        if (followUpRaw is int) {
-          followUpDays = followUpRaw;
-        } else if (followUpRaw is num) {
-          followUpDays = followUpRaw.toInt();
-        } else if (followUpRaw != null) {
-          followUpDays = int.tryParse(followUpRaw.toString()) ?? 0;
-        }
-
-        // -------------------------
-        // Severity
-        // -------------------------
-        final double severityPercentage = _toDouble(
-          item['severity_percentage'] ?? item['severity_percent'] ?? 0,
-        );
-
-        final String severityLevel =
-            item['severity_level']?.toString() ?? 'N/A';
-
-        // -------------------------
-        // Date
-        // -------------------------
-        final DateTime detectedAt =
-            DateTime.tryParse(item['created_at']?.toString() ?? '') ??
-            DateTime.now();
-
-        return PredictionResultModel(
-          predictionId: item['prediction_id']?.toString(),
-
-          diseaseName: item['disease_name']?.toString() ?? 'Unknown',
-
-          confidence: _toDouble(item['confidence']),
-
-          isDisease: item['is_disease'] == true,
-
-          severityPercentage: severityPercentage,
-
-          severityLevel: severityLevel,
-
-          treatment: treatment,
-
-          prevention: prevention,
-
-          followUpDays: followUpDays,
-
-          // Your backend currently does not
-          // return stored image path/URL.
-          imagePath:
-              item['image_url']?.toString() ??
-              item['image_path']?.toString() ??
-              '',
-
-          segmentationImageUrl: item['segmentation_image_url']?.toString(),
-
-          gradCamImageUrl: item['gradcam_image_url']?.toString(),
-
-          responseTimeSeconds: _toDouble(item['response_time_seconds']),
-
-          detectedAt: detectedAt,
-        );
-      }).toList();
-    } catch (e) {
-      throw Exception('Failed to load history: $e');
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      throw Exception('You must be signed in to view history.');
     }
+
+    final snapshot = await _db
+        .collection(_collection)
+        .where('user_id', isEqualTo: uid)
+        .orderBy('created_at', descending: true)
+        .get();
+
+    return snapshot.docs.map((doc) => _fromDoc(doc.id, doc.data())).toList();
   }
 
-  /// -------------------------------------------
-  /// DELETE HISTORY
-  /// -------------------------------------------
-  static Future<void> deleteFirebaseHistory(String predictionId) async {
-    final uri = Uri.parse(
-      '${ApiConfig.baseUrl}/api/disease/history/$predictionId',
+ static PredictionResultModel _fromDoc(String id, Map<String, dynamic> item) {
+    final treatmentInfo = item['treatment_info'] is Map
+        ? Map<String, dynamic>.from(item['treatment_info'])
+        : <String, dynamic>{};
+
+    final prevention = treatmentInfo['prevention'] is List
+        ? List<String>.from(treatmentInfo['prevention'])
+        : <String>[];
+
+    final createdAt = item['created_at'] is Timestamp
+        ? (item['created_at'] as Timestamp).toDate()
+        : (item['created_at_local'] is Timestamp
+              ? (item['created_at_local'] as Timestamp).toDate()
+              : DateTime.now());
+
+    final followUpDueDate = item['follow_up_due_date'] is Timestamp
+        ? (item['follow_up_due_date'] as Timestamp).toDate()
+        : null;
+
+    return PredictionResultModel(
+      predictionId: id,
+      isPomegranate: item['is_pomegranate'] as bool? ?? true,
+      validatorConfidence:
+          (item['validator_confidence'] as num?)?.toDouble() ?? 0.0,
+      diseaseName: item['disease_name']?.toString() ?? 'Unknown',
+      confidence: (item['confidence'] as num?)?.toDouble() ?? 0.0,
+      isDisease: item['is_disease'] == true,
+      severityPercentage:
+          (item['severity_percentage'] as num?)?.toDouble() ?? 0.0,
+      severityLevel: item['severity_level']?.toString() ?? 'N/A',
+      treatment: treatmentInfo['treatment']?.toString() ?? '',
+      prevention: prevention,
+      followUpDays: (treatmentInfo['follow_up_days'] as num?)?.toInt() ?? 0,
+      followUpDueDate: followUpDueDate,
+      followUpDone: item['follow_up_done'] as bool? ?? false,
+      imagePath: item['image_path']?.toString() ?? '',
+      responseTimeSeconds: 0.0,
+      detectedAt: createdAt,
     );
-
-    try {
-      final response = await http.delete(uri);
-
-      final data = jsonDecode(response.body);
-
-      if (response.statusCode != 200) {
-        throw Exception(data['detail'] ?? data['message'] ?? 'Delete failed');
-      }
-
-      if (data['success'] != true) {
-        throw Exception(data['message'] ?? 'Delete failed');
-      }
-    } catch (e) {
-      throw Exception('Delete failed: $e');
-    }
+  }
+  static Future<void> deleteFirebaseHistory(String predictionId) async {
+    await _db.collection(_collection).doc(predictionId).delete();
   }
 
-  /// Safe conversion of dynamic backend values.
-  static double _toDouble(dynamic value) {
-    if (value == null) {
-      return 0.0;
-    }
+  // ── Follow-up tracking ──────────────────────────────────────────────
 
-    if (value is double) {
-      return value;
-    }
+  /// Marks a detection's follow-up check as completed
+  /// (e.g. farmer confirms they re-checked the fruit after treatment).
+  static Future<void> markFollowUpDone(String predictionId) async {
+    await _db.collection(_collection).doc(predictionId).update({
+      'follow_up_done': true,
+      'follow_up_completed_at': FieldValue.serverTimestamp(),
+    });
+  }
 
-    if (value is int) {
-      return value.toDouble();
-    }
+  /// Returns detections whose follow-up date has arrived and hasn't
+  /// been marked done yet — use this to show reminder badges/notifications.
+  static Future<List<PredictionResultModel>> getPendingFollowUps() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return [];
 
-    if (value is num) {
-      return value.toDouble();
-    }
+    final snapshot = await _db
+        .collection(_collection)
+        .where('user_id', isEqualTo: uid)
+        .where('follow_up_done', isEqualTo: false)
+        .get();
 
-    return double.tryParse(value.toString()) ?? 0.0;
+    final now = DateTime.now();
+
+    final due = snapshot.docs.where((doc) {
+      final dueDate = doc.data()['follow_up_due_date'];
+      if (dueDate is! Timestamp) return false;
+      return dueDate.toDate().isBefore(now);
+    });
+
+    return due.map((doc) => _fromDoc(doc.id, doc.data())).toList();
+  }
+
+  /// Forces any locally-queued offline writes to sync to the server.
+  /// Call this on app resume or when connectivity returns.
+  static Future<void> syncPending() async {
+    try {
+      await _db.enableNetwork();
+      await _db.waitForPendingWrites();
+    } catch (e) {
+      // ignore: avoid_print
+      print('Sync pending writes failed (will retry later): $e');
+    }
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
-import '../../models/prediction_result_model.dart';
+import '../../models/Disease_prediction_result_model.dart';
 import 'feedback_view.dart';
 
 class ReminderSetupView extends StatelessWidget {

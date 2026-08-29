@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
-import '../../models/prediction_result_model.dart';
+import '../../models/Disease_prediction_result_model.dart';
 
 class HistoryDetailView extends StatelessWidget {
   final PredictionResultModel result;
