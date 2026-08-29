@@ -14,7 +14,7 @@ dependencies:
 
   http: ^1.2.2
   image_picker: ^1.1.2
-  tflite_flutter: ^0.11.0
+  tflite_flutter: ^0.12.1
   image: ^4.1.7
   flutter_dotenv: ^5.1.0
   cupertino_icons: ^1.0.8
@@ -63,6 +63,10 @@ flutter:
     - assets/images/Early_Fruit.jpg
     - assets/images/Mature_fruit.jpg
     - assets/images/Mid_Growth.jpg
+    - assets/models/binary_pomegranate_validator.tflite
+    - assets/models/pomegranate_disease_classifier.tflite
+    - assets/models/pomegranate_severity_seg_v2.tflite
+
 
 flutter_launcher_icons:
   android: true

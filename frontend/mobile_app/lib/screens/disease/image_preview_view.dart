@@ -44,7 +44,11 @@ class _ImagePreviewViewState extends State<ImagePreviewView> {
           builder: (_) => ClassificationResultView(result: result),
         ),
       );
-    } catch (e) {
+    } catch (e, stackTrace) {
+      // ignore: avoid_print
+      print('❌ ANALYZE ERROR: $e');
+      print(stackTrace);
+
       if (!mounted) return;
 
       setState(() => loading = false);

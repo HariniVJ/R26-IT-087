@@ -1,0 +1,17 @@
+{
+  "binary_classes": [
+    "not_pomegranate",
+    "pomegranate"
+  ],
+  "disease_classes": [
+    "Alternaria",
+    "Anthracnose",
+    "Bacterial_Blight",
+    "Cercospora",
+    "Healthy"
+  ],
+  "yolo_classes": [
+    "affected_region",
+    "fruit"
+  ]
+}
