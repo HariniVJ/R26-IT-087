@@ -122,6 +122,16 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
         title: Text(t('irrigationRecommendation')),
         backgroundColor: BrandColor.primary,
         foregroundColor: Colors.white,
+        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          tooltip: 'Back',
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
         actions: [
           IconButton(
             tooltip: 'Irrigation history',

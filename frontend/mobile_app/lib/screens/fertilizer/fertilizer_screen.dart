@@ -139,6 +139,18 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
             children: [
               Row(
                 children: [
+                  IconButton(
+                    tooltip: 'Back',
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop();
+                      }
+                    },
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      color: Color(0xFF176B2C),
+                    ),
+                  ),
                   Expanded(
                     child: Text(
                       t('fertilizerRecommendation'),
