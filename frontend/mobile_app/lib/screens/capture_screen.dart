@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'detecting_screen.dart';
+import '../services/growth_tflite_service.dart';
 
 class CaptureScreen extends StatefulWidget {
   const CaptureScreen({super.key});
@@ -40,6 +41,10 @@ class _CaptureScreenState extends State<CaptureScreen>
         vsync: this, duration: const Duration(seconds: 8))
       ..repeat();
     _rotateAnim = Tween<double>(begin: 0, end: 1).animate(_rotateController);
+
+    GrowthTfliteService.instance.loadModels()
+        .then((_) => debugPrint('MODELS LOADED OK'))
+        .catchError((e) => debugPrint('MODEL LOAD FAILED: $e'));
   }
 
   @override
