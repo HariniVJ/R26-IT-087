@@ -35,6 +35,14 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
   void initState() {
     super.initState();
     _ble.latestReading.addListener(_fillFromSensor);
+    _fillFromSensor();
+    _connectSensorIfNeeded();
+  }
+
+  Future<void> _connectSensorIfNeeded() async {
+    if (!_ble.isConnected.value && !_ble.isScanning.value) {
+      await _ble.connect();
+    }
   }
 
   void _fillFromSensor() {
@@ -53,12 +61,18 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
 
   Future<void> _checkFertilizer() async {
     final treeAge = double.tryParse(_ageController.text.trim());
-    final moisture = double.tryParse(_moistureController.text.trim());
-    final temp = double.tryParse(_tempController.text.trim());
-    final ph = double.tryParse(_phController.text.trim());
-    final nitrogen = double.tryParse(_nitrogenController.text.trim());
-    final phosphorus = double.tryParse(_phosphorusController.text.trim());
-    final potassium = double.tryParse(_potassiumController.text.trim());
+    final reading = _ble.latestReading.value;
+    final moisture = reading?.moisture ??
+        double.tryParse(_moistureController.text.trim());
+    final temp =
+        reading?.temp ?? double.tryParse(_tempController.text.trim());
+    final ph = reading?.ph ?? double.tryParse(_phController.text.trim());
+    final nitrogen = reading?.nitrogen ??
+        double.tryParse(_nitrogenController.text.trim());
+    final phosphorus = reading?.phosphorus ??
+        double.tryParse(_phosphorusController.text.trim());
+    final potassium = reading?.potassium ??
+        double.tryParse(_potassiumController.text.trim());
 
     if (treeAge == null || treeAge <= 0) {
       setState(() => _errorMessage = 'Please enter valid tree age.');
@@ -73,7 +87,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
         potassium == null) {
       setState(() {
         _errorMessage =
-            'Please connect the sensor or enter all sensor readings.';
+            'Connect the IoT soil sensor. N, P, K, pH and moisture are read automatically.';
       });
       return;
     }
@@ -84,7 +98,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
     });
 
     try {
-      final advice = _fertilizerService.predict(
+      final advice = await _fertilizerService.predict(
         moisture: moisture,
         temp: temp,
         ph: ph,
@@ -178,7 +192,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
               ),
               const SizedBox(height: 10),
               const Text(
-                'Connect your 7-in-1 soil sensor and enter tree age to get a per-tree fertilizer recommendation on this phone.',
+                'Connect the 7-in-1 soil sensor. The app reads N, P, K, pH and moisture from the IoT device, then runs the fertilizer model on this phone.',
                 style: TextStyle(
                   color: Colors.black54,
                   fontSize: 13,
@@ -255,22 +269,28 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
     return AppCard(
       child: Column(
         children: [
-          const Row(
+          Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
-                  'Sensor Readings',
+                  'IoT Sensor Readings',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
                 ),
               ),
-              Text(
-                'READ-ONLY',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: Colors.black38,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                ),
+              ValueListenableBuilder(
+                valueListenable: _ble.latestReading,
+                builder: (context, reading, _) {
+                  final live = reading != null;
+                  return Text(
+                    live ? t('live') : t('waiting'),
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: live ? Colors.green.shade700 : Colors.black38,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
+                    ),
+                  );
+                },
               ),
             ],
           ),

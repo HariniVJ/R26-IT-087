@@ -53,6 +53,8 @@ flutter:
     - assets/models/labels.txt
     - assets/models/pomegranate_irrigation_model.tflite
     - assets/models/irrigation_labels.txt
+    - assets/models/fertilizert.tflite
+    - assets/models/fertilizer_labels.txt
     - assets/images/pomegranate.jpeg
     - assets/images/bud.png
     - assets/images/early_fruit.png
