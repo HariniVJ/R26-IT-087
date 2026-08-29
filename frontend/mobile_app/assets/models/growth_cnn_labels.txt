@@ -1,0 +1,6 @@
+Bud
+Flower
+EarlyFruit
+MidGrowth
+MatureFruit
+Unknown
