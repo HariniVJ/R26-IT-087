@@ -122,9 +122,14 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
         title: Text(t('irrigationRecommendation')),
         backgroundColor: BrandColor.primary,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        actionsIconTheme: const IconThemeData(color: Colors.white),
         automaticallyImplyLeading: false,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+          ),
           tooltip: 'Back',
           onPressed: () {
             if (Navigator.of(context).canPop()) {
@@ -143,7 +148,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
                 ),
               );
             },
-            icon: const Icon(Icons.history),
+            icon: const Icon(Icons.history, color: Colors.white),
           ),
         ],
       ),
