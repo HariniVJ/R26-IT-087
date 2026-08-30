@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'detecting_screen.dart';
-import '../services/growth_tflite_service.dart';
+import '../services/growth/growth_tflite_service.dart';
 
 class CaptureScreen extends StatefulWidget {
   const CaptureScreen({super.key});

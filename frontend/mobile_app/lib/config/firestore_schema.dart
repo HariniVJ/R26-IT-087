@@ -8,6 +8,7 @@ class FirestoreSchema {
   static const irrigationPredictions = 'irrigation_predictions';
   static const irrigationLogs = 'irrigation_logs';
   static const fertilizerPredictions = 'fertilizer_predictions';
+  static const growthPredictions = 'growth_predictions';
   static const fertilizerLogs = 'fertilizer_logs';
   static const notifications = 'notifications';
 

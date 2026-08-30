@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../models/growth_result.dart';
-import '../services/growth_tflite_service.dart';
+import '../services/growth/growth_tflite_service.dart';
 import 'result_screen.dart';
 
 // ── Brand colors ─────────────────────────────────────────────────
