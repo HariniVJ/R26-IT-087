@@ -4,15 +4,16 @@ import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../models/grading_result.dart';
-import '../models/Q_prediction_result.dart';
-import '../services/grading/grading_service.dart';
-import '../services/grading/tflite_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/glass_box.dart';
-import '../widgets/stack_storage_bar.dart';
-import '../widgets/date_range_pill.dart';
-import '../l10n/q_app_strings.dart';
+import '../../models/grading_result.dart';
+import '../../models/Q_prediction_result.dart';
+import '../../services/grading/grading_service.dart';
+import '../../services/grading/tflite_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/glass_box.dart';
+import '../../widgets/stack_storage_bar.dart';
+import '../../widgets/date_range_pill.dart';
+import '../../widgets/low_quality_disease_popup.dart';
+import '../../l10n/q_app_strings.dart';
 import 'history_screen.dart';
 import 'history_detail_screen.dart';
 
@@ -38,18 +39,14 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   bool _saving = false;
   bool? _savedOk;
   bool _validatingImage = false;
-
   int? _weightGrams;
   final _weightController = TextEditingController();
-
   Uint8List? _preprocessedBytes;
   bool _showPreprocessed = false;
-
   int _highCount = 0;
   int _mediumCount = 0;
   int _lowCount = 0;
   DateRange _selectedRange = DateRange.week;
-
   List<GradingResult> _recentResults = [];
 
   final _steps = [
@@ -89,7 +86,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       parent: _resultCtrl,
       curve: Curves.elasticOut,
     );
-
     _tflite.loadModel().catchError((e) => debugPrint('⚠️ TFLite: $e'));
     _loadStats();
   }
@@ -109,13 +105,11 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     try {
       final all = await _service.getHistory(uid);
       if (!mounted) return;
-
       final filtered = all.where((r) {
         final dt = r.dateTime;
         if (dt == null) return false;
         return _selectedRange.contains(dt);
       }).toList();
-
       setState(() {
         _highCount = filtered.where((r) => r.quality == 'high_quality').length;
         _mediumCount = filtered
@@ -136,7 +130,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       maxWidth: 1024,
     );
     if (x == null) return;
-
     final pickedFile = File(x.path);
     setState(() {
       _image = pickedFile;
@@ -149,7 +142,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _showPreprocessed = false;
       _validatingImage = true;
     });
-
     bool isPomegranate;
     try {
       isPomegranate = await _tflite.checkIsPomegranate(pickedFile);
@@ -157,10 +149,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       debugPrint('⚠️ Validation error: $e');
       isPomegranate = true;
     }
-
     if (!mounted) return;
     setState(() => _validatingImage = false);
-
     if (!isPomegranate) {
       _showNotPomegranatePopup();
     }
@@ -265,13 +255,11 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
 
   Future<void> _analyse() async {
     if (_image == null) return;
-
     final uid = _userId;
     if (uid == null) {
       setState(() => _error = 'Please log in before analysing a fruit.');
       return;
     }
-
     setState(() {
       _phase = _Phase.analysing;
       _progress = 0;
@@ -279,14 +267,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _error = null;
       _savedOk = null;
     });
-
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() {
       _stepIndex = 0;
       _progress = 0.25;
     });
-
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() {
@@ -354,14 +340,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   Future<void> _saveToHistory(PredictionResult p, String uid) async {
     if (!mounted) return;
     setState(() => _saving = true);
-
     try {
       final saved = await _service.saveResult(
         userId: uid,
         quality: p.quality,
         confidence: p.confidenceDecimal,
-        imageFile:
-            _image, // 🔧 now actually uploaded to Storage inside GradingService
+        imageFile: _image,
         defectType: p.defectType,
         severityPercent: p.severityPercent,
         weightGrams: _weightGrams,
@@ -373,6 +357,17 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         _saving = false;
       });
       _loadStats();
+
+      if (p.quality == 'low_quality' && _image != null) {
+        final lowQualityInfo = await _service.checkDiseaseIfLowQuality(
+          quality: p.quality,
+          defectType: p.defectType,
+          imageFile: _image!,
+        );
+        if (lowQualityInfo != null && mounted) {
+          await showLowQualityPopup(context, lowQualityInfo);
+        }
+      }
     } catch (e) {
       debugPrint('🔴 SAVE ERROR: $e');
       if (!mounted) return;
@@ -511,12 +506,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -664,7 +659,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     ],
   );
 
-  // 🔧 FIXED — preprocessed preview shown as true 224x224 square (letterboxed)
   Widget _uploadBox() {
     if (_image == null) {
       return AnimatedBuilder(
@@ -722,7 +716,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         ),
       );
     }
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: Stack(
@@ -746,7 +739,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               width: double.infinity,
               fit: BoxFit.cover,
             ),
-
           if (!_validatingImage)
             Positioned(
               top: 10,
@@ -788,7 +780,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                 ),
               ),
             ),
-
           if (!_validatingImage)
             Positioned(
               bottom: 0,
@@ -902,12 +893,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         builder: (_, __) => Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: _border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 12,
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -957,12 +948,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: _border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 16,
               offset: const Offset(0, 4),
             ),
           ],
@@ -1131,7 +1122,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   Widget _resultBody() {
     final r = _result!;
     final fg = QualityTheme.fgColor(r.quality);
-
     return ScaleTransition(
       scale: _resultAnim,
       child: Column(
@@ -1139,81 +1129,100 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(color: _border),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  AppStrings.get("detected_result"),
-                  style: const TextStyle(
-                    color: _textDark,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                if (_image != null)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                    child: Image.file(
+                      _image!,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'AI-powered pomegranate quality detection',
-                  style: TextStyle(color: _textMid, fontSize: 11),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: fg.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: fg.withOpacity(0.2)),
-                  ),
-                  child: Row(
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        QualityTheme.emoji(r.quality),
-                        style: const TextStyle(fontSize: 36),
+                        AppStrings.get("detected_result"),
+                        style: const TextStyle(
+                          color: _textDark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 2),
+                      const Text(
+                        'AI-powered pomegranate quality detection',
+                        style: TextStyle(color: _textMid, fontSize: 11),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: fg.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: fg.withOpacity(0.2)),
+                        ),
+                        child: Row(
                           children: [
                             Text(
-                              QualityTheme.label(r.quality),
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: _textDark,
-                              ),
+                              QualityTheme.emoji(r.quality),
+                              style: const TextStyle(fontSize: 36),
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: fg,
-                                    shape: BoxShape.circle,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    QualityTheme.label(r.quality),
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: _textDark,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Confidence Score ${_prediction?.confidencePercent ?? r.confidencePercent}',
-                                  style: TextStyle(
-                                    color: fg,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: fg,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Confidence Score ${_prediction?.confidencePercent ?? r.confidencePercent}',
+                                        style: TextStyle(
+                                          color: fg,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -1232,12 +1241,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(color: _border),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 12,
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -1302,16 +1311,15 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   Widget _defectInfoCard() {
     final defectType = _prediction!.defectType!;
     final severity = _prediction!.severityDisplay;
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1372,16 +1380,16 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-    Widget _recentHistoryCard() {
+  Widget _recentHistoryCard() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1452,10 +1460,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // 🔧 FIXED — thumbnail is now guaranteed a perfect square via AspectRatio
+  // ══════════════════════════════════════════════════════════════════
   Widget _recentHistoryRow(GradingResult r) {
     final fg = QualityTheme.fgColor(r.quality);
     final bg = QualityTheme.bgColor(r.quality);
-
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -1464,33 +1474,46 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 🆕 Square thumbnail (56x56), photo if available, else emoji fallback
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: r.imageUrl != null
-                    ? Image.network(
-                        r.imageUrl!,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) =>
-                            progress == null
-                            ? child
-                            : Container(
-                                color: bg,
-                                child: const Center(
-                                  child: SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
+            SizedBox(
+              width: 56,
+              height: 56,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio:
+                      1.0, // 🔧 forces a perfect square crop, regardless of source image shape
+                  child: r.imageUrl != null
+                      ? Image.network(
+                          r.imageUrl!,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) =>
+                              progress == null
+                              ? child
+                              : Container(
+                                  color: bg,
+                                  child: const Center(
+                                    child: SizedBox(
+                                      width: 14,
+                                      height: 14,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     ),
                                   ),
                                 ),
+                          errorBuilder: (_, __, ___) => Container(
+                            color: bg,
+                            child: Center(
+                              child: Text(
+                                QualityTheme.emoji(r.quality),
+                                style: const TextStyle(fontSize: 22),
                               ),
-                        errorBuilder: (_, __, ___) => Container(
+                            ),
+                          ),
+                        )
+                      : Container(
                           color: bg,
                           child: Center(
                             child: Text(
@@ -1499,16 +1522,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                             ),
                           ),
                         ),
-                      )
-                    : Container(
-                        color: bg,
-                        child: Center(
-                          child: Text(
-                            QualityTheme.emoji(r.quality),
-                            style: const TextStyle(fontSize: 22),
-                          ),
-                        ),
-                      ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -1560,7 +1574,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  
   Widget _primaryActionButton(
     String label,
     IconData icon,

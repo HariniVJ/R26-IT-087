@@ -1,7 +1,7 @@
 // lib/screens/history_detail_screen.dart
 import 'package:flutter/material.dart';
-import '../models/grading_result.dart';
-import '../theme/app_theme.dart';
+import '../../models/grading_result.dart';
+import '../../theme/app_theme.dart';
 
 class HistoryDetailScreen extends StatelessWidget {
   final GradingResult result;

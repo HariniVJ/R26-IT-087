@@ -16,7 +16,7 @@ import '../l10n/app_strings.dart';
 
 import 'irrigation/irrigation_screen.dart';
 import 'fertilizer/fertilizer_screen.dart';
-import 'quality_grading_screen.dart';
+import 'quality/quality_grading_screen.dart';
 import 'disease/disease_view.dart';
 import 'coming_soon_screen.dart';
 import '../screens/capture_screen.dart';

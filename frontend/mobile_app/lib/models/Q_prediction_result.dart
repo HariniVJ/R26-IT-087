@@ -1,4 +1,4 @@
-// lib/models/prediction_result.dart
+// lib/models/Q_prediction_result.dart  ← இந்த exact file, இந்த exact பெயர்
 import 'package:PomCare/models/grading_result.dart';
 
 class PredictionResult {

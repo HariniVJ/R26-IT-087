@@ -1,9 +1,9 @@
 // lib/screens/history_screen.dart
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import '../models/grading_result.dart';
-import '../services/grading/grading_service.dart';
-import '../theme/app_theme.dart';
+import '../../models/grading_result.dart';
+import '../../services/grading/grading_service.dart';
+import '../../theme/app_theme.dart';
 import 'history_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
