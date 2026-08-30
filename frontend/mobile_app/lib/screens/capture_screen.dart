@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'detecting_screen.dart';
 import '../services/growth/growth_tflite_service.dart';
+import '../services/auth/auth_service.dart';
+import '../config/app_constants.dart';
 
 class CaptureScreen extends StatefulWidget {
   const CaptureScreen({super.key});
@@ -54,6 +56,12 @@ class _CaptureScreenState extends State<CaptureScreen>
     super.dispose();
   }
 
+  String get _farmName {
+    final name = AuthService.instance.currentFarmer?.fullName;
+    if (name == null || name.isEmpty) return AppConstants.farmName;
+    return "$name's Farm";
+  }
+
   Future<void> _openCamera() async {
     final XFile? photo = await _picker.pickImage(
         source: ImageSource.camera, imageQuality: 85);
@@ -91,29 +99,44 @@ class _CaptureScreenState extends State<CaptureScreen>
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Row(
                 children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 38, height: 38,
+                      decoration: BoxDecoration(
+                        color: primaryBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: primary.withOpacity(0.2)),
+                      ),
+                      child: const Icon(Icons.arrow_back_ios_new_rounded,
+                          size: 15, color: primary),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
                   Container(
                     width: 40, height: 40,
                     decoration: const BoxDecoration(
                         color: primary, shape: BoxShape.circle),
-                    child: const Center(
-                      child: Text('PK',
-                          style: TextStyle(
+                    child: Center(
+                      child: Text(
+                          AuthService.instance.currentFarmer?.initials ?? '?',
+                          style: const TextStyle(
                               color: Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.w800)),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Pomegranate Farm',
-                            style: TextStyle(
+                        Text(_farmName,
+                            style: const TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: Color(0xFF1A1A1A))),
-                        Text('Fri, 16 May 2026',
+                        const Text('Fri, 16 May 2026',
                             style: TextStyle(
                                 fontSize: 11, color: Colors.grey)),
                       ],
@@ -423,48 +446,6 @@ class _CaptureScreenState extends State<CaptureScreen>
               ),
             ),
 
-            // ── Bottom nav ──────────────────────────────────────
-            Container(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.07),
-                    blurRadius: 16,
-                    offset: const Offset(0, -4)),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _navItem(Icons.home_rounded, 'Home', false),
-                  _navItem(Icons.history_rounded, 'History', false),
-                  GestureDetector(
-                    onTap: _openCamera,
-                    child: Container(
-                      width: 54, height: 54,
-                      decoration: BoxDecoration(
-                        color: primary,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: primary.withOpacity(0.4),
-                            blurRadius: 14,
-                            offset: const Offset(0, 4)),
-                        ],
-                      ),
-                      child: const Icon(Icons.document_scanner_rounded,
-                          color: Colors.white, size: 24),
-                    ),
-                  ),
-                  _navItem(Icons.bar_chart_rounded, 'Reports', false),
-                  _navItem(Icons.person_rounded, 'Profile', false),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -495,20 +476,6 @@ class _CaptureScreenState extends State<CaptureScreen>
       ),
     );
     return [c(true,true), c(true,false), c(false,true), c(false,false)];
-  }
-
-  Widget _navItem(IconData icon, String label, bool active) {
-    final color = active ? primary : Colors.grey[400]!;
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, color: color, size: 22),
-      const SizedBox(height: 3),
-      Text(label,
-          style: TextStyle(
-              fontSize: 10,
-              color: color,
-              fontWeight:
-                  active ? FontWeight.w700 : FontWeight.normal)),
-    ]);
   }
 }
 

@@ -506,8 +506,6 @@ class _ResultScreenState extends State<ResultScreen>
                     ),
                   ),
                 ),
-
-                _bottomNav(),
               ],
             ),
           ),
@@ -1481,10 +1479,7 @@ class _ResultScreenState extends State<ResultScreen>
 
   Widget _scanAgainButton() {
     return GestureDetector(
-      onTap: () => Navigator.popUntil(
-        context,
-        (route) => route.isFirst,
-      ),
+      onTap: () => Navigator.pop(context),
       child: Container(
         width: double.infinity,
         height: 52,
@@ -1530,115 +1525,4 @@ class _ResultScreenState extends State<ResultScreen>
     );
   }
 
-  Widget _bottomNav() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        20,
-        10,
-        20,
-        14,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(
-          top: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.07),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment:
-            MainAxisAlignment.spaceAround,
-        children: [
-          _navItem(
-            Icons.home_rounded,
-            'Home',
-            false,
-          ),
-
-          _navItem(
-            Icons.history_rounded,
-            'History',
-            false,
-          ),
-
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: const LinearGradient(
-                colors: [
-                  kPrimary,
-                  kPrimaryPink,
-                ],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: kPrimary.withOpacity(0.25),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.document_scanner_rounded,
-              color: Colors.white,
-              size: 24,
-            ),
-          ),
-
-          _navItem(
-            Icons.bar_chart_rounded,
-            'Reports',
-            false,
-          ),
-
-          _navItem(
-            Icons.person_rounded,
-            'Profile',
-            false,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _navItem(
-    IconData icon,
-    String label,
-    bool active,
-  ) {
-    final color =
-        active ? kPrimary : Colors.grey[400]!;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: color,
-          size: 22,
-        ),
-
-        const SizedBox(height: 3),
-
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 10,
-            color: color,
-            fontWeight: active
-                ? FontWeight.w700
-                : FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
 }
