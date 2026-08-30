@@ -85,18 +85,26 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
     }
 
     final treeAge = double.tryParse(_ageController.text.trim());
+    if (treeAge == null) {
+      setState(() {
+        _ageError = t('plantAgeInvalid');
+        _errorMessage = t('plantAgeInvalid');
+      });
+      return;
+    }
+
     final reading = _ble.latestReading.value;
-    final moisture = reading?.moisture ??
-        double.tryParse(_moistureController.text.trim());
-    final temp =
-        reading?.temp ?? double.tryParse(_tempController.text.trim());
+    final moisture =
+        reading?.moisture ?? double.tryParse(_moistureController.text.trim());
+    final temp = reading?.temp ?? double.tryParse(_tempController.text.trim());
     final ph = reading?.ph ?? double.tryParse(_phController.text.trim());
-    final nitrogen = reading?.nitrogen ??
-        double.tryParse(_nitrogenController.text.trim());
-    final phosphorus = reading?.phosphorus ??
+    final nitrogen =
+        reading?.nitrogen ?? double.tryParse(_nitrogenController.text.trim());
+    final phosphorus =
+        reading?.phosphorus ??
         double.tryParse(_phosphorusController.text.trim());
-    final potassium = reading?.potassium ??
-        double.tryParse(_potassiumController.text.trim());
+    final potassium =
+        reading?.potassium ?? double.tryParse(_potassiumController.text.trim());
 
     if (moisture == null ||
         temp == null ||

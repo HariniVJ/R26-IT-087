@@ -33,65 +33,65 @@ class AppBottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 78,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 18,
-            offset: const Offset(0, -5),
+    return ListenableBuilder(
+      listenable: LanguageController.instance,
+      builder: (context, _) {
+        return Container(
+          height: 78,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 18,
+                offset: const Offset(0, -5),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _NavItem(
-            icon: Icons.home_rounded,
-            label: t('home'),
-            active: current == AppNavTab.home,
-            onTap: () => _open(context, const SizedBox.shrink(), AppNavTab.home),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _NavItem(
+                icon: Icons.home_rounded,
+                label: t('home'),
+                active: current == AppNavTab.home,
+                onTap: () =>
+                    _open(context, const SizedBox.shrink(), AppNavTab.home),
+              ),
+              _NavItem(
+                icon: Icons.history_rounded,
+                label: t('history'),
+                active: current == AppNavTab.history,
+                onTap: () => _open(
+                  context,
+                  const ResearchHistoryScreen(),
+                  AppNavTab.history,
+                ),
+              ),
+              _ScanButton(onTap: null),
+              _NavItem(
+                icon: Icons.bar_chart_rounded,
+                label: t('reports'),
+                active: current == AppNavTab.reports,
+                onTap: () => _open(
+                  context,
+                  const ResearchReportsScreen(),
+                  AppNavTab.reports,
+                ),
+              ),
+              _NavItem(
+                icon: Icons.person_outline_rounded,
+                label: t('profile'),
+                active: current == AppNavTab.profile,
+                onTap: () =>
+                    _open(context, const ProfileView(), AppNavTab.profile),
+              ),
+            ],
           ),
-          _NavItem(
-            icon: Icons.history_rounded,
-            label: t('history'),
-            active: current == AppNavTab.history,
-            onTap: () => _open(
-              context,
-              const ResearchHistoryScreen(),
-              AppNavTab.history,
-            ),
-          ),
-          _ScanButton(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const IrrigationScreen()),
-              );
-            },
-          ),
-          _NavItem(
-            icon: Icons.bar_chart_rounded,
-            label: t('reports'),
-            active: current == AppNavTab.reports,
-            onTap: () => _open(
-              context,
-              const ResearchReportsScreen(),
-              AppNavTab.reports,
-            ),
-          ),
-          _NavItem(
-            icon: Icons.person_outline_rounded,
-            label: t('profile'),
-            active: current == AppNavTab.profile,
-            onTap: () => _open(context, const ProfileView(), AppNavTab.profile),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -135,9 +135,9 @@ class _NavItem extends StatelessWidget {
 }
 
 class _ScanButton extends StatelessWidget {
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
-  const _ScanButton({required this.onTap});
+  const _ScanButton({this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -157,7 +157,11 @@ class _ScanButton extends StatelessWidget {
             ),
           ],
         ),
-        child: const Icon(Icons.crop_free_rounded, color: Colors.white, size: 28),
+        child: const Icon(
+          Icons.crop_free_rounded,
+          color: Colors.white,
+          size: 28,
+        ),
       ),
     );
   }
