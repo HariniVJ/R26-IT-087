@@ -25,6 +25,7 @@ class PredictionResultModel {
 
   // Image
   final String imagePath;
+  final String? imageUrl;
 
   // Other information
   final double responseTimeSeconds;
@@ -45,6 +46,7 @@ class PredictionResultModel {
     this.followUpDueDate,
     this.followUpDone = false,
     required this.imagePath,
+    this.imageUrl,
     this.responseTimeSeconds = 0.0,
     required this.detectedAt,
   });

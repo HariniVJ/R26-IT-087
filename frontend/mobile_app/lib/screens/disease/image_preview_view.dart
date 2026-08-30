@@ -6,6 +6,7 @@ import 'package:image/image.dart' as img;
 
 import '../../common/brand_color.dart';
 import '../../services/disease/disease_service.dart';
+import '../../services/ml/binary_validator_service.dart';
 import '../../services/ml/model_inference_service.dart';
 import 'classification_result_view.dart';
 
@@ -32,6 +33,23 @@ class _ImagePreviewViewState extends State<ImagePreviewView> {
     setState(() => loading = true);
 
     try {
+      // ── Step 1: Binary validation — is this a pomegranate? ──────────
+      final validator = BinaryValidatorService.instance;
+      final validationResult = await validator.validate(widget.imageFile);
+
+      if (!validationResult.isPomegranate) {
+        if (!mounted) return;
+        setState(() => loading = false);
+
+        _showRejectionDialog(
+          'This does not look like a pomegranate '
+          '(${(validationResult.confidence * 100).toStringAsFixed(1)}% confidence).\n'
+          'Please capture a clear photo of a pomegranate fruit.',
+        );
+        return;
+      }
+
+      // ── Step 2: Confirmed pomegranate — run disease classification ──
       final result = await DiseaseService.predictDisease(widget.imageFile);
 
       if (!mounted) return;
@@ -53,35 +71,34 @@ class _ImagePreviewViewState extends State<ImagePreviewView> {
 
       setState(() => loading = false);
 
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          icon: const Icon(
-            Icons.warning_amber_rounded,
-            color: BrandColor.primary,
-            size: 45,
-          ),
-          title: const Text('Image Rejected'),
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-            textAlign: TextAlign.center,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text(
-                'Try Another Image',
-                style: TextStyle(color: BrandColor.primary),
-              ),
-            ),
-          ],
-        ),
-      );
+      _showRejectionDialog(e.toString().replaceFirst('Exception: ', ''));
     }
+  }
+
+  void _showRejectionDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        icon: const Icon(
+          Icons.warning_amber_rounded,
+          color: BrandColor.primary,
+          size: 45,
+        ),
+        title: const Text('Image Rejected'),
+        content: Text(message, textAlign: TextAlign.center),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Try Another Image',
+              style: TextStyle(color: BrandColor.primary),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Generates a visual preview of what the model actually sees:
