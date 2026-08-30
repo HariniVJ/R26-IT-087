@@ -204,6 +204,9 @@ const _en = {
   'sriLanka': 'Sri Lanka',
   'noRainExpected': 'No rain expected soon.',
   'irrigationEventsSkipped': 'Irrigation events skipped because of rain',
+  'wind': 'Wind',
+  'feels': 'Feels',
+  'refresh': 'Refresh',
 };
 
 const _si = {
@@ -339,6 +342,9 @@ const _si = {
   'sriLanka': 'ශ්‍රී ලංකාව',
   'noRainExpected': 'ඉක්මනින් වැස්සක් බලාපොරොත්තු නැත.',
   'irrigationEventsSkipped': 'වැස්ස නිසා මඟ හැරුණු ජල සම්පාදන අවස්ථා',
+  'wind': 'සුළඟ',
+  'feels': 'දැනෙන',
+  'refresh': 'යාවත්කාලීන',
 };
 
 const _ta = {
@@ -474,4 +480,7 @@ const _ta = {
   'sriLanka': 'இலங்கை',
   'noRainExpected': 'விரைவில் மழை எதிர்பார்க்கப்படவில்லை.',
   'irrigationEventsSkipped': 'மழை காரணமாக தவிர்க்கப்பட்ட நீர்ப்பாசனம்',
+  'wind': 'காற்று',
+  'feels': 'உணர்வு',
+  'refresh': 'புதுப்பி',
 };

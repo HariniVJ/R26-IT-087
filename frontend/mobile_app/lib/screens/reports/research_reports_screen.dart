@@ -24,6 +24,7 @@ class _ResearchReportsScreenState extends State<ResearchReportsScreen> {
   List<IrrigationHistoryRecord> _irrigation = [];
   List<FertilizerAdvice> _fertilizer = [];
   List<Map<String, dynamic>> _logs = [];
+  Map<String, dynamic>? _latestSoil;
   bool _loading = true;
 
   @override
@@ -59,11 +60,13 @@ class _ResearchReportsScreenState extends State<ResearchReportsScreen> {
       final irrigation = await FirestoreService.instance.getIrrigationHistory();
       final fertilizer = await FirestoreService.instance.getFertilizerHistory();
       final logs = await FirestoreService.instance.getIrrigationLogs();
+      final sensors = await FirestoreService.instance.getSensorHistory(limit: 1);
       if (!mounted) return;
       setState(() {
         _irrigation = irrigation;
         _fertilizer = fertilizer;
         _logs = logs;
+        _latestSoil = sensors.isEmpty ? null : sensors.first;
         _loading = false;
       });
     } catch (_) {
@@ -123,6 +126,8 @@ class _ResearchReportsScreenState extends State<ResearchReportsScreen> {
                     children: [
                       _rangeChips(),
                       const SizedBox(height: 16),
+                      _currentSoilCard(),
+                      const SizedBox(height: 16),
                       _irrigationReport(irrigation, logs),
                       const SizedBox(height: 16),
                       _fertilizerReport(fertilizer),
@@ -175,6 +180,32 @@ class _ResearchReportsScreenState extends State<ResearchReportsScreen> {
         children: [
           Expanded(child: Text(label)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+
+  Widget _currentSoilCard() {
+    final soil = _latestSoil;
+    return AppCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t('currentSoil'),
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          if (soil == null)
+            Text(t('noRecords'))
+          else ...[
+            _stat(t('soilMoisture'), '${soil['soilMoisture'] ?? '--'}%'),
+            _stat(t('soilTemperature'), '${soil['soilTemperature'] ?? '--'} °C'),
+            _stat(t('nitrogen'), '${soil['nitrogen'] ?? '--'}'),
+            _stat(t('phosphorus'), '${soil['phosphorus'] ?? '--'}'),
+            _stat(t('potassium'), '${soil['potassium'] ?? '--'}'),
+            _stat(t('soilPh'), '${soil['soilPh'] ?? '--'}'),
+          ],
         ],
       ),
     );

@@ -76,8 +76,7 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
     final reading = _ble.latestReading.value;
     if (reading == null) {
       setState(() {
-        _message =
-            'Connect the IoT soil sensor. Soil moisture is read automatically from the device.';
+        _message = 'Connect the soil sensor first.';
       });
       _connectSensorIfNeeded();
       return;
@@ -157,20 +156,8 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.water_drop, size: 64, color: BrandColor.primary),
-            const SizedBox(height: 8),
-            Text(
-              t('checkIrrigation'),
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Soil moisture comes from the IoT sensor. Weather is loaded automatically when the internet is available.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 20),
+            _heroCard(),
+            const SizedBox(height: 16),
             _locationCard(),
             const SizedBox(height: 12),
             _weatherCard(),
@@ -203,32 +190,77 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
     );
   }
 
+  Widget _heroCard() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      decoration: BoxDecoration(
+        color: BrandColor.primary,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.water_drop_rounded, size: 36, color: Colors.white),
+          const SizedBox(height: 10),
+          Text(
+            t('irrigationRecommendation'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Live soil and weather for your farm',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _locationCard() {
+    final name = _location?.placeName;
     return AppCard(
       child: Row(
         children: [
-          const Icon(Icons.location_on, color: BrandColor.primary),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: BrandColor.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.location_on_rounded, color: BrandColor.primary),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(t('farmLocation'), style: const TextStyle(fontWeight: FontWeight.w800)),
+                Text(
+                  t('farmLocation'),
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 4),
                 Text(
                   _loadingLocation
-                      ? 'Getting current location...'
-                      : _location == null
-                          ? (_locationError ?? 'Location unavailable')
-                          : '${_location!.latitude.toStringAsFixed(4)}, ${_location!.longitude.toStringAsFixed(4)} (${_location!.source})',
-                  style: const TextStyle(fontSize: 12, color: Colors.black54),
+                      ? 'Finding your location...'
+                      : name ?? _locationError ?? 'Location unavailable',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
             onPressed: _prepareLocationAndWeather,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: BrandColor.primary),
           ),
         ],
       ),
@@ -339,13 +371,6 @@ class _IrrigationScreenState extends State<IrrigationScreen> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                live
-                    ? 'Values are updating from the ESP32 soil sensor.'
-                    : 'Turn on the ESP32 soil sensor. Moisture is filled automatically — no typing needed.',
-                style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
             ],
           ),

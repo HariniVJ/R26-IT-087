@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/farm_location.dart';
 import '../../models/irrigation_weather.dart';
+import '../weather/place_name_service.dart';
 import 'location_service.dart';
 
 /// Open-Meteo weather for the irrigation TFLite model.
@@ -16,6 +17,7 @@ class IrrigationWeatherService {
   static const _endpoint = 'https://api.open-meteo.com/v1/forecast';
 
   String? lastError;
+  final _places = PlaceNameService();
 
   Future<FarmWeatherSnapshot> loadForFarm(FarmLocationService locationService) async {
     lastError = null;
@@ -24,18 +26,20 @@ class IrrigationWeatherService {
       location = await locationService.getCurrentLocation();
     } catch (e) {
       lastError = e.toString();
-      location = await locationService.loadLastLocation() ??
-          const FarmLocation(
-            latitude: 6.9271,
-            longitude: 79.8612,
-            source: 'colombo_fallback',
-          );
+      location = await locationService.loadLastLocation();
+      if (location == null) {
+        return FarmWeatherSnapshot(
+          location: null,
+          weather: null,
+          locationError: e.toString(),
+        );
+      }
       final weather = await fetchWeather(
         latitude: location.latitude,
         longitude: location.longitude,
       );
       return FarmWeatherSnapshot(
-        location: location,
+        location: await _withPlaceName(location),
         weather: weather,
         locationError: e.toString(),
       );
@@ -46,10 +50,15 @@ class IrrigationWeatherService {
       longitude: location.longitude,
     );
     return FarmWeatherSnapshot(
-      location: location,
+      location: await _withPlaceName(location),
       weather: weather,
       locationError: null,
     );
+  }
+
+  Future<FarmLocation> _withPlaceName(FarmLocation location) async {
+    final name = await _places.resolve(location.latitude, location.longitude);
+    return location.copyWith(placeName: name);
   }
 
   Future<IrrigationWeather?> fetchWeather({

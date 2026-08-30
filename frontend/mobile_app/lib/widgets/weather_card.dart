@@ -87,7 +87,7 @@ class WeatherCard extends StatelessWidget {
           TextButton(
             onPressed: onRetry,
             child: Text(
-              t('retry'),
+              t('refresh'),
               style: const TextStyle(color: Colors.white),
             ),
           ),
@@ -97,77 +97,127 @@ class WeatherCard extends StatelessWidget {
   }
 
   Widget _data(WeatherData w) {
-    final hours = w.rainExpectedInHours;
-    final rainLine = hours == null
-        ? t('noRainSoon')
-        : LanguageController.instance.tf('rainInHours', {
-            'h': '${hours < 1 ? 1 : hours}',
-          });
-    final updated =
-        '${w.updatedAt.hour.toString().padLeft(2, '0')}:${w.updatedAt.minute.toString().padLeft(2, '0')}';
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-      child: Column(
+      padding: const EdgeInsets.fromLTRB(18, 16, 14, 12),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            t('currentWeather'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(w.weatherEmoji, style: const TextStyle(fontSize: 28)),
+                const SizedBox(height: 6),
+                Text(
+                  w.temp,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  w.condition,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      color: Colors.white70,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        w.locationLabel,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 10),
-          Text(
-            '${t('temperature')}: ${w.temp}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
+          Container(
+            width: 1,
+            height: 118,
+            margin: const EdgeInsets.only(left: 8, right: 12, top: 8),
+            color: Colors.white24,
+          ),
+          SizedBox(
+            width: 108,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _metric(Icons.water_drop, t('humidity'), w.humidity),
+                const SizedBox(height: 10),
+                _metric(Icons.air, t('wind'), w.wind),
+                const SizedBox(height: 10),
+                _metric(Icons.thermostat, t('feels'), w.feelsLike),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: onRetry,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      t('refresh'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '${t('humidity')}: ${w.humidityText}',
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-          ),
-          Text(
-            '${t('rainProbability')}: ${w.rainProbabilityText}',
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-          ),
-          Text(
-            '${t('condition')}: ${w.condition}',
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-          ),
-          Text(
-            '${t('precipitation')}: ${w.precipitation}',
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            t('upcomingRain'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          Text(
-            rainLine,
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            '${t('location')}: ${w.locationLabel}',
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
-          Text(
-            '${t('updated')}: $updated',
-            style: const TextStyle(color: Colors.white54, fontSize: 11),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _metric(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white, size: 16),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white70, fontSize: 10),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
