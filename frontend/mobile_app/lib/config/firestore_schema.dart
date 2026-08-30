@@ -15,6 +15,7 @@ class FirestoreSchema {
   /// Other team modules. Kept so existing Admin SDK history is not orphaned.
   static const qualityResults = 'quality_results';
   static const diseasePredictions = 'disease_predictions';
+  static const recommendationRules = 'recommendation_rules';   
 
   /// Older Flutter writes. History screens still read these as fallback.
   static const irrigationLegacy = 'irrigation';
