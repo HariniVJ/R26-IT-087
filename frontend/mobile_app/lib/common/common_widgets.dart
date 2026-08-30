@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_strings.dart';
 import 'app_text_styles.dart';
 import 'brand_color.dart';
 
@@ -34,7 +35,7 @@ class AppPrimaryButton extends StatelessWidget {
                 ),
               )
             : Icon(icon ?? Icons.check, size: 18),
-        label: Text(isLoading ? 'Please wait...' : label, style: AppTextStyles.button),
+        label: Text(isLoading ? t('pleaseWait') : label, style: AppTextStyles.button),
         style: ElevatedButton.styleFrom(
           backgroundColor: BrandColor.primary,
           foregroundColor: Colors.white,
@@ -236,12 +237,92 @@ class BluetoothStatusCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           AppPrimaryButton(
-            label: scanning ? 'Scanning...' : connectLabel,
+            label: scanning ? t('scanningDevice') : connectLabel,
             icon: Icons.bluetooth_searching,
             isLoading: scanning,
             onPressed: scanning ? null : onConnect,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class AppDashTile extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final String? emoji;
+  final Color accent;
+  final bool loading;
+  final VoidCallback? onTap;
+
+  const AppDashTile({
+    super.key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    this.emoji,
+    this.accent = BrandColor.primary,
+    this.loading = false,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AppCard(
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.10),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: accent, size: 20),
+                ),
+                const Spacer(),
+                if (emoji != null)
+                  Text(emoji!, style: const TextStyle(fontSize: 22)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF6B7280),
+              ),
+            ),
+            const SizedBox(height: 4),
+            if (loading)
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Text(
+                value,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  height: 1.25,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

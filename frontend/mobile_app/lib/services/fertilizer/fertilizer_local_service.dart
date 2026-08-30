@@ -1,3 +1,4 @@
+import '../../l10n/app_strings.dart';
 import '../../models/fertilizer_advice.dart';
 import 'fertilizer_tflite_service.dart';
 
@@ -17,8 +18,8 @@ class FertilizerLocalService {
     required double treeAge,
     String? treeId,
   }) async {
-    if (treeAge <= 0) {
-      throw ArgumentError('Please enter a valid tree age.');
+    if (treeAge < 0 || treeAge > 10) {
+      throw ArgumentError(t('plantAgeInvalid'));
     }
 
     final stage = _treeStage(treeAge);

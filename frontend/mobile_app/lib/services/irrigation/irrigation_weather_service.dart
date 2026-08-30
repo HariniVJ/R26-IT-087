@@ -219,10 +219,32 @@ class IrrigationWeatherService {
 
 String weatherConditionLabel(double code) {
   final c = code.round();
-  if (c == 0) return 'clear';
-  if (c <= 3) return 'partlyCloudy';
+  if (c == 0) return 'sunny';
+  if (c <= 2) return 'partlyCloudy';
   if (c <= 48) return 'cloudy';
-  return 'rain';
+  if (c <= 67) return 'rain';
+  if (c <= 82) return 'rainShowers';
+  if (c <= 94) return 'rainShowers';
+  return 'thunderstorm';
+}
+
+String weatherConditionEmoji(double code) {
+  switch (weatherConditionLabel(code)) {
+    case 'sunny':
+      return '☀️';
+    case 'partlyCloudy':
+      return '🌤️';
+    case 'cloudy':
+      return '☁️';
+    case 'rain':
+      return '🌧️';
+    case 'rainShowers':
+      return '🌦️';
+    case 'thunderstorm':
+      return '⛈️';
+    default:
+      return '☁️';
+  }
 }
 
 class FarmWeatherSnapshot {

@@ -207,6 +207,40 @@ const _en = {
   'wind': 'Wind',
   'feels': 'Feels',
   'refresh': 'Refresh',
+  'plantAgeInvalid': 'Please enter a plant age between 0 and 10 years.',
+  'deviceConnection': 'Device Connection',
+  'connected': 'Connected',
+  'disconnected': 'Disconnected',
+  'scanningDevice': 'Scanning...',
+  'locationAvailable': 'Location ready',
+  'locationUnavailable': 'Location unavailable',
+  'findingLocation': 'Finding your location...',
+  'irrigationHeroSubtitle': 'Live soil and weather for your farm',
+  'irrigateRecommendedTitle': 'Irrigation Recommended',
+  'irrigateRecommendedBody':
+      'The soil moisture is currently low. Irrigation is recommended to support healthy plant growth.',
+  'irrigateNotNeededTitle': 'Irrigation Not Required',
+  'irrigateNotNeededBody':
+      'The soil currently has enough moisture, so you can skip irrigation for now.',
+  'waitBeforeIrrigatingTitle': 'Wait Before Irrigating',
+  'waitBeforeIrrigatingBody':
+      'Rain is expected soon. It is better to wait and avoid unnecessary irrigation.',
+  'noUrgentTitle': 'No Urgent Irrigation',
+  'noUrgentBody':
+      'Soil moisture is moderate. You do not need to irrigate right now.',
+  'errorSensorDisconnected':
+      'Bluetooth soil sensor is disconnected. Connect the device and try again.',
+  'errorNoSoilMoisture':
+      'Soil moisture could not be read. Check the sensor and try again.',
+  'errorLocationDenied':
+      'Location permission is needed for live weather. Enable it in phone settings.',
+  'errorWeatherUnavailable':
+      'Live weather is unavailable. Advice will use soil moisture only.',
+  'errorPredictionFailed': 'Could not check irrigation. Please try again.',
+  'sunny': 'Sunny',
+  'thunderstorm': 'Thunderstorm',
+  'rainShowers': 'Rain Showers',
+  'pleaseWait': 'Please wait...',
 };
 
 const _si = {
@@ -345,6 +379,41 @@ const _si = {
   'wind': 'සුළඟ',
   'feels': 'දැනෙන',
   'refresh': 'යාවත්කාලීන',
+  'plantAgeInvalid': '\u0d9a\u0dbb\u0dd4\u0dab\u0dcf\u0d9a\u0dbb \u0dc0\u0dba\u0dc3 0 \u0dc3\u0dd2\u0da7 10 \u0daf\u0d9a\u0dca\u0dc0\u0dcf \u0d85\u0dad\u0dbb \u0d87\u0dad\u0dd4\u0dc5\u0dad\u0dca \u0d9a\u0dbb\u0db1\u0dca\u0db1.',
+  'deviceConnection': '\u0d8b\u0db4\u0dcf\u0d82\u0d9c \u0dc3\u0db8\u0dca\u0db6\u0db1\u0dca\u0db0\u0dad\u0dcf\u0dc0',
+  'connected': '\u0dc3\u0db8\u0dca\u0db6\u0db1\u0dca\u0db0\u0dba\u0dd2',
+  'disconnected': '\u0dc0\u0dd2\u0dc3\u0db1\u0dca\u0db0\u0dd2 \u0dc0\u0dd3 \u0d87\u0dad',
+  'scanningDevice': '\u0dc3\u0ddc\u0dba\u0db8\u0dd2\u0db1\u0dca...',
+  'locationAvailable': '\u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0dc3\u0dd6\u0daf\u0dcf\u0db1\u0db8\u0dca',
+  'locationUnavailable': '\u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0db1\u0ddc\u0db8\u0dd0\u0dad',
+  'findingLocation': '\u0d94\u0db6\u0dda \u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0dc3\u0ddc\u0dba\u0db8\u0dd2\u0db1\u0dca...',
+  'irrigationHeroSubtitle': '\u0d94\u0db6\u0dda \u0d9c\u0ddc\u0dc0\u0dd2\u0db4\u0dbd \u0dc3\u0db3\u0dc4\u0dcf \u0dc3\u0da2\u0dd3\u0dc0\u0dd3 \u0db4\u0dc3 \u0dc3\u0dc4 \u0d9a\u0dcf\u0dbd\u0d9c\u0dd4\u0dab\u0dba',
+  'irrigateRecommendedTitle': '\u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0db1\u0dd2\u0dbb\u0dca\u0daf\u0dda\u0dc1 \u0d9a\u0dd9\u0dbb\u0dda',
+  'irrigateRecommendedBody':
+      '\u0db4\u0dc3\u0dca \u0dad\u0dd9\u0dad\u0db8\u0db1\u0dba \u0daf\u0dd0\u0db1\u0dca \u0d85\u0da9\u0dd4\u0dba. \u0dc1\u0dcf\u0d9a\u0dba\u0dda \u0dba\u0dc4\u0db4\u0dad\u0dca \u0dc0\u0dbb\u0dca\u0db0\u0db1\u0dba\u0da7 \u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0db1\u0dd2\u0dbb\u0dca\u0daf\u0dda\u0dc1 \u0d9a\u0dd9\u0dbb\u0dda.',
+  'irrigateNotNeededTitle': '\u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad',
+  'irrigateNotNeededBody':
+      '\u0db4\u0dc3\u0dda \u0daf\u0dd0\u0db1\u0da7 \u0db4\u0dca\u200d\u0dbb\u0db8\u0dcf\u0dab\u0dc0\u0dad\u0dca \u0dad\u0dd9\u0dad\u0db8\u0db1\u0dba\u0d9a\u0dca \u0d87\u0dad. \u0daf\u0dd0\u0db1\u0dca \u0da2\u0dbd\u0dba \u0dba\u0dd9\u0daf\u0dd3\u0db8 \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad.',
+  'waitBeforeIrrigatingTitle': '\u0da2\u0dbd\u0dba \u0dba\u0dd9\u0daf\u0dd3\u0db8\u0da7 \u0db4\u0dd9\u0dbb \u0dbb\u0dd0\u0db3\u0dd3 \u0dc3\u0dd2\u0da7\u0dd2\u0db1\u0dca\u0db1',
+  'waitBeforeIrrigatingBody':
+      '\u0d89\u0d9a\u0dca\u0db8\u0db1\u0dd2\u0db1\u0dca \u0dc0\u0dd0\u0dc3\u0dca\u0dc3\u0d9a\u0dca \u0db6\u0dbd\u0dcf\u0db4\u0ddc\u0dbb\u0ddc\u0dad\u0dca\u0dad\u0dd4\u0dba\u0dd2. \u0d85\u0db1\u0dc0\u0dc1\u0dca\u200d\u0dba \u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba\u0dd9\u0db1\u0dca \u0dc0\u0dc5\u0d9a\u0dd2\u0db1\u0dca\u0db1.',
+  'noUrgentTitle': '\u0dc4\u0daf\u0dd2\u0dc3\u0dd2 \u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad',
+  'noUrgentBody':
+      '\u0db4\u0dc3\u0dca \u0dad\u0dd9\u0dad\u0db8\u0db1\u0dba \u0db8\u0db0\u0dca\u200d\u0dba\u0dc3\u0dca\u0dae\u0dba. \u0daf\u0dd0\u0db1\u0dca \u0da2\u0dbd\u0dba \u0dba\u0dd9\u0daf\u0dd3\u0db8 \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad.',
+  'errorSensorDisconnected':
+      '\u0db6\u0dca\u0dbd\u0dd6\u0da7\u0dd6\u0dad\u0dca \u0db4\u0dc3\u0dca \u0dc3\u0d82\u0dc0\u0dda\u0daf\u0d9a\u0dba \u0dc0\u0dd2\u0dc3\u0db1\u0dca\u0db0\u0dd2 \u0dc0\u0dd3 \u0d87\u0dad. \u0d8b\u0db4\u0dcf\u0d82\u0d9c\u0dba \u0dc3\u0db8\u0dca\u0db6\u0db1\u0dca\u0db0 \u0d9a\u0dbb \u0db1\u0dd0\u0dc0\u0dad \u0d8b\u0dad\u0dca\u0dc3\u0dcf\u0dc4 \u0d9a\u0dbb\u0db1\u0dca\u0db1.',
+  'errorNoSoilMoisture':
+      '\u0db4\u0dc3\u0dca \u0dad\u0dd9\u0dad\u0db8\u0db1\u0dba \u0d9a\u0dd2\u0dba\u0dc0\u0dd2\u0dba \u0db1\u0ddc\u0dc4\u0dd0\u0d9a. \u0dc3\u0d82\u0dc0\u0dda\u0daf\u0d9a\u0dba \u0db4\u0dbb\u0dd3\u0d9a\u0dca\u0dc2\u0dcf \u0d9a\u0dbb \u0db1\u0dd0\u0dc0\u0dad \u0d8b\u0dad\u0dca\u0dc3\u0dcf\u0dc4 \u0d9a\u0dbb\u0db1\u0dca\u0db1.',
+  'errorLocationDenied':
+      '\u0dc3\u0da2\u0dd3\u0dc0\u0dd3 \u0d9a\u0dcf\u0dbd\u0d9c\u0dd4\u0dab\u0dba\u0da7 \u0dc3\u0dca\u0dae\u0dcf\u0db1 \u0d85\u0dc0\u0dc3\u0dbb\u0dba \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba\u0dba\u0dd2. \u0daf\u0dd4\u0dbb\u0d9a\u0dae\u0db1 \u0dc3\u0dd0\u0d9a\u0dc3\u0dd4\u0db8\u0dca\u0dc0\u0dbd\u0dd2\u0db1\u0dca \u0dc3\u0d9a\u0dca\u200d\u0dbb\u0dd2\u0dba \u0d9a\u0dbb\u0db1\u0dca\u0db1.',
+  'errorWeatherUnavailable':
+      '\u0dc3\u0da2\u0dd3\u0dc0\u0dd3 \u0d9a\u0dcf\u0dbd\u0d9c\u0dd4\u0dab\u0dba \u0dbd\u0db6\u0dcf\u0d9c\u0dad \u0db1\u0ddc\u0dc4\u0dd0\u0d9a. \u0d8b\u0db4\u0daf\u0dd9\u0dc3\u0dca \u0db4\u0dc3\u0dca \u0dad\u0dd9\u0dad\u0db8\u0db1\u0dba \u0db8\u0dad \u0db4\u0daf\u0db1\u0db8\u0dca \u0dc0\u0dda.',
+  'errorPredictionFailed':
+      '\u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0db4\u0dbb\u0dd3\u0d9a\u0dca\u0dc2\u0dcf \u0d9a\u0dc5 \u0db1\u0ddc\u0dc4\u0dd0\u0d9a. \u0db1\u0dd0\u0dc0\u0dad \u0d8b\u0dad\u0dca\u0dc3\u0dcf\u0dc4 \u0d9a\u0dbb\u0db1\u0dca\u0db1.',
+  'sunny': '\u0d85\u0dc0\u0dca\u0dc0 \u0dc3\u0dc4\u0dd2\u0dad\u0dba',
+  'thunderstorm': '\u0d9c\u0dd2\u0d9c\u0dd4\u0dbb\u0dd4\u0db8\u0dca \u0dc3\u0dc4\u0dd2\u0dad \u0dc0\u0dd0\u0dc3\u0dca\u0dc3',
+  'rainShowers': '\u0dc0\u0dd0\u0dc3\u0dd2 \u0dc0\u0dd0\u0da7\u0dd3\u0db8\u0dca',
+  'pleaseWait': '\u0d9a\u0dbb\u0dd4\u0dab\u0dcf\u0d9a\u0dbb \u0dbb\u0dd0\u0db3\u0dd3 \u0dc3\u0dd2\u0da7\u0dd2\u0db1\u0dca...',
 };
 
 const _ta = {
@@ -483,4 +552,39 @@ const _ta = {
   'wind': 'காற்று',
   'feels': 'உணர்வு',
   'refresh': 'புதுப்பி',
+  'plantAgeInvalid': 'தாவர வயதை 0 முதல் 10 ஆண்டுகள் வரை உள்ளிடவும்.',
+  'deviceConnection': 'சாதன இணைப்பு',
+  'connected': 'இணைக்கப்பட்டது',
+  'disconnected': 'துண்டிக்கப்பட்டது',
+  'scanningDevice': 'தேடுகிறது...',
+  'locationAvailable': 'இடம் தயார்',
+  'locationUnavailable': 'இடம் கிடைக்கவில்லை',
+  'findingLocation': 'உங்கள் இடம் தேடப்படுகிறது...',
+  'irrigationHeroSubtitle': 'உங்கள் பண்ணைக்கான நேரடி மண் மற்றும் வானிலை',
+  'irrigateRecommendedTitle': 'நீர்ப்பாசனம் பரிந்துரைக்கப்படுகிறது',
+  'irrigateRecommendedBody':
+      'மண் ஈரப்பதம் தற்போது குறைவாக உள்ளது. ஆரோக்கியமான வளர்ச்சிக்கு நீர்ப்பாசனம் பரிந்துரைக்கப்படுகிறது.',
+  'irrigateNotNeededTitle': 'நீர்ப்பாசனம் தேவையில்லை',
+  'irrigateNotNeededBody':
+      'மண்ணில் போதுமான ஈரப்பதம் உள்ளது. இப்போது நீர்ப்பாசனம் செய்ய வேண்டாம்.',
+  'waitBeforeIrrigatingTitle': 'நீர்ப்பாசனத்திற்கு முன் காத்திருக்கவும்',
+  'waitBeforeIrrigatingBody':
+      'விரைவில் மழை எதிர்பார்க்கப்படுகிறது. தேவையற்ற நீர்ப்பாசனத்தை தவிர்க்கவும்.',
+  'noUrgentTitle': 'அவசர நீர்ப்பாசனம் தேவையில்லை',
+  'noUrgentBody':
+      'மண் ஈரப்பதம் மிதமானது. இப்போது நீர்ப்பாசனம் தேவையில்லை.',
+  'errorSensorDisconnected':
+      'புளூடூத் மண் சென்சார் துண்டிக்கப்பட்டுள்ளது. சாதனத்தை இணைத்து மீண்டும் முயலவும்.',
+  'errorNoSoilMoisture':
+      'மண் ஈரப்பதத்தை படிக்க முடியவில்லை. சென்சாரை சரிபார்த்து மீண்டும் முயலவும்.',
+  'errorLocationDenied':
+      'நேரடி வானிலைக்கு இட அனுமதி தேவை. தொலைபேசி அமைப்புகளில் இயக்கவும்.',
+  'errorWeatherUnavailable':
+      'நேரடி வானிலை கிடைக்கவில்லை. ஆலோசனை மண் ஈரப்பதத்தை மட்டுமே பயன்படுத்தும்.',
+  'errorPredictionFailed':
+      'நீர்ப்பாசனத்தை சரிபார்க்க முடியவில்லை. மீண்டும் முயலவும்.',
+  'sunny': 'வெயில்',
+  'thunderstorm': 'இடியுடன் கூடிய மழை',
+  'rainShowers': 'மழை பொழிவு',
+  'pleaseWait': 'காத்திருக்கவும்...',
 };

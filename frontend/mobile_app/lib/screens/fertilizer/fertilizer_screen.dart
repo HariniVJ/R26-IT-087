@@ -30,11 +30,13 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
 
   bool _isLoading = false;
   String? _errorMessage;
+  String? _ageError;
 
   @override
   void initState() {
     super.initState();
     _ble.latestReading.addListener(_fillFromSensor);
+    _ageController.addListener(_onAgeChanged);
     _fillFromSensor();
     _connectSensorIfNeeded();
   }
@@ -59,7 +61,29 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
     });
   }
 
+  void _onAgeChanged() {
+    if (_ageError == null) return;
+    setState(() => _ageError = _validatePlantAge(_ageController.text));
+  }
+
+  String? _validatePlantAge(String raw) {
+    final value = double.tryParse(raw.trim());
+    if (value == null || value < 0 || value > 10) {
+      return t('plantAgeInvalid');
+    }
+    return null;
+  }
+
   Future<void> _checkFertilizer() async {
+    final ageError = _validatePlantAge(_ageController.text);
+    if (ageError != null) {
+      setState(() {
+        _ageError = ageError;
+        _errorMessage = ageError;
+      });
+      return;
+    }
+
     final treeAge = double.tryParse(_ageController.text.trim());
     final reading = _ble.latestReading.value;
     final moisture = reading?.moisture ??
@@ -73,11 +97,6 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
         double.tryParse(_phosphorusController.text.trim());
     final potassium = reading?.potassium ??
         double.tryParse(_potassiumController.text.trim());
-
-    if (treeAge == null || treeAge <= 0) {
-      setState(() => _errorMessage = 'Please enter valid tree age.');
-      return;
-    }
 
     if (moisture == null ||
         temp == null ||
@@ -95,6 +114,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
+      _ageError = null;
     });
 
     try {
@@ -129,6 +149,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
 
   @override
   void dispose() {
+    _ageController.removeListener(_onAgeChanged);
     _ble.latestReading.removeListener(_fillFromSensor);
     _ble.disconnect();
     _ageController.dispose();
@@ -207,12 +228,13 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
                   children: [
                     AppTextField(
                       label: t('treeAge'),
-                      hint: 'Example: 5',
+                      hint: '0 - 10',
                       controller: _ageController,
                       icon: Icons.calendar_month,
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
+                      errorText: _ageError,
                     ),
                   ],
                 ),

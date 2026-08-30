@@ -82,7 +82,7 @@ class WeatherService {
       location: place,
       country: '',
       iconCode: '',
-      weatherEmoji: _emoji(weather.weatherCode),
+      weatherEmoji: weatherConditionEmoji(weather.weatherCode),
       precipitation: '${weather.rainMm.toStringAsFixed(1)} mm',
       rainProbability: '${(weather.rainProbability ?? 0).round()}%',
       rainExpectedInHours: weather.rainExpectedInHours,
@@ -91,13 +91,4 @@ class WeatherService {
     );
   }
 
-  String _emoji(double code) {
-    final c = code.round();
-    if (c == 0) return '☀️';
-    if (c <= 3) return '⛅';
-    if (c <= 48) return '☁️';
-    if (c <= 67) return '🌧️';
-    if (c <= 82) return '🌦️';
-    return '⛈️';
-  }
 }
