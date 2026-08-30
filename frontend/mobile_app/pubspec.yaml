@@ -23,13 +23,18 @@ dependencies:
   shared_preferences: ^2.5.5
   fl_chart: ^0.68.0
   http_parser: ^4.1.2
-  geolocator: ^13.0.2
   sqflite: ^2.4.1
+  path_provider: ^2.1.2
+  intl: ^0.19.0
+  geolocator: ^13.0.2
   path: ^1.9.0
   crypto: ^3.0.6
   firebase_core: ^4.14.0
   firebase_auth: ^6.6.0
   cloud_firestore: ^6.9.0
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.10.1
+  firebase_storage: ^13.5.0
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -56,6 +61,7 @@ flutter:
     - assets/models/fertilizert.tflite
     - assets/models/fertilizer_labels.txt
     - assets/images/pomegranate.jpeg
+    - assets/images/Splash_Screen.png
     - assets/images/bud.png
     - assets/images/early_fruit.png
     - assets/images/mid_growth.png
@@ -64,6 +70,14 @@ flutter:
     - assets/images/Early_Fruit.jpg
     - assets/images/Mature_fruit.jpg
     - assets/images/Mid_Growth.jpg
+    - assets/models/quality/binary_validation.tflite
+    - assets/models/quality/quality_model.tflite
+    - assets/models/quality/defect_type_model.tflite
+    - assets/models/quality/segmentation_model.tflite
+    - assets/models/binary_pomegranate_validator.tflite
+    - assets/models/pomegranate_disease_classifier.tflite
+    - assets/models/pomegranate_severity_seg_v2.tflite
+
     - assets/models/pomegranate_yolo.tflite
     - assets/models/pomegranate_cnn.tflite
     - assets/models/growth_yolo_labels.txt

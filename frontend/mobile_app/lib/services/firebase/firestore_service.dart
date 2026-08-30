@@ -37,6 +37,7 @@ class FirestoreService {
       'email': farmer.email,
       'phone': farmer.mobile,
       'mobile': farmer.mobile,
+      'location': farmer.location,
       'role': farmer.role,
       if (farmer.defaultFarmId != null) 'defaultFarmId': farmer.defaultFarmId,
       'createdAt': farmer.createdAt ?? DateTime.now().toUtc(),
@@ -95,6 +96,21 @@ class FirestoreService {
       longitude: longitude,
       createdAt: now,
     );
+  }
+
+  Future<Farm?> getDefaultFarm() async {
+    final uid = _uid;
+    if (uid == null) return null;
+    try {
+      final farmId = await _farmId();
+      if (farmId == null) return null;
+      final doc = await _db.collection(FirestoreSchema.farms).doc(farmId).get();
+      if (!doc.exists || doc.data() == null) return null;
+      return Farm.fromFirestore(doc.id, doc.data()!);
+    } catch (e) {
+      debugPrint('getDefaultFarm failed: $e');
+      return null;
+    }
   }
 
   Future<String?> _farmId() async {

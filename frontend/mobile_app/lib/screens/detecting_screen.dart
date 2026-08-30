@@ -11,6 +11,13 @@ import '../services/growth/growth_advisory_service.dart';
 import '../services/growth/growth_tflite_service.dart';
 import 'result_screen.dart';
 
+
+
+String get apiBaseUrl =>
+    kIsWeb ? 'http://localhost:8000' : 'http://127.0.0.1:8000';
+
+// ── Brand colors ─────────────────────────────────────────────────
+
 const Color kPrimary = Color(0xFFB22222);
 const Color kPrimaryPink = Color(0xFFE14D75);
 const Color kBg = Color(0xFFFFF5F7);

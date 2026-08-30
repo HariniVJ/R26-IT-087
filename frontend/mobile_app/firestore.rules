@@ -116,10 +116,18 @@ service cloud.firestore {
         && resource.data.user_id == request.auth.uid;
     }
 
+    match /recommendation_rules/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;   // client-side write intentionally blocked
+    }
+
     match /disease_predictions/{recordId} {
       allow create: if isSignedIn()
         && request.resource.data.user_id == request.auth.uid;
-      allow read, update, delete: if isSignedIn()
+      allow read: if isSignedIn()
+        && resource.data.user_id == request.auth.uid;
+      allow list: if isSignedIn();
+      allow update, delete: if isSignedIn()
         && resource.data.user_id == request.auth.uid;
     }
 

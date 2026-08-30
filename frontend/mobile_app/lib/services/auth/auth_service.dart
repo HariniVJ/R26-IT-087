@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../l10n/app_strings.dart';
 import '../../models/farmer_account.dart';
 import '../firebase/firestore_service.dart';
 
@@ -248,6 +249,65 @@ class AuthService {
       return _authMessage(e);
     } catch (_) {
       return 'Could not send the reset email. Check your internet connection.';
+    }
+  }
+
+  AuthValidationResult validateProfile({
+    required String fullName,
+    required String mobile,
+  }) {
+    final errors = <String, String>{};
+    if (fullName.trim().length < 2) {
+      errors['fullName'] = t('nameRequired');
+    }
+    if (!_validMobile(mobile.trim())) {
+      errors['mobile'] = t('mobileInvalid');
+    }
+    return AuthValidationResult(isValid: errors.isEmpty, fieldErrors: errors);
+  }
+
+  Future<String?> updateProfile({
+    required String fullName,
+    required String mobile,
+    required String location,
+  }) async {
+    if (!isConfigured || _auth.currentUser == null) {
+      return t('notLoggedIn');
+    }
+
+    final validation = validateProfile(fullName: fullName, mobile: mobile);
+    if (!validation.isValid) {
+      return validation.fieldErrors.values.first;
+    }
+
+    final user = _auth.currentUser!;
+    final updated = (currentFarmer ??
+            FarmerAccount(
+              id: user.uid,
+              fullName: fullName.trim(),
+              mobile: mobile.trim(),
+              email: user.email ?? '',
+            ))
+        .copyWith(
+          fullName: fullName.trim(),
+          mobile: mobile.trim(),
+          location: location.trim(),
+          email: currentFarmer?.email ?? user.email ?? '',
+        );
+
+    try {
+      await FirestoreService.instance.saveUser(updated);
+      try {
+        await user.updateDisplayName(updated.fullName);
+      } catch (e) {
+        debugPrint('updateDisplayName failed: $e');
+      }
+      currentFarmer =
+          await FirestoreService.instance.getUser(user.uid) ?? updated;
+      return null;
+    } catch (e) {
+      debugPrint('updateProfile failed: $e');
+      return t('profileUpdateFailed');
     }
   }
 

@@ -1,10 +1,10 @@
 // lib/screens/history_screen.dart
-
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/grading_result.dart';
-import '../services/grading/grading_api_service.dart';
+import '../services/grading/grading_service.dart';
 import '../theme/app_theme.dart';
+import 'history_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   final String userId;
@@ -18,7 +18,7 @@ enum _QFilter { all, high, medium, low }
 
 class _HistoryScreenState extends State<HistoryScreen>
     with SingleTickerProviderStateMixin {
-  final _service = GradingApiService();
+  final _service = GradingService();
 
   List<GradingResult> _all = [];
   List<GradingResult> _filtered = [];
@@ -27,7 +27,6 @@ class _HistoryScreenState extends State<HistoryScreen>
   String? _error;
 
   _QFilter _qFilter = _QFilter.all;
-
   late final AnimationController _listCtrl;
 
   static const _red = Color(0xFFC1121F);
@@ -53,36 +52,32 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Future<void> _loadHistory({bool silent = false}) async {
-    if (!silent) {
+    if (!silent)
       setState(() {
         _loading = true;
         _error = null;
         _isOffline = false;
       });
-    }
 
     try {
       final results = await _service.getHistory(widget.userId);
       if (!mounted) return;
-
       setState(() {
         _all = results;
         _loading = false;
         _isOffline = false;
         _error = null;
       });
-
       _applyFilters();
       _listCtrl.forward(from: 0);
     } catch (e) {
       if (!mounted) return;
-
       final msg = e.toString().replaceFirst('Exception: ', '');
       final isConn =
+          msg.contains('unavailable') ||
+          msg.contains('network') ||
           msg.contains('timed out') ||
-          msg.contains('Cannot') ||
-          msg.contains('connect');
-
+          msg.contains('DEADLINE_EXCEEDED');
       setState(() {
         _loading = false;
         _isOffline = isConn;
@@ -93,17 +88,14 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   void _applyFilters() {
     var list = List<GradingResult>.from(_all);
-
     if (_qFilter != _QFilter.all) {
       final key = {
         _QFilter.high: 'high_quality',
         _QFilter.medium: 'medium_quality',
         _QFilter.low: 'low_quality',
       }[_qFilter]!;
-
       list = list.where((r) => r.quality == key).toList();
     }
-
     setState(() => _filtered = list);
   }
 
@@ -112,9 +104,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       'Delete this result?',
       'This cannot be undone.',
     );
-
     if (!ok) return;
-
     try {
       await _service.deleteOne(item.id);
       setState(() {
@@ -123,20 +113,17 @@ class _HistoryScreenState extends State<HistoryScreen>
       });
       _showSnack('Result deleted');
     } catch (e) {
-      _showSnack('Delete failed — check backend connection', isError: true);
+      _showSnack('Delete failed — check your connection', isError: true);
     }
   }
 
   Future<void> _deleteAll() async {
     if (_all.isEmpty) return;
-
     final ok = await _confirmDialog(
       'Clear all history?',
       'All ${_all.length} results will be permanently deleted.',
     );
-
     if (!ok) return;
-
     try {
       await _service.deleteAll(widget.userId);
       setState(() {
@@ -145,7 +132,7 @@ class _HistoryScreenState extends State<HistoryScreen>
       });
       _showSnack('All history cleared');
     } catch (e) {
-      _showSnack('Failed — check backend connection', isError: true);
+      _showSnack('Failed — check your connection', isError: true);
     }
   }
 
@@ -229,27 +216,14 @@ class _HistoryScreenState extends State<HistoryScreen>
           ),
           onPressed: () => Navigator.pop(context),
         ),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Grading History',
-                style: TextStyle(
-                  color: _textDark,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              // Text(
-              //   '${_filtered.length} of ${_all.length} results',
-              //   style: const TextStyle(
-              //     color: _textSoft,
-              //     fontSize: 11,
-              //     fontWeight: FontWeight.w500,
-              //   ),
-              // ),
-            ],
+        const Expanded(
+          child: Text(
+            'Grading History',
+            style: TextStyle(
+              color: _textDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
         if (_all.isNotEmpty) ...[
@@ -304,7 +278,7 @@ class _HistoryScreenState extends State<HistoryScreen>
         SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Backend offline — start backend server to load history',
+            'Weak or no connection — showing cached results',
             style: TextStyle(
               fontSize: 12,
               color: _red,
@@ -338,7 +312,6 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   Widget _qTab(_QFilter f, String label, Color color) {
     final selected = _qFilter == f;
-
     return Expanded(
       child: GestureDetector(
         onTap: () {
@@ -367,14 +340,8 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Widget _buildBody() {
-    if (_loading) {
+    if (_loading)
       return const Center(child: CircularProgressIndicator(color: _red));
-    }
-
-    if (_isOffline && _all.isEmpty) {
-      return _buildOfflineState();
-    }
-
     if (_filtered.isEmpty) return _buildEmpty();
 
     return ListView.builder(
@@ -382,12 +349,10 @@ class _HistoryScreenState extends State<HistoryScreen>
       itemCount: _filtered.length,
       itemBuilder: (_, i) {
         final delay = i * 0.05;
-
         return AnimatedBuilder(
           animation: _listCtrl,
           builder: (_, child) {
             final t = ((_listCtrl.value - delay) / (1 - delay)).clamp(0.0, 1.0);
-
             return Transform.translate(
               offset: Offset(0, 30 * (1 - t)),
               child: Opacity(opacity: t, child: child),
@@ -424,48 +389,14 @@ class _HistoryScreenState extends State<HistoryScreen>
       ],
     ),
   );
-
-  Widget _buildOfflineState() => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: _redSoft,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(Icons.cloud_off_rounded, size: 36, color: _red),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Backend not reachable',
-            style: TextStyle(
-              color: _textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'History needs backend server to load.',
-            style: TextStyle(color: _textSoft, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    ),
-  );
 }
+
+// _HistoryCard build() method-ல், Column(children: [Container(height:4,...), Padding(...)])
+// இதற்கு பதிலா:
 
 class _HistoryCard extends StatelessWidget {
   final GradingResult result;
   final VoidCallback onDelete;
-
   const _HistoryCard({required this.result, required this.onDelete});
 
   static const _red = Color(0xFFC1121F);
@@ -477,6 +408,7 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = QualityTheme.fgColor(result.quality);
     final bg = QualityTheme.bgColor(result.quality);
+    final qualityLabel = QualityTheme.label(result.quality);
 
     return Dismissible(
       key: Key(result.id),
@@ -515,80 +447,153 @@ class _HistoryCard extends StatelessWidget {
           child: Column(
             children: [
               Container(height: 4, color: fg),
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: bg,
+              // 🆕 whole row tappable → detail screen
+              InkWell(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistoryDetailScreen(result: result),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🔧 Square thumbnail
+                      ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Center(
-                        child: Text(
-                          QualityTheme.emoji(result.quality),
-                          style: const TextStyle(fontSize: 22),
+                        child: SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: result.imageUrl != null
+                              ? Image.network(
+                                  result.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, progress) =>
+                                      progress == null
+                                      ? child
+                                      : Container(
+                                          color: bg,
+                                          child: const Center(
+                                            child: SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: bg,
+                                    child: Center(
+                                      child: Text(
+                                        QualityTheme.emoji(result.quality),
+                                        style: const TextStyle(fontSize: 26),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  color: bg,
+                                  child: Center(
+                                    child: Text(
+                                      QualityTheme.emoji(result.quality),
+                                      style: const TextStyle(fontSize: 26),
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          QualityBadge(quality: result.quality),
-                          const SizedBox(height: 4),
-                          Text(
-                            result.recommendation,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _textDark,
-                              fontSize: 12,
-                              height: 1.3,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: fg.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                qualityLabel,
+                                style: TextStyle(
+                                  color: fg,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
+                            const SizedBox(height: 6),
+                            Text(
+                              result.recommendation,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _textDark,
+                                fontSize: 12,
+                                height: 1.3,
+                              ),
+                            ),
+                            if (result.defectType != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '${result.defectType} · ${result.severityPercent?.toStringAsFixed(1) ?? "N/A"}%',
+                                style: const TextStyle(
+                                  color: _textSoft,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 4),
+                            Text(
+                              result.displayDate,
+                              style: const TextStyle(
+                                color: _textSoft,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        children: [
+                          _ConfidenceArc(
+                            value: result.confidenceArc,
+                            color: fg,
                           ),
-                          const SizedBox(height: 4),
+                          const SizedBox(height: 2),
                           Text(
-                            result.displayDate,
-                            style: const TextStyle(
-                              color: _textSoft,
+                            result.confidencePercent,
+                            style: TextStyle(
                               fontSize: 10,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w700,
+                              color: fg,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      children: [
-                        _ConfidenceArc(value: result.confidenceArc, color: fg),
-                        const SizedBox(height: 2),
-                        Text(
-                          result.confidencePercent,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: fg,
-                          ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                          color: _red,
                         ),
-                      ],
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 20,
-                        color: _red,
+                        onPressed: onDelete,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                      onPressed: onDelete,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -599,10 +604,10 @@ class _HistoryCard extends StatelessWidget {
   }
 }
 
+
 class _ConfidenceArc extends StatelessWidget {
   final double value;
   final Color color;
-
   const _ConfidenceArc({required this.value, required this.color});
 
   @override
@@ -618,14 +623,12 @@ class _ConfidenceArc extends StatelessWidget {
 class _ArcPainter extends CustomPainter {
   final double value;
   final Color color;
-
   _ArcPainter({required this.value, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
     final r = size.width / 2 - 3;
-
     canvas.drawArc(
       Rect.fromCircle(center: c, radius: r),
       -math.pi * 0.8,
@@ -637,7 +640,6 @@ class _ArcPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round,
     );
-
     canvas.drawArc(
       Rect.fromCircle(center: c, radius: r),
       -math.pi * 0.8,
