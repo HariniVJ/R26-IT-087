@@ -1,9 +1,10 @@
 // lib/screens/history_screen.dart
 import 'dart:math' as math;
-import 'package:PomCare/services/grading/grading_service.dart';
 import 'package:flutter/material.dart';
 import '../models/grading_result.dart';
+import '../services/grading/grading_service.dart';
 import '../theme/app_theme.dart';
+import 'history_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   final String userId;
@@ -51,13 +52,12 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Future<void> _loadHistory({bool silent = false}) async {
-    if (!silent) {
+    if (!silent)
       setState(() {
         _loading = true;
         _error = null;
         _isOffline = false;
       });
-    }
 
     try {
       final results = await _service.getHistory(widget.userId);
@@ -73,7 +73,6 @@ class _HistoryScreenState extends State<HistoryScreen>
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString().replaceFirst('Exception: ', '');
-      // 🔧 FIX: recognize Firestore-specific network/permission error patterns
       final isConn =
           msg.contains('unavailable') ||
           msg.contains('network') ||
@@ -265,7 +264,6 @@ class _HistoryScreenState extends State<HistoryScreen>
     ),
   );
 
-  // 🔧 FIX: updated messaging — no backend server anymore, this is network connectivity
   Widget _buildOfflineBanner() => Container(
     margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -393,6 +391,9 @@ class _HistoryScreenState extends State<HistoryScreen>
   );
 }
 
+// _HistoryCard build() method-ல், Column(children: [Container(height:4,...), Padding(...)])
+// இதற்கு பதிலா:
+
 class _HistoryCard extends StatelessWidget {
   final GradingResult result;
   final VoidCallback onDelete;
@@ -407,6 +408,7 @@ class _HistoryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final fg = QualityTheme.fgColor(result.quality);
     final bg = QualityTheme.bgColor(result.quality);
+    final qualityLabel = QualityTheme.label(result.quality);
 
     return Dismissible(
       key: Key(result.id),
@@ -445,45 +447,113 @@ class _HistoryCard extends StatelessWidget {
           child: Column(
             children: [
               Container(height: 4, color: fg),
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: bg,
+              // 🆕 whole row tappable → detail screen
+              InkWell(
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistoryDetailScreen(result: result),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 🔧 Square thumbnail
+                      ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Center(
-                        child: Text(
-                          QualityTheme.emoji(result.quality),
-                          style: const TextStyle(fontSize: 22),
+                        child: SizedBox(
+                          width: 64,
+                          height: 64,
+                          child: result.imageUrl != null
+                              ? Image.network(
+                                  result.imageUrl!,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, progress) =>
+                                      progress == null
+                                      ? child
+                                      : Container(
+                                          color: bg,
+                                          child: const Center(
+                                            child: SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                  errorBuilder: (_, __, ___) => Container(
+                                    color: bg,
+                                    child: Center(
+                                      child: Text(
+                                        QualityTheme.emoji(result.quality),
+                                        style: const TextStyle(fontSize: 26),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Container(
+                                  color: bg,
+                                  child: Center(
+                                    child: Text(
+                                      QualityTheme.emoji(result.quality),
+                                      style: const TextStyle(fontSize: 26),
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          QualityBadge(quality: result.quality),
-                          const SizedBox(height: 4),
-                          Text(
-                            result.recommendation,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _textDark,
-                              fontSize: 12,
-                              height: 1.3,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: fg.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                qualityLabel,
+                                style: TextStyle(
+                                  color: fg,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                          ),
-                          if (result.defectType != null) ...[
-                            const SizedBox(height: 2),
+                            const SizedBox(height: 6),
                             Text(
-                              '${result.defectType} · ${result.severityPercent?.toStringAsFixed(1) ?? "N/A"}%',
+                              result.recommendation,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: _textDark,
+                                fontSize: 12,
+                                height: 1.3,
+                              ),
+                            ),
+                            if (result.defectType != null) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                '${result.defectType} · ${result.severityPercent?.toStringAsFixed(1) ?? "N/A"}%',
+                                style: const TextStyle(
+                                  color: _textSoft,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 4),
+                            Text(
+                              result.displayDate,
                               style: const TextStyle(
                                 color: _textSoft,
                                 fontSize: 10,
@@ -491,45 +561,39 @@ class _HistoryCard extends StatelessWidget {
                               ),
                             ),
                           ],
-                          const SizedBox(height: 4),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        children: [
+                          _ConfidenceArc(
+                            value: result.confidenceArc,
+                            color: fg,
+                          ),
+                          const SizedBox(height: 2),
                           Text(
-                            result.displayDate,
-                            style: const TextStyle(
-                              color: _textSoft,
+                            result.confidencePercent,
+                            style: TextStyle(
                               fontSize: 10,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w700,
+                              color: fg,
                             ),
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Column(
-                      children: [
-                        _ConfidenceArc(value: result.confidenceArc, color: fg),
-                        const SizedBox(height: 2),
-                        Text(
-                          result.confidencePercent,
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: fg,
-                          ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                          color: _red,
                         ),
-                      ],
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 20,
-                        color: _red,
+                        onPressed: onDelete,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
                       ),
-                      onPressed: onDelete,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -539,6 +603,7 @@ class _HistoryCard extends StatelessWidget {
     );
   }
 }
+
 
 class _ConfidenceArc extends StatelessWidget {
   final double value;

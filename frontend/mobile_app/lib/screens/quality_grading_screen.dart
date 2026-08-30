@@ -1,19 +1,20 @@
 // lib/screens/quality_grading_screen.dart
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/grading_result.dart';
-import '../models/prediction_result.dart';
+import '../models/Q_prediction_result.dart';
 import '../services/grading/grading_service.dart';
 import '../services/grading/tflite_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_box.dart';
 import '../widgets/stack_storage_bar.dart';
 import '../widgets/date_range_pill.dart';
-import '../widgets/smart_insights_card.dart';
 import '../l10n/q_app_strings.dart';
 import 'history_screen.dart';
+import 'history_detail_screen.dart';
 
 class QualityGradingScreen extends StatefulWidget {
   const QualityGradingScreen({super.key});
@@ -21,11 +22,10 @@ class QualityGradingScreen extends StatefulWidget {
   State<QualityGradingScreen> createState() => _QualityGradingScreenState();
 }
 
-enum _Phase { idle, analysing, result }
+enum _Phase { idle, analysing, result, rejected }
 
 class _QualityGradingScreenState extends State<QualityGradingScreen>
     with TickerProviderStateMixin {
-  // 🔑 FIX: real Firebase Auth UID instead of hardcoded fake string
   String? get _userId => FirebaseAuth.instance.currentUser?.uid;
 
   File? _image;
@@ -37,14 +37,20 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   int _stepIndex = 0;
   bool _saving = false;
   bool? _savedOk;
+  bool _validatingImage = false;
 
   int? _weightGrams;
   final _weightController = TextEditingController();
+
+  Uint8List? _preprocessedBytes;
+  bool _showPreprocessed = false;
 
   int _highCount = 0;
   int _mediumCount = 0;
   int _lowCount = 0;
   DateRange _selectedRange = DateRange.week;
+
+  List<GradingResult> _recentResults = [];
 
   final _steps = [
     'Image preprocessing',
@@ -102,19 +108,21 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     if (uid == null) return;
     try {
       final all = await _service.getHistory(uid);
+      if (!mounted) return;
+
       final filtered = all.where((r) {
         final dt = r.dateTime;
         if (dt == null) return false;
         return _selectedRange.contains(dt);
       }).toList();
 
-      if (!mounted) return;
       setState(() {
         _highCount = filtered.where((r) => r.quality == 'high_quality').length;
         _mediumCount = filtered
             .where((r) => r.quality == 'medium_quality')
             .length;
         _lowCount = filtered.where((r) => r.quality == 'low_quality').length;
+        _recentResults = all.take(3).toList();
       });
     } catch (e) {
       debugPrint('Stats load error: $e');
@@ -128,14 +136,131 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       maxWidth: 1024,
     );
     if (x == null) return;
+
+    final pickedFile = File(x.path);
     setState(() {
-      _image = File(x.path);
+      _image = pickedFile;
       _result = null;
       _prediction = null;
       _error = null;
       _phase = _Phase.idle;
       _savedOk = null;
+      _preprocessedBytes = null;
+      _showPreprocessed = false;
+      _validatingImage = true;
     });
+
+    bool isPomegranate;
+    try {
+      isPomegranate = await _tflite.checkIsPomegranate(pickedFile);
+    } catch (e) {
+      debugPrint('⚠️ Validation error: $e');
+      isPomegranate = true;
+    }
+
+    if (!mounted) return;
+    setState(() => _validatingImage = false);
+
+    if (!isPomegranate) {
+      _showNotPomegranatePopup();
+    }
+  }
+
+  void _showNotPomegranatePopup() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: const BoxDecoration(
+                color: _redLight,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: _red,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              AppStrings.get("not_pomegranate"),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _textDark,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Please retake a clear photo showing the whole fruit.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _textMid, fontSize: 13),
+            ),
+          ],
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                setState(() {
+                  _image = null;
+                  _preprocessedBytes = null;
+                  _showPreprocessed = false;
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _red,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.camera_alt_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Retake Photo',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _togglePreprocessedView() async {
+    if (_image == null) return;
+    if (_preprocessedBytes == null) {
+      final bytes = await _tflite.getPreprocessedPreview(_image!);
+      if (!mounted) return;
+      setState(() {
+        _preprocessedBytes = bytes;
+        _showPreprocessed = true;
+      });
+    } else {
+      setState(() => _showPreprocessed = !_showPreprocessed);
+    }
   }
 
   Future<void> _analyse() async {
@@ -173,9 +298,17 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     try {
       prediction = await _tflite.predict(_image!);
     } catch (e) {
+      final msg = e.toString().replaceFirst("Exception: ", "");
       if (!mounted) return;
+      if (msg.toLowerCase().contains('not recognized')) {
+        setState(() {
+          _error = null;
+          _phase = _Phase.rejected;
+        });
+        return;
+      }
       setState(() {
-        _error = 'Model error: ${e.toString().replaceFirst("Exception: ", "")}';
+        _error = 'Model error: $msg';
         _phase = _Phase.idle;
       });
       return;
@@ -227,7 +360,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         userId: uid,
         quality: p.quality,
         confidence: p.confidenceDecimal,
-        imageFile: _image,
+        imageFile:
+            _image, // 🔧 now actually uploaded to Storage inside GradingService
         defectType: p.defectType,
         severityPercent: p.severityPercent,
         weightGrams: _weightGrams,
@@ -262,6 +396,9 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _saving = false;
       _weightController.clear();
       _weightGrams = null;
+      _preprocessedBytes = null;
+      _showPreprocessed = false;
+      _validatingImage = false;
     });
     _resultCtrl.reset();
   }
@@ -280,11 +417,13 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      if (_phase != _Phase.result) _storageStatsCard(),
+                      if (_phase == _Phase.idle || _phase == _Phase.analysing)
+                        _storageStatsCard(),
                       const SizedBox(height: 16),
                       if (_phase == _Phase.idle) _idleBody(),
                       if (_phase == _Phase.analysing) _analysingBody(),
                       if (_phase == _Phase.result) _resultBody(),
+                      if (_phase == _Phase.rejected) _rejectedBody(),
                       if (_error != null) _errorBanner(),
                     ]),
                   ),
@@ -350,7 +489,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                     );
                   },
                 ),
-                if (_phase == _Phase.result || _image != null)
+                if (_phase != _Phase.idle || _image != null)
                   IconButton(
                     icon: const Icon(
                       Icons.refresh_rounded,
@@ -388,7 +527,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         children: [
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
                   'STORAGE OVERVIEW',
                   style: TextStyle(
@@ -453,50 +592,79 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     children: [
       _uploadBox(),
       const SizedBox(height: 12),
-      Row(
-        children: [
-          Expanded(
-            child: _pickButton(
-              Icons.camera_alt_rounded,
-              'Camera',
-              ImageSource.camera,
-            ),
+      if (_validatingImage)
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: _red),
+              ),
+              SizedBox(width: 10),
+              Text(
+                'Checking image...',
+                style: TextStyle(
+                  color: _textMid,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: _pickButton(
-              Icons.photo_library_rounded,
-              'Gallery',
-              ImageSource.gallery,
+        )
+      else ...[
+        Row(
+          children: [
+            Expanded(
+              child: _pickButton(
+                Icons.camera_alt_rounded,
+                AppStrings.get("camera"),
+                ImageSource.camera,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _pickButton(
+                Icons.photo_library_rounded,
+                AppStrings.get("gallery"),
+                ImageSource.gallery,
+              ),
+            ),
+          ],
+        ),
+        if (_image != null) ...[
+          const SizedBox(height: 12),
+          TextField(
+            controller: _weightController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              hintText: AppStrings.get("enter_weight"),
+              filled: true,
+              fillColor: Colors.white,
+              prefixIcon: const Icon(
+                Icons.scale_rounded,
+                color: _red,
+                size: 18,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: _border),
+              ),
             ),
           ),
         ],
-      ),
-      // 🆕 Weight input (optional, used for High/Medium quality grading)
-      if (_image != null) ...[
         const SizedBox(height: 12),
-        TextField(
-          controller: _weightController,
-          keyboardType: TextInputType.number,
-          decoration: InputDecoration(
-            hintText: AppStrings.get("enter_weight"),
-            filled: true,
-            fillColor: Colors.white,
-            prefixIcon: const Icon(Icons.scale_rounded, color: _red, size: 18),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: _border),
-            ),
-          ),
-        ),
+        if (_image != null) _primaryButton(),
       ],
-      const SizedBox(height: 12),
-      if (_image != null) _primaryButton(),
       const SizedBox(height: 16),
-      SmartInsightsCard(high: _highCount, medium: _mediumCount, low: _lowCount),
+      _recentHistoryCard(),
     ],
   );
 
+  // 🔧 FIXED — preprocessed preview shown as true 224x224 square (letterboxed)
   Widget _uploadBox() {
     if (_image == null) {
       return AnimatedBuilder(
@@ -559,41 +727,101 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       borderRadius: BorderRadius.circular(20),
       child: Stack(
         children: [
-          Image.file(
-            _image!,
-            height: 240,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [Colors.black.withOpacity(0.65), Colors.transparent],
+          if (_showPreprocessed && _preprocessedBytes != null)
+            Container(
+              height: 240,
+              width: double.infinity,
+              color: const Color(0xFFF3F4F6),
+              child: Center(
+                child: AspectRatio(
+                  aspectRatio: 1.0,
+                  child: Image.memory(_preprocessedBytes!, fit: BoxFit.contain),
                 ),
               ),
-              padding: const EdgeInsets.all(14),
-              child: const Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Image ready — tap Analyse',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
+            )
+          else
+            Image.file(
+              _image!,
+              height: 240,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+
+          if (!_validatingImage)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: GestureDetector(
+                onTap: _togglePreprocessedView,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
                   ),
-                ],
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.55),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _showPreprocessed
+                            ? Icons.image_rounded
+                            : Icons.grid_view_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _showPreprocessed
+                            ? 'Original'
+                            : 'Preprocessed (224×224)',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+
+          if (!_validatingImage)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Colors.black.withOpacity(0.65),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+                padding: const EdgeInsets.all(14),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Image ready — tap Analyse',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
@@ -834,6 +1062,71 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       ),
     );
   }
+
+  Widget _rejectedBody() => Column(
+    children: [
+      if (_image != null)
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: ColorFiltered(
+            colorFilter: const ColorFilter.mode(
+              Colors.grey,
+              BlendMode.saturation,
+            ),
+            child: Image.file(
+              _image!,
+              height: 220,
+              width: double.infinity,
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+      const SizedBox(height: 16),
+      Container(
+        decoration: BoxDecoration(
+          color: _redLight,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: _red.withOpacity(0.25)),
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.error_outline_rounded,
+                color: _red,
+                size: 30,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              AppStrings.get("not_pomegranate"),
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: _textDark,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Please retake a clear photo showing the whole fruit.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _textMid, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 20),
+      _primaryActionButton('Retake Photo', Icons.camera_alt_rounded, _reset),
+    ],
+  );
 
   Widget _resultBody() {
     final r = _result!;
@@ -1079,6 +1372,195 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
+    Widget _recentHistoryCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  AppStrings.get("grading_history").toUpperCase(),
+                  style: const TextStyle(
+                    color: _textMid,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  final uid = _userId;
+                  if (uid == null) {
+                    setState(() => _error = 'Please log in to view history.');
+                    return;
+                  }
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => HistoryScreen(userId: uid),
+                    ),
+                  );
+                },
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: const [
+                    Text(
+                      'View All',
+                      style: TextStyle(
+                        color: _red,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded, color: _red, size: 18),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (_recentResults.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: Text(
+                  AppStrings.get("no_results"),
+                  style: const TextStyle(color: _textMid, fontSize: 12),
+                ),
+              ),
+            )
+          else
+            ..._recentResults.map((r) => _recentHistoryRow(r)),
+        ],
+      ),
+    );
+  }
+
+  Widget _recentHistoryRow(GradingResult r) {
+    final fg = QualityTheme.fgColor(r.quality);
+    final bg = QualityTheme.bgColor(r.quality);
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => HistoryDetailScreen(result: r)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Row(
+          children: [
+            // 🆕 Square thumbnail (56x56), photo if available, else emoji fallback
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 56,
+                height: 56,
+                child: r.imageUrl != null
+                    ? Image.network(
+                        r.imageUrl!,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, progress) =>
+                            progress == null
+                            ? child
+                            : Container(
+                                color: bg,
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                        errorBuilder: (_, __, ___) => Container(
+                          color: bg,
+                          child: Center(
+                            child: Text(
+                              QualityTheme.emoji(r.quality),
+                              style: const TextStyle(fontSize: 22),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: bg,
+                        child: Center(
+                          child: Text(
+                            QualityTheme.emoji(r.quality),
+                            style: const TextStyle(fontSize: 22),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: fg.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      QualityTheme.label(r.quality),
+                      style: TextStyle(
+                        color: fg,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    r.recommendation,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _textDark,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    r.displayDate,
+                    style: const TextStyle(color: _textMid, fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: _textMid, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
+  
   Widget _primaryActionButton(
     String label,
     IconData icon,

@@ -4,8 +4,8 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
-import '../../models/prediction_result.dart';
-
+import '../../models/Q_prediction_result.dart';
+import 'dart:typed_data';
 class TfliteService {
   Interpreter? _binaryInterpreter;
   Interpreter? _qualityInterpreter;
@@ -286,6 +286,25 @@ class TfliteService {
     final raw =
         _lastPipelineResult?["allQualityScores"] as Map<String, double>?;
     return raw ?? {};
+  }
+
+    /// Returns the 224x224 preprocessed image as PNG bytes, for UI preview only
+  Future<Uint8List?> getPreprocessedPreview(File imageFile) async {
+    final bytes = await imageFile.readAsBytes();
+    final image = img.decodeImage(bytes);
+    if (image == null) return null;
+    final resized = img.copyResize(image, width: imgSize, height: imgSize);
+    return Uint8List.fromList(img.encodePng(resized));
+  }
+
+  Future<bool> checkIsPomegranate(File imageFile) async {
+    if (!_loaded) await loadModel();
+    final bytes = await imageFile.readAsBytes();
+    final image = img.decodeImage(bytes);
+    if (image == null) return false;
+    final input = _preprocess(image, imgSize);
+    final result = _classify(_binaryInterpreter!, input, binaryClasses);
+    return result["label"] == "pomegranate";
   }
 
   void dispose() {
