@@ -4,24 +4,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../config/app_constants.dart';
-import '../theme/app_colors.dart';
 import '../models/dashboard_item.dart';
 import '../widgets/module_button.dart';
 import '../widgets/weather_card.dart';
-import '../services/weather_service.dart';
+import '../widgets/app_bottom_nav_bar.dart';
+import '../services/weather/weather_service.dart';
 import '../../common/brand_color.dart';
+import '../services/auth/auth_service.dart';
+import '../services/firebase/firestore_service.dart';
+import '../l10n/app_strings.dart';
 
-import 'irrigation_screen.dart';
-import 'fertilizer_screen.dart';
+import 'irrigation/irrigation_screen.dart';
+import 'fertilizer/fertilizer_screen.dart';
 import 'quality_grading_screen.dart';
 import '../screens/dashboard_view/dashboard_view.dart';
 import 'coming_soon_screen.dart';
 import '../screens/capture_screen.dart';
-import '../screens/profile_view/profile_view.dart';
+import 'notifications/notifications_screen.dart';
+import 'weather/weather_details_screen.dart';
 
 const _red = Color(0xFFC1121F);
 const _redSoft = Color(0xFFFFEEF3);
-const _redCard = Color(0xFFFFF1F5);
 const _textDark = Color(0xFF1F2937);
 const _textSoft = Color(0xFF6B7280);
 
@@ -30,35 +33,35 @@ const _modules = [
     title: 'Irrigation Advice',
     subtitle: 'Check water suitability',
     emoji: '💧',
-    color:  BrandColor.primary,
+    color: BrandColor.primary,
     screenName: 'irrigation',
   ),
   DashboardItem(
     title: 'Fruit Growth',
     subtitle: 'Stage & Harvest',
     emoji: '🌿',
-    color:  BrandColor.primary,
+    color: BrandColor.primary,
     screenName: 'growth',
   ),
   DashboardItem(
     title: 'Disease Detect',
     subtitle: 'Scan & Treat',
     emoji: '🔬',
-    color:  BrandColor.primary,
+    color: BrandColor.primary,
     screenName: 'disease',
   ),
   DashboardItem(
     title: 'Quality Grading',
     subtitle: 'AI Analysis',
     emoji: '🍎',
-    color:  BrandColor.primary,
+    color: BrandColor.primary,
     screenName: 'grading',
   ),
   DashboardItem(
     title: 'Fertilizer',
     subtitle: 'NPK & fertilizer amount',
     emoji: '🧪',
-    color:  BrandColor.primary,
+    color: BrandColor.primary,
     screenName: 'fertilizer',
   ),
 ];
@@ -79,6 +82,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   WeatherData? _weather;
   bool _weatherLoading = true;
   String? _weatherError;
+  int _unread = 0;
 
   late final List<AnimationController> _btnCtrls;
   late final List<Animation<double>> _btnAnims;
@@ -111,6 +115,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     _loadWeather();
+    _loadSummary();
   }
 
   @override
@@ -130,20 +135,33 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     try {
       final d = await _weatherSvc.fetchWeather();
+      if (d.raw != null) {
+        await FirestoreService.instance.notifyRainIfNeeded(d.raw!);
+        await FirestoreService.instance.saveWeather(weather: d.raw!);
+      }
       if (mounted) {
         setState(() {
           _weather = d;
           _weatherLoading = false;
         });
+        _loadSummary();
       }
     } catch (_) {
       if (mounted) {
         setState(() {
           _weatherLoading = false;
-          _weatherError = 'Could not load weather';
+          _weatherError = t('weatherUnavailable');
         });
       }
     }
+  }
+
+  Future<void> _loadSummary() async {
+    try {
+      final unread = await FirestoreService.instance.unreadCount();
+      if (!mounted) return;
+      setState(() => _unread = unread);
+    } catch (_) {}
   }
 
   void _openScreen(DashboardItem item) {
@@ -170,6 +188,17 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+  }
+
+  String get _farmerName {
+    return AuthService.instance.currentFarmer?.fullName ??
+        AppConstants.farmerName;
+  }
+
+  String get _farmName {
+    final name = AuthService.instance.currentFarmer?.fullName;
+    if (name == null || name.isEmpty) return AppConstants.farmName;
+    return "$name's Farm";
   }
 
   String get _clock {
@@ -210,7 +239,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     return Scaffold(
       backgroundColor: Colors.white,
-      bottomNavigationBar: const AppBottomNavBar(),
+      bottomNavigationBar: const AppBottomNavBar(current: AppNavTab.home),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(
@@ -227,24 +256,22 @@ class _DashboardScreenState extends State<DashboardScreen>
               _greeting2(),
               const SizedBox(height: 18),
 
-              Container(
-                decoration: BoxDecoration(
-                  color:  BrandColor.primary,
-                  borderRadius: BorderRadius.circular(22),
-                  // boxShadow: [
-                  //   BoxShadow(
-                  //     color: BrandColor.primary,
-                  //     blurRadius: 18,
-                  //     offset: const Offset(0, 6),
-                  //   ),
-                  // ],
-                ),
-                child: WeatherCard(
-                  isLoading: _weatherLoading,
-                  error: _weatherError,
-                  data: _weather,
-                  onRetry: _loadWeather,
-                ),
+              WeatherCard(
+                isLoading: _weatherLoading,
+                error: _weatherError,
+                data: _weather,
+                onRetry: _loadWeather,
+                onOpen: _weather == null
+                    ? null
+                    : () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                WeatherDetailsScreen(data: _weather!),
+                          ),
+                        );
+                      },
               ),
 
               const SizedBox(height: AppConstants.sectionGap),
@@ -307,11 +334,15 @@ class _DashboardScreenState extends State<DashboardScreen>
       Container(
         width: 46,
         height: 46,
-        decoration: const BoxDecoration(shape: BoxShape.circle, color: BrandColor.primary,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: BrandColor.primary,
         ),
         child: Center(
           child: Text(
-            AppConstants.farmerName.substring(0, 2).toUpperCase(),
+            _farmerName.length >= 2
+                ? _farmerName.substring(0, 2).toUpperCase()
+                : _farmerName.toUpperCase(),
             style: const TextStyle(
               color: Colors.white,
               fontSize: 15,
@@ -326,7 +357,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              AppConstants.farmName,
+              _farmName,
               style: const TextStyle(
                 color: _textDark,
                 fontSize: 15,
@@ -366,8 +397,57 @@ class _DashboardScreenState extends State<DashboardScreen>
           ],
         ),
       ),
+      const SizedBox(width: 8),
+      _bell(),
     ],
   );
+
+  Widget _bell() {
+    return GestureDetector(
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+        );
+        _loadSummary();
+      },
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _redSoft,
+              shape: BoxShape.circle,
+              border: Border.all(color: _red.withOpacity(0.15)),
+            ),
+            child: const Icon(Icons.notifications_none_rounded, color: _red),
+          ),
+          if (_unread > 0)
+            Positioned(
+              right: -2,
+              top: -2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: const BoxDecoration(
+                  color: BrandColor.primary,
+                  borderRadius: BorderRadius.all(Radius.circular(10)),
+                ),
+                child: Text(
+                  _unread > 9 ? '9+' : '$_unread',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 
   Widget _greeting2() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -386,7 +466,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         ],
       ),
       Text(
-        AppConstants.farmerName,
+        _farmerName,
         style: const TextStyle(
           color: _textDark,
           fontSize: 25,
@@ -408,20 +488,20 @@ class _DashboardScreenState extends State<DashboardScreen>
           borderRadius: BorderRadius.circular(2),
         ),
       ),
-      const Column(
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Farm Management',
-            style: TextStyle(
+            t('farmManagement'),
+            style: const TextStyle(
               color: _textDark,
               fontSize: 18,
               fontWeight: FontWeight.w900,
             ),
           ),
           Text(
-            'Select a module to get started',
-            style: TextStyle(
+            t('selectModule'),
+            style: const TextStyle(
               color: _textSoft,
               fontSize: 11,
               fontWeight: FontWeight.w500,
@@ -431,111 +511,4 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
     ],
   );
-}
-
-class AppBottomNavBar extends StatelessWidget {
-  const AppBottomNavBar({super.key});
-
-  static const _red = Color(0xFFC1121F);
-  static const _soft = Color(0xFF9CA3AF);
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 78,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 18,
-            offset: const Offset(0, -5),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          _NavItem(icon: Icons.home_rounded, label: 'Home', active: true),
-          _NavItem(icon: Icons.history_rounded, label: 'History'),
-          _ScanButton(),
-          _NavItem(icon: Icons.bar_chart_rounded, label: 'Reports'),
-          _NavItem(
-            icon: Icons.person_outline_rounded,
-            label: 'Profile',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileView()),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback? onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    this.active = false,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = active ? BrandColor.primary : AppBottomNavBar._soft;
-
-    return GestureDetector(
-  onTap: onTap,
-  child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: color, size: 22),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            color: color,
-            fontSize: 10,
-            fontWeight: active ? FontWeight.w800 : FontWeight.w500,
-          ),
-        ),
-      ],
-      ),
-    );
-  }
-}
-
-class _ScanButton extends StatelessWidget {
-  const _ScanButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 58,
-      height: 58,
-      decoration: BoxDecoration(
-        color: BrandColor.primary,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: AppBottomNavBar._red.withOpacity(0.35),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: const Icon(Icons.crop_free_rounded, color: Colors.white, size: 28),
-    );
-  }
 }

@@ -82,24 +82,33 @@ class _ResultScreenState extends State<ResultScreen>
   // ── Data helpers ─────────────────────────────────────────────
   String get _detectedStage =>
       widget.resultData['growth_stage']?['detected'] ?? 'Unknown';
+
   String get _displayName =>
       widget.resultData['growth_stage']?['display_name'] ?? 'Unknown';
+
   double get _confidence =>
       (widget.resultData['growth_stage']?['confidence_percent'] ?? 0)
           .toDouble();
+
   int get _estimatedDays =>
       widget.resultData['harvest_prediction']?['estimated_days'] ?? 0;
-  String get _nextStage =>
-      widget.resultData['next_stage'] ?? '';
+
   String get _careTip =>
       widget.resultData['recommendations']?['care_tip'] ?? '';
+
   String get _riskWarning =>
       widget.resultData['recommendations']?['risk_warning'] ?? '';
+
   String get _weatherCondition =>
       widget.resultData['weather']?['condition'] ?? '';
+
   double get _temperature =>
       (widget.resultData['weather']?['temperature_celsius'] ?? 0)
           .toDouble();
+
+  double? get _soilTemperature =>
+      (widget.resultData['soil']?['temperature_celsius'] as num?)
+          ?.toDouble();
 
   int get _currentStageIndex =>
       _stagesCartoon.indexWhere((s) => s['key'] == _detectedStage);
@@ -107,23 +116,54 @@ class _ResultScreenState extends State<ResultScreen>
   String get _cleanStageName =>
       _displayName.replaceAll(RegExp(r'[^\w\s]'), '').trim();
 
+  // Always calculate the next stage from the detected stage.
+  // This prevents incorrect backend next-stage values from breaking the UI.
+  String get _calculatedNextStage {
+    switch (_detectedStage) {
+      case 'Bud':
+        return 'Flower';
+      case 'Flower':
+        return 'EarlyFruit';
+      case 'EarlyFruit':
+        return 'MidGrowth';
+      case 'MidGrowth':
+        return 'MatureFruit';
+      case 'MatureFruit':
+        return '';
+      default:
+        return '';
+    }
+  }
+
   String get _nextStageName {
-    switch (_nextStage) {
-      case 'Flower':      return 'Flower Stage';
-      case 'EarlyFruit':  return 'Early Fruit Stage';
-      case 'MidGrowth':   return 'Mid Growth Stage';
-      case 'MatureFruit': return 'Mature Fruit Stage';
-      default:            return 'Ready to Harvest';
+    switch (_calculatedNextStage) {
+      case 'Flower':
+        return 'Flower Stage';
+      case 'EarlyFruit':
+        return 'Early Fruit Stage';
+      case 'MidGrowth':
+        return 'Mid Growth Stage';
+      case 'MatureFruit':
+        return 'Mature Fruit Stage';
+      default:
+        return '';
     }
   }
 
   int get _transitionDays {
     switch (_detectedStage) {
-      case 'Bud':        return 30;
-      case 'Flower':     return 14;
-      case 'EarlyFruit': return 21;
-      case 'MidGrowth':  return 30;
-      default:           return 0;
+      case 'Bud':
+        return 30;
+      case 'Flower':
+        return 14;
+      case 'EarlyFruit':
+        return 21;
+      case 'MidGrowth':
+        return 30;
+      case 'MatureFruit':
+        return 0;
+      default:
+        return 0;
     }
   }
 
@@ -133,7 +173,8 @@ class _ResultScreenState extends State<ResultScreen>
 
   // Real photo asset for next stage
   String get _nextRealPhoto =>
-      _stageRealPhotos[_nextStage] ?? 'assets/images/Mature_fruit.jpg';
+      _stageRealPhotos[_calculatedNextStage] ??
+      'assets/images/Mature_fruit.jpg';
 
   // ── Image widgets ─────────────────────────────────────────────
 
@@ -389,29 +430,58 @@ class _ResultScreenState extends State<ResultScreen>
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
-                                    Text('Coming Next',
+                                    if (_detectedStage == 'MatureFruit') ...[
+                                      Text(
+                                        'Harvest Status',
                                         style: TextStyle(
-                                            fontSize: 11,
-                                            color: kGray)),
-                                    Text(_nextStageName,
+                                          fontSize: 11,
+                                          color: kGray,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      const Text(
+                                        'Ready to Harvest',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: kGreen,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      _infoRow(
+                                        Icons.check_circle_rounded,
+                                        'Harvest readiness',
+                                        'Ready Now',
+                                      ),
+                                    ] else ...[
+                                      Text(
+                                        'Coming Next',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: kGray,
+                                        ),
+                                      ),
+                                      Text(
+                                        _nextStageName,
                                         style: const TextStyle(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w800,
-                                            color: kBlack)),
-                                    const SizedBox(height: 6),
-                                    _infoRow(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w800,
+                                          color: kBlack,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      _infoRow(
                                         Icons.schedule_rounded,
                                         'Estimated transition',
-                                        _detectedStage == 'MatureFruit'
-                                            ? 'Ready!'
-                                            : '$_transitionDays Days'),
-                                    const SizedBox(height: 4),
-                                    _infoRow(
+                                        '$_transitionDays Days',
+                                      ),
+                                      const SizedBox(height: 4),
+                                      _infoRow(
                                         Icons.agriculture_rounded,
                                         'Estimated Days to Harvest',
-                                        _detectedStage == 'MatureFruit'
-                                            ? 'Now!'
-                                            : '$_estimatedDays Days'),
+                                        '$_estimatedDays Days',
+                                      ),
+                                    ],
                                   ],
                                 ),
                               ),
@@ -515,7 +585,15 @@ class _ResultScreenState extends State<ResultScreen>
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
-                                'Weather: $_weatherCondition · ${_temperature.toStringAsFixed(1)}°C · Harvest adjusted',
+                                _detectedStage == 'MatureFruit'
+                                    ? 'Weather: ${_weatherCondition.isEmpty ? 'Not available' : _weatherCondition} · '
+                                        '${_temperature.toStringAsFixed(1)}°C'
+                                        '${_soilTemperature != null ? ' · Soil: ${_soilTemperature!.toStringAsFixed(1)}°C' : ''}'
+                                        ' · Ready to harvest'
+                                    : 'Weather: ${_weatherCondition.isEmpty ? 'Not available' : _weatherCondition} · '
+                                        '${_temperature.toStringAsFixed(1)}°C'
+                                        '${_soilTemperature != null ? ' · Soil: ${_soilTemperature!.toStringAsFixed(1)}°C' : ''}'
+                                        ' · Harvest estimate updated',
                                 style: TextStyle(
                                     fontSize: 11,
                                     color: kPrimary,

@@ -3,7 +3,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/grading_result.dart';
-import '../services/grading_api_service.dart';
+import '../services/grading/grading_api_service.dart';
 import '../theme/app_theme.dart';
 
 class HistoryScreen extends StatefulWidget {

@@ -1,17 +1,14 @@
-// lib/widgets/weather_card.dart
-// Reusable weather display card using GlassBox.
-// Shows loading / error / real weather states.
-
 import 'package:flutter/material.dart';
-import '../services/weather_service.dart';
-import '../theme/app_colors.dart';
-import 'glass_box.dart';
+
+import '../l10n/app_strings.dart';
+import '../services/weather/weather_service.dart';
 
 class WeatherCard extends StatelessWidget {
   final bool isLoading;
   final String? error;
   final WeatherData? data;
   final VoidCallback onRetry;
+  final VoidCallback? onOpen;
 
   const WeatherCard({
     super.key,
@@ -19,186 +16,208 @@ class WeatherCard extends StatelessWidget {
     required this.error,
     required this.data,
     required this.onRetry,
+    this.onOpen,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (isLoading) return _loadingState();
-    if (error != null || data == null) return _errorState();
-    return _dataState(data!);
+    return GestureDetector(
+      onTap: data == null ? null : onOpen,
+      child: Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: const Color(0xFF9B1230),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: ListenableBuilder(
+          listenable: LanguageController.instance,
+          builder: (context, _) {
+            if (isLoading) return _loading();
+            if (error != null || data == null) return _error();
+            return _data(data!);
+          },
+        ),
+      ),
+    );
   }
 
-  // ── Loading ────────────────────────────────────────────────────────────────
-  Widget _loadingState() => GlassBox(
-    padding: const EdgeInsets.all(20),
-    child: Row(
-      children: [
-        const SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: Colors.white60,
-          ),
-        ),
-        const SizedBox(width: 14),
-        Text(
-          'Fetching weather...',
-          style: TextStyle(color: Colors.white.withOpacity(0.70), fontSize: 14),
-        ),
-      ],
-    ),
-  );
-
-  // ── Error ──────────────────────────────────────────────────────────────────
-  Widget _errorState() => GlassBox(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-    child: Row(
-      children: [
-        const Icon(Icons.cloud_off_rounded, color: Colors.white54, size: 22),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            error ?? 'Weather unavailable',
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        TextButton(
-          onPressed: onRetry,
-          child: const Text('Retry', style: TextStyle(color: Colors.white)),
-        ),
-      ],
-    ),
-  );
-
-  // ── Real weather data ──────────────────────────────────────────────────────
-  Widget _dataState(WeatherData w) => GlassBox(
-    padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
-    child: Column(
-      children: [
-        Row(
-          children: [
-            // Emoji + temp + description
-            Expanded(
-              child: Row(
-                children: [
-                  Text(w.weatherEmoji, style: const TextStyle(fontSize: 46)),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        w.temp,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 38,
-                          fontWeight: FontWeight.w800,
-                          height: 1.0,
-                        ),
-                      ),
-                      Text(
-                        w.description,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.75),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Divider
-            Container(
-              width: 1,
-              height: 70,
-              color: Colors.white.withOpacity(0.14),
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-            ),
-
-            // Details
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _detail('💧', 'Humidity', w.humidity),
-                const SizedBox(height: 10),
-                _detail('💨', 'Wind', w.wind),
-                const SizedBox(height: 10),
-                _detail('🌡️', 'Feels', w.feelsLike),
-              ],
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 14),
-
-        // Location row
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.location_on_rounded,
-                  color: const Color.fromARGB(255, 255, 255, 255).withOpacity(0.8),
-                  size: 14,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '${w.location}, ${w.country}',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.65),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            GestureDetector(
-              onTap: onRetry,
-              child: Text(
-                'Refresh',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.45),
-                  fontSize: 11,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    ),
-  );
-
-  Widget _detail(String icon, String label, String value) => Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(icon, style: const TextStyle(fontSize: 14)),
-      const SizedBox(width: 6),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _loading() {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.48),
-              fontSize: 9,
+          const SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: Colors.white70,
             ),
           ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              t('fetchingWeather'),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
           ),
         ],
       ),
-    ],
-  );
+    );
+  }
+
+  Widget _error() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_rounded, color: Colors.white70, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              t('weatherUnavailable'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: Text(
+              t('refresh'),
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _data(WeatherData w) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 16, 14, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(w.weatherEmoji, style: const TextStyle(fontSize: 28)),
+                const SizedBox(height: 6),
+                Text(
+                  w.temp,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  w.condition,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.location_on_outlined,
+                      color: Colors.white70,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        w.locationLabel,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: 1,
+            height: 118,
+            margin: const EdgeInsets.only(left: 8, right: 12, top: 8),
+            color: Colors.white24,
+          ),
+          SizedBox(
+            width: 108,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _metric(Icons.water_drop, t('humidity'), w.humidity),
+                const SizedBox(height: 10),
+                _metric(Icons.air, t('wind'), w.wind),
+                const SizedBox(height: 10),
+                _metric(Icons.thermostat, t('feels'), w.feelsLike),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: onRetry,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(0, 28),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: Text(
+                      t('refresh'),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metric(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, color: Colors.white, size: 16),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(color: Colors.white70, fontSize: 10),
+              ),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
