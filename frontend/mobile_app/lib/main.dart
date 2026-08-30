@@ -16,6 +16,8 @@ import 'package:permission_handler/permission_handler.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  
+
   await dotenv.load(fileName: ".env");
 
   try {

@@ -1,15 +1,11 @@
-// YOUR FILE — Member 4: Fruit Quality Grading
-// lib/models/grading_result.dart
-//
-// FIX: confidencePercent was multiplying by 100 again
-// Firestore stores confidence as 0.0–1.0 decimal
-// Display: multiply by 100 once only
-
 class GradingResult {
   final String id;
   final String userId;
   final String quality;
-  final double confidence; // stored as 0.0–1.0 in Firestore
+  final double confidence;
+  final String? defectType; 
+  final double? severityPercent; 
+  final int? weightGrams; 
   final String recommendation;
   final String? imageUrl;
   final String? createdAt;
@@ -19,30 +15,43 @@ class GradingResult {
     required this.userId,
     required this.quality,
     required this.confidence,
+    this.defectType,
+    this.severityPercent,
+    this.weightGrams,
     required this.recommendation,
     this.imageUrl,
     this.createdAt,
   });
 
   factory GradingResult.fromJson(Map<String, dynamic> json) {
-    // confidence comes from Firestore as 0.0–1.0
     final rawConf = (json['confidence'] as num?)?.toDouble() ?? 0.0;
-
     return GradingResult(
       id: json['id'] as String? ?? '',
       userId: json['user_id'] as String? ?? '',
       quality: json['quality'] as String? ?? '',
       confidence: rawConf,
+      defectType: json['defect_type'] as String?,
+      severityPercent: (json['severity_percent'] as num?)?.toDouble(),
+      weightGrams: (json['weight_grams'] as num?)?.toInt(),
       recommendation: json['recommendation'] as String? ?? '',
       imageUrl: json['image_url'] as String?,
       createdAt: json['created_at'] as String?,
     );
   }
 
-  // FIX: confidence is already 0.0–1.0, multiply by 100 once for display
-  String get confidencePercent => '${(confidence * 100).toStringAsFixed(1)}%';
+  Map<String, dynamic> toJson() => {
+    'user_id': userId,
+    'quality': quality,
+    'confidence': confidence,
+    'defect_type': defectType,
+    'severity_percent': severityPercent,
+    'weight_grams': weightGrams,
+    'recommendation': recommendation,
+    'image_url': imageUrl,
+    'created_at': createdAt,
+  };
 
-  // For arc painter — value must be 0.0–1.0
+  String get confidencePercent => '${(confidence * 100).toStringAsFixed(1)}%';
   double get confidenceArc => confidence.clamp(0.0, 1.0);
 
   String get displayDate {
@@ -69,6 +78,8 @@ class GradingResult {
     }
   }
 
+  // grading_result.dart-ல், displayDate getter-க்கு கீழே சேருங்க
+
   DateTime? get dateTime {
     if (createdAt == null) return null;
     try {
@@ -78,3 +89,5 @@ class GradingResult {
     }
   }
 }
+
+
