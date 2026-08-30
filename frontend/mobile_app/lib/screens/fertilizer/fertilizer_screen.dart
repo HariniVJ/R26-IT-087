@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../../common/brand_color.dart';
 import '../../common/common_widgets.dart';
 import '../../l10n/app_strings.dart';
+import '../../models/soil_sensor_reading.dart';
 import '../../services/fertilizer/fertilizer_local_service.dart';
 import '../../services/firebase/firestore_service.dart';
 import '../../services/sensor/soil_bluetooth_service.dart';
+import '../../widgets/weather_art.dart';
 import 'fertilizer_history_screen.dart';
 import 'fertilizer_result_screen.dart';
 
@@ -42,8 +44,17 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
   }
 
   Future<void> _connectSensorIfNeeded() async {
-    if (!_ble.isConnected.value && !_ble.isScanning.value) {
+    if (_ble.isConnected.value || _ble.isScanning.value) return;
+    await _connectDevice();
+  }
+
+  Future<void> _connectDevice() async {
+    if (_ble.isScanning.value || _ble.isConnected.value) return;
+    try {
       await _ble.connect();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _errorMessage = t('connectionFailed'));
     }
   }
 
@@ -112,10 +123,7 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
         nitrogen == null ||
         phosphorus == null ||
         potassium == null) {
-      setState(() {
-        _errorMessage =
-            'Connect the IoT soil sensor. N, P, K, pH and moisture are read automatically.';
-      });
+      setState(() => _errorMessage = t('errorSensorReadings'));
       return;
     }
 
@@ -147,9 +155,9 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
           builder: (_) => FertilizerResultScreen(advice: advice),
         ),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      setState(() => _errorMessage = e.toString());
+      setState(() => _errorMessage = t('errorFertilizerFailed'));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -159,7 +167,6 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
   void dispose() {
     _ageController.removeListener(_onAgeChanged);
     _ble.latestReading.removeListener(_fillFromSensor);
-    _ble.disconnect();
     _ageController.dispose();
     _moistureController.dispose();
     _tempController.dispose();
@@ -172,122 +179,232 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEFF8F0),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    tooltip: 'Back',
-                    onPressed: () {
-                      if (Navigator.of(context).canPop()) {
-                        Navigator.of(context).pop();
-                      }
-                    },
-                    icon: const Icon(
-                      Icons.arrow_back_ios_new_rounded,
-                      color: Color(0xFF176B2C),
+    return ListenableBuilder(
+      listenable: LanguageController.instance,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            title: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(t('fertilizer')),
+            ),
+            backgroundColor: BrandColor.primary,
+            foregroundColor: Colors.white,
+            iconTheme: const IconThemeData(color: Colors.white),
+            automaticallyImplyLeading: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              onPressed: () {
+                if (Navigator.of(context).canPop()) Navigator.of(context).pop();
+              },
+            ),
+            actions: [
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FertilizerHistoryScreen(),
                     ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      t('fertilizerRecommendation'),
-                      style: const TextStyle(
-                        color: Color(0xFF176B2C),
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        height: 1.15,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Fertilizer history',
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const FertilizerHistoryScreen(),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.history),
-                  ),
-                ],
+                  );
+                },
+                icon: const Icon(Icons.history, color: Colors.white),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Connect the 7-in-1 soil sensor. The app reads N, P, K, pH and moisture from the IoT device, then runs the fertilizer model on this phone.',
-                style: TextStyle(
-                  color: Colors.black54,
-                  fontSize: 13,
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 22),
-              _bleCard(),
-              const SizedBox(height: 18),
-              AppCard(
-                child: Column(
-                  children: [
-                    AppTextField(
-                      label: t('treeAge'),
-                      hint: '0 - 10',
-                      controller: _ageController,
-                      icon: Icons.calendar_month,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      errorText: _ageError,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 18),
-              _readingsCard(),
-              const SizedBox(height: 18),
-              AppPrimaryButton(
-                label: t('fertilizerRecommendation'),
-                isLoading: _isLoading,
-                onPressed: _checkFertilizer,
-              ),
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 16),
-                AppBanner(
-                  message: _errorMessage!,
-                  color: BrandColor.primary,
-                  icon: Icons.error_outline,
-                ),
-              ],
             ],
           ),
-        ),
-      ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _sensorBar(),
+                const SizedBox(height: 10),
+                _npkRow(),
+                const SizedBox(height: 10),
+                _soilRow(),
+                const SizedBox(height: 10),
+                _ageBar(),
+                const SizedBox(height: 12),
+                AppPrimaryButton(
+                  label: t('checkFertilizer'),
+                  icon: Icons.spa_rounded,
+                  isLoading: _isLoading,
+                  onPressed: _isLoading ? null : _checkFertilizer,
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 14),
+                  AppBanner(
+                    message: _errorMessage!,
+                    color: Colors.orange.shade800,
+                    icon: Icons.warning_amber_rounded,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _bleCard() {
+  Widget _npkRow() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 8.0;
+        final width = (constraints.maxWidth - gap * 2) / 3;
+        return Row(
+          children: [
+            SizedBox(
+              width: width,
+              height: 96,
+              child: _readingCard(_ReadingKind.nitrogen, compact: true),
+            ),
+            const SizedBox(width: gap),
+            SizedBox(
+              width: width,
+              height: 96,
+              child: _readingCard(_ReadingKind.phosphorus, compact: true),
+            ),
+            const SizedBox(width: gap),
+            SizedBox(
+              width: width,
+              height: 96,
+              child: _readingCard(_ReadingKind.potassium, compact: true),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _soilRow() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 8.0;
+        final width = (constraints.maxWidth - gap * 2) / 3;
+        return Row(
+          children: [
+            SizedBox(
+              width: width,
+              height: 118,
+              child: _readingCard(_ReadingKind.moisture, compact: true),
+            ),
+            const SizedBox(width: gap),
+            SizedBox(
+              width: width,
+              height: 118,
+              child: _readingCard(_ReadingKind.temp, compact: true),
+            ),
+            const SizedBox(width: gap),
+            SizedBox(
+              width: width,
+              height: 118,
+              child: _readingCard(_ReadingKind.ph, compact: true),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _sensorBar() {
     return ValueListenableBuilder<bool>(
       valueListenable: _ble.isConnected,
-      builder: (context, connected, child) {
+      builder: (context, connected, _) {
         return ValueListenableBuilder<bool>(
           valueListenable: _ble.isScanning,
-          builder: (context, scanning, child) {
-            return ValueListenableBuilder<String>(
-              valueListenable: _ble.status,
-              builder: (context, status, child) {
-                return BluetoothStatusCard(
-                  connected: connected,
-                  scanning: scanning,
-                  status: status,
-                  connectLabel: t('connectSensor'),
-                  onConnect: _ble.connect,
-                );
-              },
+          builder: (context, scanning, _) {
+            final status = scanning
+                ? t('connectingDevice')
+                : connected
+                    ? t('connected')
+                    : t('disconnected');
+            final color = connected ? const Color(0xFF16A34A) : BrandColor.primary;
+            return _panel(
+              height: 56,
+              child: Row(
+                children: [
+                  _circleArt(
+                    icon: connected
+                        ? Icons.bluetooth_connected_rounded
+                        : Icons.bluetooth_disabled_rounded,
+                    color: color,
+                    size: 34,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          t('sensorConnection'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                        Text(
+                          scanning
+                              ? t('connectingDevice')
+                              : connected
+                                  ? t('live')
+                                  : t('waiting'),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (scanning)
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  else if (!connected)
+                    SizedBox(
+                      height: 32,
+                      child: ElevatedButton(
+                        onPressed: _connectDevice,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: BrandColor.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        child: Text(
+                          t('connectDevice'),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    Text(
+                      status,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: color,
+                      ),
+                    ),
+                ],
+              ),
             );
           },
         );
@@ -295,102 +412,294 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
     );
   }
 
-  Widget _readingsCard() {
-    return AppCard(
-      child: Column(
+  Widget _readingCard(_ReadingKind kind, {bool compact = false}) {
+    return ValueListenableBuilder<SoilSensorReading?>(
+      valueListenable: _ble.latestReading,
+      builder: (context, reading, _) {
+        return ValueListenableBuilder<bool>(
+          valueListenable: _ble.isConnected,
+          builder: (context, connected, _) {
+            final ready = connected && reading != null;
+            return _glassCard(
+              title: t(kind.titleKey),
+              value: ready ? kind.format(reading) : '--',
+              art: kind.art(compact: compact),
+              compact: compact,
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _ageBar() {
+    return _panel(
+      height: 58,
+      child: Row(
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'IoT Sensor Readings',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-                ),
-              ),
-              ValueListenableBuilder(
-                valueListenable: _ble.latestReading,
-                builder: (context, reading, _) {
-                  final live = reading != null;
-                  return Text(
-                    live ? t('live') : t('waiting'),
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: live ? Colors.green.shade700 : Colors.black38,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
-                    ),
-                  );
-                },
-              ),
-            ],
+          _circleArt(
+            icon: Icons.calendar_month_rounded,
+            color: const Color(0xFF15803D),
+            size: 34,
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: AppTextField(
-                  label: t('soilMoisture'),
-                  hint: '--',
-                  controller: _moistureController,
-                  icon: Icons.water_drop,
-                  readOnly: true,
-                ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              t('treeAge'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF111827),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: AppTextField(
-                  label: t('soilTemperature'),
-                  hint: '--',
-                  controller: _tempController,
-                  icon: Icons.thermostat,
-                  readOnly: true,
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 10),
-          AppTextField(
-            label: t('soilPh'),
-            hint: '--',
-            controller: _phController,
-            icon: Icons.science,
-            readOnly: true,
+          SizedBox(
+            width: 86,
+            child: TextField(
+              controller: _ageController,
+              textAlign: TextAlign.center,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w300,
+                color: Color(0xFF111827),
+                height: 1,
+              ),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: t('plantAgeHint'),
+                hintStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w300,
+                  color: Color(0xFFD1D5DB),
+                ),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.zero,
+              ),
+            ),
           ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: AppTextField(
-                  label: t('nitrogen'),
-                  hint: '--',
-                  controller: _nitrogenController,
-                  icon: Icons.grass,
-                  readOnly: true,
-                ),
+          Flexible(
+            child: Text(
+              _ageError ?? t('years'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: _ageError != null ? Colors.orange.shade800 : BrandColor.primary,
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: AppTextField(
-                  label: t('phosphorus'),
-                  hint: '--',
-                  controller: _phosphorusController,
-                  icon: Icons.eco,
-                  readOnly: true,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: AppTextField(
-                  label: t('potassium'),
-                  hint: '--',
-                  controller: _potassiumController,
-                  icon: Icons.spa,
-                  readOnly: true,
-                ),
-              ),
-            ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _panel({required Widget child, double? height}) {
+    return Container(
+      width: double.infinity,
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE8D4D8)),
+        boxShadow: [
+          BoxShadow(
+            color: BrandColor.primary.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _circleArt({
+    required IconData icon,
+    required Color color,
+    double size = 44,
+  }) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color.withValues(alpha: 0.18),
+            color.withValues(alpha: 0.04),
+          ],
+        ),
+      ),
+      child: Icon(icon, color: color, size: size * 0.48),
+    );
+  }
+
+  Widget _glassCard({
+    required String title,
+    required String value,
+    required Widget art,
+    bool loading = false,
+    Widget? valueSlot,
+    bool compact = false,
+  }) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      padding: EdgeInsets.fromLTRB(compact ? 6 : 8, 8, compact ? 6 : 8, 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, Color(0xFFF8F1F3)],
+        ),
+        border: Border.all(color: const Color(0xFFE8D4D8)),
+        boxShadow: [
+          BoxShadow(
+            color: BrandColor.primary.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+          const Spacer(),
+          art,
+          const Spacer(),
+          if (loading)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else if (valueSlot != null)
+            valueSlot
+          else
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: compact ? 18 : 22,
+                  fontWeight: FontWeight.w200,
+                  color: const Color(0xFF111827),
+                  height: 1,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+enum _ReadingKind { moisture, temp, ph, nitrogen, phosphorus, potassium }
+
+extension on _ReadingKind {
+  String get titleKey {
+    switch (this) {
+      case _ReadingKind.moisture:
+        return 'soilMoisture';
+      case _ReadingKind.temp:
+        return 'soilTemperature';
+      case _ReadingKind.ph:
+        return 'soilPh';
+      case _ReadingKind.nitrogen:
+        return 'nitrogen';
+      case _ReadingKind.phosphorus:
+        return 'phosphorus';
+      case _ReadingKind.potassium:
+        return 'potassium';
+    }
+  }
+
+  String format(SoilSensorReading reading) {
+    switch (this) {
+      case _ReadingKind.moisture:
+        return '${reading.moisture.toStringAsFixed(0)}%';
+      case _ReadingKind.temp:
+        return '${reading.temp.toStringAsFixed(0)}°';
+      case _ReadingKind.ph:
+        return reading.ph.toStringAsFixed(1);
+      case _ReadingKind.nitrogen:
+        return reading.nitrogen.toStringAsFixed(0);
+      case _ReadingKind.phosphorus:
+        return reading.phosphorus.toStringAsFixed(0);
+      case _ReadingKind.potassium:
+        return reading.potassium.toStringAsFixed(0);
+    }
+  }
+
+  Widget art({required bool compact}) {
+    final size = compact ? 36.0 : 44.0;
+    switch (this) {
+      case _ReadingKind.moisture:
+        return WeatherArt(type: WeatherArtType.irrigate, size: size);
+      case _ReadingKind.temp:
+        return WeatherArt(type: WeatherArtType.thermometer, size: size);
+      case _ReadingKind.ph:
+        return _NutrientMark(letter: 'pH', color: const Color(0xFF0D9488), size: size);
+      case _ReadingKind.nitrogen:
+        return _NutrientMark(letter: 'N', color: const Color(0xFF2563EB), size: size);
+      case _ReadingKind.phosphorus:
+        return _NutrientMark(letter: 'P', color: const Color(0xFFEA580C), size: size);
+      case _ReadingKind.potassium:
+        return _NutrientMark(letter: 'K', color: const Color(0xFF7C3AED), size: size);
+    }
+  }
+}
+
+class _NutrientMark extends StatelessWidget {
+  final String letter;
+  final Color color;
+  final double size;
+
+  const _NutrientMark({
+    required this.letter,
+    required this.color,
+    required this.size,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            color.withValues(alpha: 0.18),
+            color.withValues(alpha: 0.04),
+          ],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: TextStyle(
+          fontSize: size * 0.38,
+          fontWeight: FontWeight.w300,
+          color: color,
+        ),
       ),
     );
   }

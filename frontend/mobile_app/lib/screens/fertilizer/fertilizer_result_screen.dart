@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../common/brand_color.dart';
+import '../../l10n/app_strings.dart';
 import '../../models/fertilizer_advice.dart';
 
 class FertilizerResultScreen extends StatelessWidget {
@@ -14,152 +16,193 @@ class FertilizerResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F7),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back),
+    return ListenableBuilder(
+      listenable: LanguageController.instance,
+      builder: (context, _) {
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            title: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(t('fertilizerRecommendation')),
+            ),
+            backgroundColor: BrandColor.primary,
+            foregroundColor: Colors.white,
+            iconTheme: const IconThemeData(color: Colors.white),
+            automaticallyImplyLeading: false,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _summaryCard(),
+                const SizedBox(height: 18),
+                Text(
+                  t('nutrientQuantity'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                    color: Color(0xFF111827),
                   ),
-                  const Expanded(
-                    child: Text(
-                      'Fertilizer Recommendation',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  const SizedBox(width: 48),
-                ],
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F0F0),
-                  borderRadius: BorderRadius.circular(18),
                 ),
-                child: Column(
+                const SizedBox(height: 12),
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.asset(
-                            'assets/images/farm_bg.jpeg',
-                            width: 56,
-                            height: 56,
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'CROP',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.black45,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Pomegranate',
-                              style: TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                    _nutrientCard(
+                      title: t('nitrogen'),
+                      symbol: 'N',
+                      value: '${advice.nitrogen.toStringAsFixed(0)} g',
+                      color: const Color(0xFF2563EB),
                     ),
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _summaryItem('Trees', '1'),
-                        _summaryItem('Age', '${advice.treeAge} years'),
-                        _summaryItem('Stage', _cleanStageName(advice.stageName)),
-                      ],
+                    const SizedBox(width: 10),
+                    _nutrientCard(
+                      title: t('phosphorus'),
+                      symbol: 'P',
+                      value: '${advice.phosphorus.toStringAsFixed(0)} g',
+                      color: const Color(0xFFEA580C),
+                    ),
+                    const SizedBox(width: 10),
+                    _nutrientCard(
+                      title: t('potassium'),
+                      symbol: 'K',
+                      value: '${advice.potassium.toStringAsFixed(0)} g',
+                      color: const Color(0xFF7C3AED),
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Nutrient Quantity',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _nutrientCard(
-                    title: 'Nitrogen',
-                    symbol: 'N',
-                    value: '${advice.nitrogen} g',
-                    color: const Color(0xFF1296F3),
-                  ),
-                  const SizedBox(width: 10),
-                  _nutrientCard(
-                    title: 'Phosphorus',
-                    symbol: 'P',
-                    value: '${advice.phosphorus} g',
-                    color: const Color(0xFFFF5722),
-                  ),
-                  const SizedBox(width: 10),
-                  _nutrientCard(
-                    title: 'Potassium',
-                    symbol: 'K',
-                    value: '${advice.potassium} g',
-                    color: const Color(0xFFB71FD1),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 22),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F0F0),
-                  borderRadius: BorderRadius.circular(20),
+                const SizedBox(height: 18),
+                _amountCard(),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _summaryCard() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white, Color(0xFFF8F1F3)],
+        ),
+        border: Border.all(color: const Color(0xFFE8D4D8)),
+        boxShadow: [
+          BoxShadow(
+            color: BrandColor.primary.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Image.asset(
+                  'assets/images/pomegranate.jpeg',
+                  width: 58,
+                  height: 58,
+                  fit: BoxFit.cover,
                 ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Recommended Fertilizer Amount',
-                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
-                    ),
-                    const SizedBox(height: 8),
                     Text(
-                      'Requirement class: ${advice.fertilizerClass}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    if (advice.modelConfidence != null) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Model confidence: ${(advice.modelConfidence! * 100).toStringAsFixed(0)}%',
-                        style: const TextStyle(color: Colors.black54),
+                      t('cropType'),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF6B7280),
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
-                    const SizedBox(height: 16),
-                    _fertilizerRow('U', 'Urea', '${advice.ureaG} g/tree', const Color(0xFF26B6E8)),
-                    _fertilizerRow('T', 'TSP', '${advice.tspG} g/tree', const Color(0xFFF39C12)),
-                    _fertilizerRow('M', 'MOP', '${advice.mopG} g/tree', const Color(0xFFFF3B3B)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      t('cropValue'),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF111827),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              _summaryItem(t('trees'), '1'),
+              _summaryItem(t('treeAge'), '${advice.treeAge} ${t('years')}'),
+              _summaryItem(t('stage'), _cleanStageName(advice.stageName)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _amountCard() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE8D4D8)),
+        boxShadow: [
+          BoxShadow(
+            color: BrandColor.primary.withValues(alpha: 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            t('fertilizerAmount'),
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 15,
+              color: Color(0xFF111827),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${t('requirementClass')}: ${advice.fertilizerClass}',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF4B5563),
+            ),
+          ),
+          if (advice.modelConfidence != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${t('confidence')}: ${(advice.modelConfidence! * 100).toStringAsFixed(0)}%',
+              style: const TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ],
+          const SizedBox(height: 8),
+          _fertilizerRow('U', t('urea'), '${advice.ureaG} g', const Color(0xFF0EA5E9)),
+          _fertilizerRow('T', t('tsp'), '${advice.tspG} g', const Color(0xFFF59E0B)),
+          _fertilizerRow('M', t('mop'), '${advice.mopG} g', BrandColor.primary),
+        ],
       ),
     );
   }
@@ -171,16 +214,24 @@ class FertilizerResultScreen extends StatelessWidget {
         children: [
           Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 11,
-              color: Colors.black45,
+              color: Color(0xFF6B7280),
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              fontSize: 14,
+              color: Color(0xFF111827),
+            ),
           ),
         ],
       ),
@@ -195,41 +246,62 @@ class FertilizerResultScreen extends StatelessWidget {
   }) {
     return Expanded(
       child: Container(
-        height: 124,
-        padding: const EdgeInsets.all(12),
+        height: 132,
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
         decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(22),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [color, color.withValues(alpha: 0.82)],
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha: 0.22),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              maxLines: 2,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 fontSize: 12,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(symbol, style: const TextStyle(color: Colors.white, fontSize: 11)),
-            const Spacer(),
             Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 17,
+              symbol,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.8),
+                fontSize: 11,
               ),
             ),
-            const Text(
-              'PER TREE',
+            const Spacer(),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w300,
+                  fontSize: 22,
+                ),
+              ),
+            ),
+            Text(
+              t('perTree').toUpperCase(),
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.white.withValues(alpha: 0.85),
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
+                letterSpacing: 0.6,
               ),
             ),
           ],
@@ -242,7 +314,7 @@ class FertilizerResultScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E2E2))),
+        border: Border(bottom: BorderSide(color: Color(0xFFF3E6E9))),
       ),
       child: Row(
         children: [
@@ -256,9 +328,21 @@ class FertilizerResultScreen extends StatelessWidget {
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF111827),
+              ),
+            ),
           ),
-          Text(amount, style: const TextStyle(fontWeight: FontWeight.w900)),
+          Text(
+            amount,
+            style: const TextStyle(
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
+            ),
+          ),
         ],
       ),
     );

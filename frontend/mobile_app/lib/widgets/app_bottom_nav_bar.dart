@@ -4,7 +4,7 @@ import '../common/brand_color.dart';
 import '../l10n/app_strings.dart';
 import '../screens/history/research_history_screen.dart';
 import '../screens/irrigation/irrigation_screen.dart';
-import '../screens/disease/profile_view.dart';
+import '../screens/profile/profile_screen.dart';
 import '../screens/reports/research_reports_screen.dart';
 
 enum AppNavTab { home, history, reports, profile }
@@ -86,7 +86,7 @@ class AppBottomNavBar extends StatelessWidget {
                 label: t('profile'),
                 active: current == AppNavTab.profile,
                 onTap: () =>
-                    _open(context, const ProfileView(), AppNavTab.profile),
+                    _open(context, const ProfileScreen(), AppNavTab.profile),
               ),
             ],
           ),

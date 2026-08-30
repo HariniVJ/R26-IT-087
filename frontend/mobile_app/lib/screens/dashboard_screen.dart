@@ -22,9 +22,7 @@ import 'coming_soon_screen.dart';
 import '../screens/capture_screen.dart';
 import 'notifications/notifications_screen.dart';
 import 'weather/weather_details_screen.dart';
-import 'history/research_history_screen.dart';
-import 'reports/research_reports_screen.dart';
-import '../screens/disease/profile_view.dart';
+import 'profile/profile_screen.dart';
 
 const _red = Color(0xFFC1121F);
 const _redSoft = Color(0xFFFFEEF3);
@@ -194,8 +192,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   String get _farmerName {
-    return AuthService.instance.currentFarmer?.fullName ??
-        AppConstants.farmerName;
+    final name = AuthService.instance.currentFarmer?.fullName.trim() ?? '';
+    return name.isEmpty ? t('profile') : name;
   }
 
   String get _farmName {
@@ -334,22 +332,28 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   Widget _topRow() => Row(
     children: [
-      Container(
-        width: 46,
-        height: 46,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-          color: BrandColor.primary,
-        ),
-        child: Center(
-          child: Text(
-            _farmerName.length >= 2
-                ? _farmerName.substring(0, 2).toUpperCase()
-                : _farmerName.toUpperCase(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
+      GestureDetector(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          );
+        },
+        child: Container(
+          width: 46,
+          height: 46,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: BrandColor.primary,
+          ),
+          child: Center(
+            child: Text(
+              (AuthService.instance.currentFarmer?.initials ?? '?'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ),

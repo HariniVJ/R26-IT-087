@@ -235,13 +235,15 @@ class BluetoothStatusCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          AppPrimaryButton(
-            label: scanning ? t('scanningDevice') : connectLabel,
-            icon: Icons.bluetooth_searching,
-            isLoading: scanning,
-            onPressed: scanning ? null : onConnect,
-          ),
+          if (!connected) ...[
+            const SizedBox(height: 16),
+            AppPrimaryButton(
+              label: scanning ? t('connectingDevice') : connectLabel,
+              icon: Icons.bluetooth_searching,
+              isLoading: scanning,
+              onPressed: scanning ? null : onConnect,
+            ),
+          ],
         ],
       ),
     );
