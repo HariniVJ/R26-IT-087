@@ -1,10 +1,12 @@
+// lib/models/prediction_result.dart
 import 'package:PomCare/models/grading_result.dart';
 
 class PredictionResult {
   final String quality;
-  final double confidence; // 0.0–100.0 percentage
-  final String? defectType; // 🆕 null for high/medium quality
-  final double? severityPercent; // 🆕 0–100, null if no defect
+  final double confidence;
+  final String? defectType;
+  final double? severityPercent;
+  final String? colorTone;
   final String recommendation;
 
   const PredictionResult({
@@ -12,6 +14,7 @@ class PredictionResult {
     required this.confidence,
     this.defectType,
     this.severityPercent,
+    this.colorTone,
     required this.recommendation,
   });
 
@@ -22,7 +25,7 @@ class PredictionResult {
       ? '${severityPercent!.toStringAsFixed(1)}%'
       : 'N/A';
 
-    GradingResult toGradingResult({
+  GradingResult toGradingResult({
     required String userId,
     int? weightGrams,
     String? imageUrl,
@@ -31,8 +34,7 @@ class PredictionResult {
       id: '',
       userId: userId,
       quality: quality,
-      confidence:
-          confidenceDecimal, // ✅ percentage → decimal conversion happens HERE
+      confidence: confidenceDecimal,
       defectType: defectType,
       severityPercent: severityPercent,
       weightGrams: weightGrams,
@@ -42,5 +44,3 @@ class PredictionResult {
     );
   }
 }
-
-

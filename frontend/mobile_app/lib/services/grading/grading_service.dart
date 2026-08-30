@@ -3,14 +3,14 @@ import 'dart:io';
 import '../../models/grading_result.dart';
 import 'grading_firestore_service.dart';
 import 'recommendation_service.dart';
+import 'image_storage_service.dart';
 
 class GradingService {
   final GradingFirestoreService _firestore = GradingFirestoreService.instance;
   final RecommendationService _recommendation = RecommendationService.instance;
+  final ImageStorageService _imageStorage = ImageStorageService.instance;
 
-  Future<void> init() async {
-    
-  }
+  Future<void> init() async {}
 
   Future<GradingResult> saveResult({
     required String userId,
@@ -32,6 +32,12 @@ class GradingService {
         ruleRow?['recommended_usage'] as String? ??
         'Manual inspection recommended';
 
+    // 🔧 FIX: actually upload image and get real URL (was hardcoded null before)
+    String? imageUrl;
+    if (imageFile != null) {
+      imageUrl = await _imageStorage.uploadGradingImage(imageFile, userId);
+    }
+
     final draft = GradingResult(
       id: '',
       userId: userId,
@@ -41,7 +47,7 @@ class GradingService {
       severityPercent: severityPercent,
       weightGrams: weightGrams,
       recommendation: recommendation,
-      imageUrl: null,
+      imageUrl: imageUrl,
       createdAt: DateTime.now().toIso8601String(),
     );
 
@@ -50,8 +56,6 @@ class GradingService {
 
   Future<List<GradingResult>> getHistory(String userId) =>
       _firestore.getHistory(userId);
-
   Future<void> deleteOne(String id) => _firestore.deleteOne(id);
-
   Future<void> deleteAll(String userId) => _firestore.deleteAll(userId);
 }
