@@ -97,10 +97,34 @@ class _HistoryViewState extends State<HistoryView> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Record deleted')));
-
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: const Color(0xFFE53935),
+          behavior: SnackBarBehavior.floating,
+          elevation: 8,
+          margin: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          duration: const Duration(seconds: 2),
+          content: const Row(
+            children: [
+              Icon(Icons.delete_forever_rounded, color: Colors.white, size: 22),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Record deleted successfully',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
       // Refresh triggers its own setState internally — safe to call here.
       await _refresh();
     } catch (e) {

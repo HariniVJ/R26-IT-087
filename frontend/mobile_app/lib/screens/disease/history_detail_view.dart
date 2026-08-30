@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
@@ -10,6 +12,9 @@ class HistoryDetailView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasImage =
+        result.imagePath.isNotEmpty && File(result.imagePath).existsSync();
+
     return Scaffold(
       backgroundColor: BrandColor.background,
 
@@ -28,20 +33,32 @@ class HistoryDetailView extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            if (result.imagePath.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Image.asset(
-                  result.imagePath,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
+            // ====================================================
+            // IMAGE
+            // ====================================================
+            ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                width: double.infinity,
+                height: 200,
+                color: BrandColor.softPink,
+                child: hasImage
+                    ? Image.file(
+                        File(result.imagePath),
+                        width: double.infinity,
+                        height: 200,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return _imageNotAvailable();
+                        },
+                      )
+                    : _imageNotAvailable(),
               ),
+            ),
 
             const SizedBox(height: 18),
 
-            _row('Disease', result.diseaseName),
+            _row('Disease', result.diseaseName.replaceAll('_', ' ')),
 
             _row(
               'Severity',
@@ -73,7 +90,9 @@ class HistoryDetailView extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                     ),
                   ),
+
                   const SizedBox(height: 10),
+
                   Text(
                     result.treatment,
                     style: const TextStyle(
@@ -86,6 +105,29 @@ class HistoryDetailView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _imageNotAvailable() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.image_not_supported_outlined,
+            color: BrandColor.lightText,
+            size: 42,
+          ),
+          SizedBox(height: 10),
+          Text(
+            'Image not available',
+            style: TextStyle(
+              color: BrandColor.lightText,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -107,7 +149,14 @@ class HistoryDetailView extends StatelessWidget {
               style: const TextStyle(color: BrandColor.lightText),
             ),
           ),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
         ],
       ),
     );

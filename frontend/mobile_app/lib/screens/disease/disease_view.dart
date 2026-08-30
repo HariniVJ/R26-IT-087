@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../common/brand_color.dart';
 import '../../models/Disease_prediction_result_model.dart';
 import '../../services/disease/history_service.dart';
+import '../../services/disease/reminder_notification_service.dart';
 import '../../widgets/app_bottom_nav_bar.dart';
 import 'history_detail_view.dart';
 import 'history_view.dart';
@@ -31,6 +32,7 @@ class _DiseaseViewState extends State<DiseaseView>
   late final AnimationController _fruitFloatController;
 
   late Future<List<PredictionResultModel>> _recentHistoryFuture;
+  late Future<List<ReminderRecord>> _remindersFuture;
 
   // Warm gold accent — used only inside the scan card for contrast
   // against the brand red/pink, so the card doesn't read as "red on red".
@@ -51,6 +53,7 @@ class _DiseaseViewState extends State<DiseaseView>
     )..repeat(reverse: true);
 
     _recentHistoryFuture = _loadRecentHistory();
+    _remindersFuture = ReminderNotificationService.instance.getAllReminders();
   }
 
   @override
@@ -71,6 +74,12 @@ class _DiseaseViewState extends State<DiseaseView>
 
   void _refreshHistory() {
     setState(() => _recentHistoryFuture = _loadRecentHistory());
+  }
+
+  void _refreshReminders() {
+    setState(() {
+      _remindersFuture = ReminderNotificationService.instance.getAllReminders();
+    });
   }
 
   String get _farmerName {
@@ -117,8 +126,12 @@ class _DiseaseViewState extends State<DiseaseView>
         ),
       );
 
-      // Refresh the recent-history strip in case a new detection was saved.
-      if (mounted) _refreshHistory();
+      // Refresh the recent-history strip + reminders badge in case a
+      // new detection / reminder was saved.
+      if (mounted) {
+        _refreshHistory();
+        _refreshReminders();
+      }
     } finally {
       if (mounted) setState(() => _activePick = _PickSource.none);
     }
@@ -215,20 +228,345 @@ class _DiseaseViewState extends State<DiseaseView>
             ],
           ),
         ),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: BrandColor.softPink,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.notifications_none_rounded,
-            color: BrandColor.primary,
-            size: 20,
-          ),
-        ),
+        _notificationBell(),
       ],
     );
+  }
+
+  // ── Notification bell — unread badge + tap opens reminders popup ──
+  Widget _notificationBell() {
+    return FutureBuilder<List<ReminderRecord>>(
+      future: _remindersFuture,
+      builder: (context, snapshot) {
+        final reminders = snapshot.data ?? <ReminderRecord>[];
+        final unreadCount = reminders.where((r) => !r.isRead).length;
+
+        return GestureDetector(
+          onTap: _showRemindersPopup,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: BrandColor.softPink,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.notifications_none_rounded,
+                  color: BrandColor.primary,
+                  size: 20,
+                ),
+              ),
+              if (unreadCount > 0)
+                Positioned(
+                  top: -2,
+                  right: -2,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFE24C4C),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        unreadCount > 9 ? '9+' : '$unreadCount',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Reminders popup dialog ──────────────────────────────────────────
+  Future<void> _showRemindersPopup() async {
+    // Opening the notification center marks existing reminders as read.
+    // They remain stored and visible in the popup.
+    await ReminderNotificationService.instance.markAllAsRead();
+
+    if (!mounted) return;
+    _refreshReminders();
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 60,
+          ),
+          child: Container(
+            constraints: const BoxConstraints(maxHeight: 520),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: StatefulBuilder(
+              builder: (context, setDialogState) {
+                return FutureBuilder<List<ReminderRecord>>(
+                  future: ReminderNotificationService.instance
+                      .getAllReminders(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const SizedBox(
+                        height: 120,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: BrandColor.primary,
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      );
+                    }
+
+                    final reminders = snapshot.data ?? <ReminderRecord>[];
+
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(
+                                color: BrandColor.softPink,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.notifications_active_rounded,
+                                color: BrandColor.primary,
+                                size: 18,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Notifications',
+                                    style: TextStyle(
+                                      color: BrandColor.darkText,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Treatment follow-up reminders',
+                                    style: TextStyle(
+                                      color: BrandColor.lightText,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.pop(dialogContext),
+                              icon: const Icon(Icons.close_rounded, size: 20),
+                              color: BrandColor.lightText,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        if (reminders.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 26),
+                            child: Center(
+                              child: Column(
+                                children: [
+                                  Icon(
+                                    Icons.notifications_off_outlined,
+                                    color: BrandColor.lightText,
+                                    size: 32,
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'No reminders set yet',
+                                    style: TextStyle(
+                                      color: BrandColor.lightText,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        else
+                          Flexible(
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: reminders.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, index) {
+                                final r = reminders[index];
+                                final isCompleted = !r.followUpDate.isAfter(
+                                  DateTime.now(),
+                                );
+
+                                return Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: BrandColor.background,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: BrandColor.border,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Container(
+                                        width: 36,
+                                        height: 36,
+                                        decoration: BoxDecoration(
+                                          color: isCompleted
+                                              ? Colors.grey.shade200
+                                              : BrandColor.softPink,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          isCompleted
+                                              ? Icons.task_alt_rounded
+                                              : Icons.alarm_rounded,
+                                          size: 18,
+                                          color: isCompleted
+                                              ? Colors.grey.shade600
+                                              : BrandColor.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              r.diseaseName.replaceAll(
+                                                '_',
+                                                ' ',
+                                              ),
+                                              style: const TextStyle(
+                                                color: BrandColor.darkText,
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              _formatReminderDate(
+                                                r.followUpDate,
+                                              ),
+                                              style: const TextStyle(
+                                                color: BrandColor.lightText,
+                                                fontSize: 11.5,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 7),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 3,
+                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: isCompleted
+                                                    ? Colors.grey.shade200
+                                                    : BrandColor.softPink,
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                              ),
+                                              child: Text(
+                                                isCompleted
+                                                    ? 'Completed'
+                                                    : 'Upcoming',
+                                                style: TextStyle(
+                                                  color: isCompleted
+                                                      ? Colors.grey.shade700
+                                                      : BrandColor.primary,
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      IconButton(
+                                        tooltip: 'Delete reminder',
+                                        onPressed: () async {
+                                          await ReminderNotificationService
+                                              .instance
+                                              .cancelReminder(r.id);
+
+                                          if (!mounted) return;
+
+                                          setDialogState(() {});
+                                          _refreshReminders();
+                                        },
+                                        icon: const Icon(
+                                          Icons.delete_outline_rounded,
+                                          size: 19,
+                                        ),
+                                        color: BrandColor.lightText,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+
+    if (mounted) {
+      _refreshReminders();
+    }
+  }
+
+  String _formatReminderDate(DateTime date) {
+    final now = DateTime.now();
+    final diff = date.difference(now);
+    final time =
+        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+
+    if (diff.inDays == 0) return 'Today, $time';
+    if (diff.inDays == 1) return 'Tomorrow, $time';
+    return '${date.day}/${date.month}/${date.year}, $time';
   }
 
   // ── Camera-viewfinder style scan card ───────────────────────────────
