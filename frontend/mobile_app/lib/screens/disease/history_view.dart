@@ -63,6 +63,7 @@ class _HistoryViewState extends State<HistoryView> {
     });
   }
 
+
   void _selectAll(List<PredictionResultModel> data) {
     setState(() {
       final allIds = data
