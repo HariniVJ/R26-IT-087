@@ -143,6 +143,13 @@ class FertilizerResultScreen extends StatelessWidget {
                       'Requirement class: ${advice.fertilizerClass}',
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
+                    if (advice.modelConfidence != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Model confidence: ${(advice.modelConfidence! * 100).toStringAsFixed(0)}%',
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     _fertilizerRow('U', 'Urea', '${advice.ureaG} g/tree', const Color(0xFF26B6E8)),
                     _fertilizerRow('T', 'TSP', '${advice.tspG} g/tree', const Color(0xFFF39C12)),

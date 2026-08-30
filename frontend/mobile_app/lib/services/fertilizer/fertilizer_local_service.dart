@@ -1,7 +1,13 @@
 import '../../models/fertilizer_advice.dart';
+import 'fertilizer_tflite_service.dart';
 
 class FertilizerLocalService {
-  FertilizerAdvice predict({
+  FertilizerLocalService({FertilizerTfliteService? modelService})
+      : _modelService = modelService ?? FertilizerTfliteService();
+
+  final FertilizerTfliteService _modelService;
+
+  Future<FertilizerAdvice> predict({
     required double moisture,
     required double temp,
     required double ph,
@@ -9,18 +15,43 @@ class FertilizerLocalService {
     required double phosphorus,
     required double potassium,
     required double treeAge,
-  }) {
+    String? treeId,
+  }) async {
     if (treeAge <= 0) {
       throw ArgumentError('Please enter a valid tree age.');
     }
 
     final stage = _treeStage(treeAge);
-    final classified = _classify(nitrogen, phosphorus, potassium);
-    final amount = _amount(stage, classified.$1);
+    final ruleClass = _classify(nitrogen, phosphorus, potassium);
+
+    var fertilizerClass = ruleClass.$1;
+    var deficiencyScore = ruleClass.$2;
+    double? confidence;
+
+    try {
+      await _modelService.loadModel();
+      final modelOutput = await _modelService.predict([
+        nitrogen,
+        phosphorus,
+        potassium,
+        ph,
+        moisture,
+        temp,
+        treeAge,
+      ]);
+      fertilizerClass = _normalizeClass(modelOutput.label) ?? fertilizerClass;
+      confidence = modelOutput.confidence <= 1
+          ? modelOutput.confidence
+          : modelOutput.confidence / 100;
+    } catch (_) {
+      // Keep the NPK rule result so the farmer still gets advice offline.
+    }
+
+    final amount = _amount(stage, fertilizerClass);
 
     return FertilizerAdvice(
-      fertilizerClass: classified.$1,
-      deficiencyScore: double.parse(classified.$2.toStringAsFixed(2)),
+      fertilizerClass: fertilizerClass,
+      deficiencyScore: double.parse(deficiencyScore.toStringAsFixed(2)),
       treeAge: treeAge,
       stage: stage,
       stageName: _stageName(stage),
@@ -33,8 +64,18 @@ class FertilizerLocalService {
       moisture: moisture,
       temp: temp,
       ph: ph,
+      modelConfidence: confidence,
       createdAt: DateTime.now().toUtc(),
+      treeId: treeId,
     );
+  }
+
+  String? _normalizeClass(String label) {
+    final value = label.trim().toUpperCase();
+    if (value.contains('HIGH')) return 'HIGH';
+    if (value.contains('MEDIUM') || value.contains('MED')) return 'MEDIUM';
+    if (value.contains('LOW')) return 'LOW';
+    return null;
   }
 
   int _treeStage(double age) {
@@ -57,7 +98,11 @@ class FertilizerLocalService {
     }
   }
 
-  (String, double) _classify(double nitrogen, double phosphorus, double potassium) {
+  (String, double) _classify(
+    double nitrogen,
+    double phosphorus,
+    double potassium,
+  ) {
     const optimalN = 70.0;
     const optimalP = 50.0;
     const optimalK = 225.0;

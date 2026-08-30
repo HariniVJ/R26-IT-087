@@ -1,7 +1,9 @@
 import '../../l10n/app_strings.dart';
+import '../../models/farm_location.dart';
 import '../../models/irrigation_weather.dart';
 import '../irrigation/irrigation_weather_service.dart';
 import '../irrigation/location_service.dart';
+import 'place_name_service.dart';
 
 class WeatherData {
   final String temp;
@@ -47,9 +49,17 @@ class WeatherData {
 class WeatherService {
   final _location = FarmLocationService();
   final _meteo = IrrigationWeatherService();
+  final _places = PlaceNameService();
 
   Future<WeatherData> fetchWeather() async {
-    final location = await _location.getCurrentLocation();
+    FarmLocation location;
+    try {
+      location = await _location.getCurrentLocation();
+    } catch (_) {
+      final last = await _location.loadLastLocation();
+      if (last == null) rethrow;
+      location = last;
+    }
 
     final weather = await _meteo.fetchWeather(
       latitude: location.latitude,
@@ -60,8 +70,7 @@ class WeatherService {
     }
 
     final conditionKey = weather.conditionLabel ?? 'partlyCloudy';
-    final place =
-        '${location.latitude.toStringAsFixed(3)}, ${location.longitude.toStringAsFixed(3)}';
+    final place = await _places.resolve(location.latitude, location.longitude);
 
     return WeatherData(
       temp: '${weather.tempMean.round()}°C',
