@@ -10,4 +10,5 @@ class ApiConfig {
   }
 
   static String get grading => '$baseUrl/grading';
+  static String get growthAdvisory => '$baseUrl/api/growth/advisory';
 }

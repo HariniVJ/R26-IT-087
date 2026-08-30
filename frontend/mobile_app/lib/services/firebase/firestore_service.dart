@@ -525,6 +525,43 @@ class FirestoreService {
     }
   }
 
+  Future<void> saveGrowthDetectionResult({
+    required Map<String, dynamic> resultData,
+    required String imagePath,
+    double? soilTemperature,
+    required DateTime captureTime,
+  }) async {
+    final uid = _uid;
+    if (uid == null) return;
+
+    final farmId = await _farmId();
+
+    // Extract growth stage data
+    final growthStage = resultData['growth_stage'] ?? {};
+
+    await _db.collection(FirestoreSchema.growthPredictions).add({
+      // Farmer info (default farm resolution shared with the rest of the app)
+      'farmerId': uid,
+      'farmId': farmId,
+
+      // Capture date
+      'captureDate': captureTime.toUtc(),
+
+      // Captured image
+      'imagePath': imagePath,
+
+      // Identified growth stage
+      'detectedStage': growthStage['detected'] ?? 'Unknown',
+
+      // Next stage + its estimated date
+      'nextStage': resultData['next_stage'] ?? '',
+      'nextStageEstimatedDate':
+          resultData['transition_prediction']?['estimated_date_range'] ??
+              resultData['transition_prediction']?['range'] ??
+              '',
+    });
+  }
+
   DateTime _toDate(dynamic value) {
     if (value is DateTime) return value;
     try {

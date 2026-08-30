@@ -1,18 +1,16 @@
-// frontend/mobile_app/lib/screens/detecting_screen.dart
-
 import 'dart:io';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../models/growth_result.dart';
+import '../services/growth/growth_advisory_service.dart';
 import '../services/growth/growth_tflite_service.dart';
 import 'result_screen.dart';
 
-// ── Brand colors ─────────────────────────────────────────────────
 const Color kPrimary = Color(0xFFB22222);
 const Color kPrimaryPink = Color(0xFFE14D75);
 const Color kBg = Color(0xFFFFF5F7);
@@ -29,12 +27,12 @@ class DetectingScreen extends StatefulWidget {
   });
 
   @override
-  State<DetectingScreen> createState() => _DetectingScreenState();
+  State<DetectingScreen> createState() =>
+      _DetectingScreenState();
 }
 
 class _DetectingScreenState extends State<DetectingScreen>
     with TickerProviderStateMixin {
-  // Animation controllers
   late AnimationController _ringController;
   late AnimationController _pulseController;
   late AnimationController _fadeController;
@@ -98,9 +96,6 @@ class _DetectingScreenState extends State<DetectingScreen>
     _startAnalysis();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Processing animation
-  // ─────────────────────────────────────────────────────────────
   Future<void> _runSteps() async {
     for (int i = 0; i < _steps.length; i++) {
       await Future.delayed(
@@ -115,29 +110,7 @@ class _DetectingScreenState extends State<DetectingScreen>
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // MAIN AI ANALYSIS
-  //
-  // NEW PIPELINE:
-  //
-  // Selected image
-  //      ↓
-  // YOLO TFLite
-  //      ↓
-  // Is pomegranate detected?
-  //   NO → Reject image
-  //   YES
-  //      ↓
-  // CNN TFLite
-  //      ↓
-  // Growth stage
-  //      ↓
-  // Result Screen
-  //
-  // NO PYTHON BACKEND IS USED HERE.
-  // ─────────────────────────────────────────────────────────────
   Future<void> _startAnalysis() async {
-    // Keep the detecting animation visible briefly.
     await Future.delayed(
       const Duration(seconds: 3),
     );
@@ -145,28 +118,44 @@ class _DetectingScreenState extends State<DetectingScreen>
     try {
       if (kDebugMode) {
         debugPrint('');
-        debugPrint('==========================================');
-        debugPrint('STARTING LOCAL TFLITE GROWTH ANALYSIS');
-        debugPrint('Image: ${widget.xfile.name}');
-        debugPrint('Path : ${widget.xfile.path}');
-        debugPrint('==========================================');
+        debugPrint(
+          '==========================================',
+        );
+        debugPrint(
+          'STARTING LOCAL TFLITE GROWTH ANALYSIS',
+        );
+        debugPrint(
+          'Image: ${widget.xfile.name}',
+        );
+        debugPrint(
+          'Path: ${widget.xfile.path}',
+        );
+        debugPrint(
+          '==========================================',
+        );
       }
 
-      // Android image selected using ImagePicker
-      final File imageFile = File(widget.xfile.path);
+      final File imageFile = File(
+        widget.xfile.path,
+      );
 
-      // Run local YOLO + CNN pipeline
       final detection =
           await GrowthTfliteService.instance.analyse(
         imageFile,
       );
 
-      // ── Debug information ───────────────────────────────────
       if (kDebugMode) {
         debugPrint('');
-        debugPrint('==========================================');
-        debugPrint('TFLITE GROWTH RESULT');
-        debugPrint('Detected: ${detection.detected}');
+        debugPrint(
+          '==========================================',
+        );
+        debugPrint(
+          'TFLITE GROWTH RESULT',
+        );
+
+        debugPrint(
+          'Detected: ${detection.detected}',
+        );
 
         debugPrint(
           'YOLO score: '
@@ -192,15 +181,14 @@ class _DetectingScreenState extends State<DetectingScreen>
           '${detection.rejectionReason}',
         );
 
-        debugPrint('==========================================');
+        debugPrint(
+          '==========================================',
+        );
         debugPrint('');
       }
 
       if (!mounted) return;
 
-      // ─────────────────────────────────────────────────────────
-      // YOLO / CNN rejected image
-      // ─────────────────────────────────────────────────────────
       if (!detection.detected ||
           detection.stage == null) {
         _showNotPomegranateDialog(
@@ -212,275 +200,480 @@ class _DetectingScreenState extends State<DetectingScreen>
         return;
       }
 
-      // ─────────────────────────────────────────────────────────
-      // Valid pomegranate detected
-      // Build harvest information locally
-      // ─────────────────────────────────────────────────────────
-      final GrowthResult growthResult =
-          GrowthResult.fromStage(
-        detection.stage!,
-        detection.confidence,
-        detection.detectionScore,
+      final user =
+          FirebaseAuth.instance.currentUser;
+
+      if (user == null) {
+        throw Exception(
+          'Please login before performing growth analysis.',
+        );
+      }
+
+      final String farmerId = user.uid;
+
+      final String captureDate =
+          DateTime.now()
+              .toIso8601String()
+              .split('T')
+              .first;
+
+      final Map<String, double> probabilities =
+          detection.allProbabilities.map(
+        (key, value) => MapEntry(
+          key,
+          value.toDouble(),
+        ),
       );
 
-      // ─────────────────────────────────────────────────────────
-      // Convert local result into the same Map structure already
-      // expected by your existing ResultScreen.
-      // ─────────────────────────────────────────────────────────
-      final Map<String, dynamic> resultData = {
-        'status': 'success',
+      if (kDebugMode) {
+        debugPrint('');
+        debugPrint(
+          '==========================================',
+        );
+        debugPrint(
+          'FARMER / SOIL SENSOR LOOKUP',
+        );
+        debugPrint(
+          'Farmer ID: $farmerId',
+        );
+        debugPrint(
+          '==========================================',
+        );
+        debugPrint('');
+      }
 
-        'growth_stage': {
-          'detected': growthResult.stage,
-          'display_name': growthResult.displayName,
-          'confidence_percent':
-              growthResult.confidence * 100,
+      final Map<String, dynamic> resultData =
+          await GrowthAdvisoryService.getAdvisory(
+        predictedClass:
+            detection.stage!,
+        confidence:
+            detection.confidence,
+        allProbabilities:
+            probabilities,
+        captureDate:
+            captureDate,
+        lat:
+            9.7,
+        lon:
+            80.0,
+        farmerId:
+            farmerId,
+      );
 
-          // Useful for testing/debugging
-          'all_probabilities':
-              detection.allProbabilities,
-        },
+      resultData['detection_score'] =
+          detection.detectionScore * 100;
 
-        'harvest_prediction': {
-          'estimated_days':
-              growthResult.daysToHarvest,
-        },
+      if (kDebugMode) {
+        debugPrint('');
+        debugPrint(
+          '==========================================',
+        );
+        debugPrint(
+          'BACKEND GROWTH ADVISORY',
+        );
 
-        'next_stage':
-            growthResult.nextStage ?? '',
+        debugPrint(
+          'Stage: '
+          '${resultData['growth_stage']?['detected']}',
+        );
 
-        'recommendations': {
-          'care_tip':
-              growthResult.careTip,
-          'risk_warning':
-              growthResult.riskWarning,
-        },
+        debugPrint(
+          'Next stage: '
+          '${resultData['next_stage']}',
+        );
 
-        // Weather has not yet been connected to the local
-        // TFLite-only pipeline.
-        'weather': {
-          'condition': 'Not available',
-          'temperature_celsius': 0.0,
-        },
+        debugPrint(
+          'Transition: '
+          '${resultData['transition_prediction']?['range']}',
+        );
 
-        // Additional debugging values
-        'detection_score':
-            growthResult.detectionScore * 100,
+        debugPrint(
+          'Capture date: '
+          '${resultData['transition_prediction']?['capture_date']}',
+        );
 
-        'days_to_next_stage':
-            growthResult.daysToNextStage,
-      };
+        debugPrint(
+          'Estimated start: '
+          '${resultData['transition_prediction']?['estimated_start_date']}',
+        );
+
+        debugPrint(
+          'Estimated end: '
+          '${resultData['transition_prediction']?['estimated_end_date']}',
+        );
+
+        debugPrint(
+          'Estimated date range: '
+          '${resultData['transition_prediction']?['estimated_date_range']}',
+        );
+
+        debugPrint(
+          'Weather available: '
+          '${resultData['weather']?['available']}',
+        );
+
+        debugPrint(
+          'Weather condition: '
+          '${resultData['weather']?['condition']}',
+        );
+
+        debugPrint(
+          'Air temperature: '
+          '${resultData['weather']?['temperature_celsius']}',
+        );
+
+        debugPrint(
+          'Humidity: '
+          '${resultData['weather']?['humidity_percent']}',
+        );
+
+        debugPrint(
+          'Soil available: '
+          '${resultData['soil']?['available']}',
+        );
+
+        debugPrint(
+          'Soil temperature: '
+          '${resultData['soil']?['temperature_celsius']}',
+        );
+
+        debugPrint(
+          'Soil timestamp: '
+          '${resultData['soil']?['timestamp']}',
+        );
+
+        debugPrint(
+          'Soil source: '
+          '${resultData['soil']?['source']}',
+        );
+
+        debugPrint(
+          'Environment level: '
+          '${resultData['environment']?['level']}',
+        );
+
+        debugPrint(
+          'Environment status: '
+          '${resultData['environment']?['status']}',
+        );
+
+        debugPrint(
+          '==========================================',
+        );
+        debugPrint('');
+      }
 
       if (!mounted) return;
 
-      // ─────────────────────────────────────────────────────────
-      // Open existing ResultScreen
-      // ─────────────────────────────────────────────────────────
       Navigator.pushReplacement(
         context,
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => ResultScreen(
-            xfile: widget.xfile,
-            resultData: resultData,
+          pageBuilder: (
+            _,
+            __,
+            ___,
+          ) =>
+              ResultScreen(
+            xfile:
+                widget.xfile,
+            resultData:
+                resultData,
           ),
-          transitionsBuilder:
-              (_, animation, __, child) {
+          transitionsBuilder: (
+            _,
+            animation,
+            __,
+            child,
+          ) {
             return FadeTransition(
-              opacity: animation,
-              child: child,
+              opacity:
+                  animation,
+              child:
+                  child,
             );
           },
           transitionDuration:
-              const Duration(milliseconds: 500),
+              const Duration(
+            milliseconds: 500,
+          ),
         ),
       );
     } catch (e, stackTrace) {
       if (kDebugMode) {
         debugPrint('');
-        debugPrint('==========================================');
-        debugPrint('TFLITE ERROR');
-        debugPrint('$e');
-        debugPrint('$stackTrace');
-        debugPrint('==========================================');
+        debugPrint(
+          '==========================================',
+        );
+        debugPrint(
+          'GROWTH ANALYSIS ERROR',
+        );
+        debugPrint(
+          '$e',
+        );
+        debugPrint(
+          '$stackTrace',
+        );
+        debugPrint(
+          '==========================================',
+        );
         debugPrint('');
       }
 
       if (!mounted) return;
 
       _showError(
-        'The AI model could not process this image.\n\n'
+        'The growth analysis could not be completed.\n\n'
         '$e',
       );
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Invalid / unrelated image dialog
-  // ─────────────────────────────────────────────────────────────
   void _showNotPomegranateDialog({
     required String tip,
   }) {
     if (!mounted) return;
 
     showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
+      context:
+          context,
+      barrierDismissible:
+          false,
+      builder:
+          (_) =>
+              AlertDialog(
+        shape:
+            RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.circular(
+            20,
+          ),
         ),
         contentPadding:
-            const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+            const EdgeInsets.all(
+          24,
+        ),
+        content:
+            Column(
+          mainAxisSize:
+              MainAxisSize.min,
           children: [
             Container(
-              width: 72,
-              height: 72,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFEDD5),
-                shape: BoxShape.circle,
+              width:
+                  72,
+              height:
+                  72,
+              decoration:
+                  const BoxDecoration(
+                color:
+                    Color(
+                  0xFFFFEDD5,
+                ),
+                shape:
+                    BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.no_photography_rounded,
-                color: Color(0xFFE76F51),
-                size: 34,
+              child:
+                  const Icon(
+                Icons
+                    .no_photography_rounded,
+                color:
+                    Color(
+                  0xFFE76F51,
+                ),
+                size:
+                    34,
               ),
             ),
-
-            const SizedBox(height: 16),
-
+            const SizedBox(
+              height:
+                  16,
+            ),
             const Text(
               'Not a Pomegranate Image',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: kBlack,
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                fontSize:
+                    18,
+                fontWeight:
+                    FontWeight.w800,
+                color:
+                    kBlack,
               ),
             ),
-
-            const SizedBox(height: 10),
-
+            const SizedBox(
+              height:
+                  10,
+            ),
             Text(
               'The system could not detect a '
               'pomegranate fruit in this image.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-                height: 1.5,
+              textAlign:
+                  TextAlign.center,
+              style:
+                  TextStyle(
+                fontSize:
+                    13,
+                color:
+                    Colors.grey[600],
+                height:
+                    1.5,
               ),
             ),
-
-            // Show actual rejection reason from TFLite service
             if (tip.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(
+                height:
+                    8,
+              ),
               Text(
                 tip,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[500],
-                  height: 1.4,
+                textAlign:
+                    TextAlign.center,
+                style:
+                    TextStyle(
+                  fontSize:
+                      12,
+                  color:
+                      Colors.grey[500],
+                  height:
+                      1.4,
                 ),
               ),
             ],
-
-            const SizedBox(height: 16),
-
+            const SizedBox(
+              height:
+                  16,
+            ),
             Container(
               padding:
-                  const EdgeInsets.all(14),
-              decoration: BoxDecoration(
+                  const EdgeInsets.all(
+                14,
+              ),
+              decoration:
+                  BoxDecoration(
                 color:
-                    kPrimary.withOpacity(0.06),
+                    kPrimary.withOpacity(
+                  0.06,
+                ),
                 borderRadius:
-                    BorderRadius.circular(12),
-                border: Border.all(
+                    BorderRadius.circular(
+                  12,
+                ),
+                border:
+                    Border.all(
                   color:
-                      kPrimary.withOpacity(0.2),
+                      kPrimary.withOpacity(
+                    0.2,
+                  ),
                 ),
               ),
-              child: Column(
+              child:
+                  Column(
                 crossAxisAlignment:
                     CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
                       Icon(
-                        Icons.lightbulb_outline_rounded,
-                        color: kPrimary,
-                        size: 16,
+                        Icons
+                            .lightbulb_outline_rounded,
+                        color:
+                            kPrimary,
+                        size:
+                            16,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(
+                        width:
+                            6,
+                      ),
                       Text(
                         'For best results:',
-                        style: TextStyle(
-                          fontSize: 12,
+                        style:
+                            TextStyle(
+                          fontSize:
+                              12,
                           fontWeight:
                               FontWeight.w700,
-                          color: kPrimary,
+                          color:
+                              kPrimary,
                         ),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 8),
-
+                  const SizedBox(
+                    height:
+                        8,
+                  ),
                   _tipRow(
                     'Take a clear photo of pomegranate fruit',
                   ),
-
                   _tipRow(
                     'Make sure the fruit is visible and well-lit',
                   ),
-
                   _tipRow(
                     'Avoid blurry or distant shots',
                   ),
-
                   _tipRow(
                     'Do not upload unrelated images',
                   ),
                 ],
               ),
             ),
-
-            const SizedBox(height: 20),
-
+            const SizedBox(
+              height:
+                  20,
+            ),
             SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  Navigator.pop(context);
+              width:
+                  double.infinity,
+              child:
+                  ElevatedButton.icon(
+                onPressed:
+                    () {
+                  Navigator.pop(
+                    context,
+                  );
+                  Navigator.pop(
+                    context,
+                  );
                 },
-                icon: const Icon(
-                  Icons.camera_alt_rounded,
-                  color: Colors.white,
-                  size: 18,
+                icon:
+                    const Icon(
+                  Icons
+                      .camera_alt_rounded,
+                  color:
+                      Colors.white,
+                  size:
+                      18,
                 ),
-                label: const Text(
+                label:
+                    const Text(
                   'Try Another Image',
-                  style: TextStyle(
-                    color: Colors.white,
+                  style:
+                      TextStyle(
+                    color:
+                        Colors.white,
                     fontWeight:
                         FontWeight.w700,
-                    fontSize: 15,
+                    fontSize:
+                        15,
                   ),
                 ),
                 style:
                     ElevatedButton.styleFrom(
-                  backgroundColor: kPrimary,
+                  backgroundColor:
+                      kPrimary,
                   shape:
                       RoundedRectangleBorder(
                     borderRadius:
-                        BorderRadius.circular(12),
+                        BorderRadius.circular(
+                      12,
+                    ),
                   ),
                   padding:
                       const EdgeInsets.symmetric(
-                    vertical: 14,
+                    vertical:
+                        14,
                   ),
                 ),
               ),
@@ -491,27 +684,40 @@ class _DetectingScreenState extends State<DetectingScreen>
     );
   }
 
-  Widget _tipRow(String text) {
+  Widget _tipRow(
+    String text,
+  ) {
     return Padding(
       padding:
-          const EdgeInsets.only(bottom: 4),
-      child: Row(
+          const EdgeInsets.only(
+        bottom:
+            4,
+      ),
+      child:
+          Row(
         crossAxisAlignment:
             CrossAxisAlignment.start,
         children: [
           Text(
             '• ',
-            style: TextStyle(
-              color: kPrimary,
-              fontWeight: FontWeight.bold,
+            style:
+                TextStyle(
+              color:
+                  kPrimary,
+              fontWeight:
+                  FontWeight.bold,
             ),
           ),
           Expanded(
-            child: Text(
+            child:
+                Text(
               text,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[700],
+              style:
+                  TextStyle(
+                fontSize:
+                    12,
+                color:
+                    Colors.grey[700],
               ),
             ),
           ),
@@ -520,31 +726,51 @@ class _DetectingScreenState extends State<DetectingScreen>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // General model error dialog
-  // ─────────────────────────────────────────────────────────────
-  void _showError(String message) {
+  void _showError(
+    String message,
+  ) {
     if (!mounted) return;
 
     showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(
+      context:
+          context,
+      builder:
+          (_) =>
+              AlertDialog(
+        shape:
+            RoundedRectangleBorder(
           borderRadius:
-              BorderRadius.circular(16),
+              BorderRadius.circular(
+            16,
+          ),
         ),
-        title: const Text('Error'),
-        content: Text(message),
+        title:
+            const Text(
+          'Error',
+        ),
+        content:
+            Text(
+          message,
+        ),
         actions: [
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
+            onPressed:
+                () {
+              Navigator.pop(
+                context,
+              );
+              Navigator.pop(
+                context,
+              );
             },
-            child: Text(
+            child:
+                Text(
               'Go Back',
               style:
-                  TextStyle(color: kPrimary),
+                  TextStyle(
+                color:
+                    kPrimary,
+              ),
             ),
           ),
         ],
@@ -560,28 +786,37 @@ class _DetectingScreenState extends State<DetectingScreen>
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  // Uploaded image preview
-  // ─────────────────────────────────────────────────────────────
   Widget _buildUploadedImage() {
     return FutureBuilder<Uint8List>(
-      future: widget.xfile.readAsBytes(),
-      builder: (context, snapshot) {
+      future:
+          widget.xfile.readAsBytes(),
+      builder:
+          (
+        context,
+        snapshot,
+      ) {
         if (snapshot.hasData) {
           return Image.memory(
             snapshot.data!,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: double.infinity,
+            fit:
+                BoxFit.cover,
+            width:
+                double.infinity,
+            height:
+                double.infinity,
           );
         }
 
         return Container(
-          color: kBg,
-          child: Icon(
+          color:
+              kBg,
+          child:
+              Icon(
             Icons.eco_rounded,
-            color: kPrimary,
-            size: 60,
+            color:
+                kPrimary,
+            size:
+                60,
           ),
         );
       },
@@ -589,132 +824,178 @@ class _DetectingScreenState extends State<DetectingScreen>
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: SafeArea(
-          child: Column(
+      backgroundColor:
+          Colors.white,
+      body:
+          FadeTransition(
+        opacity:
+            _fadeAnim,
+        child:
+            SafeArea(
+          child:
+              Column(
             children: [
-              // ── Top navigation bar ──────────────────────────
               Container(
                 padding:
                     const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                  horizontal:
+                      16,
+                  vertical:
+                      12,
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border(
-                    bottom: BorderSide(
+                decoration:
+                    BoxDecoration(
+                  color:
+                      Colors.white,
+                  border:
+                      Border(
+                    bottom:
+                        BorderSide(
                       color:
                           Colors.grey.shade100,
-                      width: 1,
+                      width:
+                          1,
                     ),
                   ),
                 ),
-                child: Row(
+                child:
+                    Row(
                   children: [
                     GestureDetector(
-                      onTap: () =>
-                          Navigator.pop(context),
-                      child: Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: kBg,
+                      onTap:
+                          () =>
+                              Navigator.pop(
+                        context,
+                      ),
+                      child:
+                          Container(
+                        width:
+                            38,
+                        height:
+                            38,
+                        decoration:
+                            BoxDecoration(
+                          color:
+                              kBg,
                           borderRadius:
                               BorderRadius.circular(
                             10,
                           ),
-                          border: Border.all(
-                            color: kPrimary
-                                .withOpacity(0.2),
+                          border:
+                              Border.all(
+                            color:
+                                kPrimary.withOpacity(
+                              0.2,
+                            ),
                           ),
                         ),
-                        child: Icon(
+                        child:
+                            Icon(
                           Icons
                               .arrow_back_ios_new_rounded,
-                          size: 16,
-                          color: kPrimary,
+                          size:
+                              16,
+                          color:
+                              kPrimary,
                         ),
                       ),
                     ),
-
                     const Expanded(
-                      child: Text(
+                      child:
+                          Text(
                         'Detecting Image',
                         textAlign:
                             TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 16,
+                        style:
+                            TextStyle(
+                          fontSize:
+                              16,
                           fontWeight:
                               FontWeight.w700,
-                          color: kBlack,
+                          color:
+                              kBlack,
                         ),
                       ),
                     ),
-
-                    const SizedBox(width: 38),
+                    const SizedBox(
+                      width:
+                          38,
+                    ),
                   ],
                 ),
               ),
-
-              // ── Scrollable body ─────────────────────────────
               Expanded(
                 child:
                     SingleChildScrollView(
                   padding:
                       const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 16,
+                    horizontal:
+                        20,
+                    vertical:
+                        16,
                   ),
-                  child: Column(
+                  child:
+                      Column(
                     children: [
-                      // ── Header ────────────────────────────
                       RichText(
                         textAlign:
                             TextAlign.center,
-                        text: const TextSpan(
-                          style: TextStyle(
-                            fontSize: 26,
+                        text:
+                            const TextSpan(
+                          style:
+                              TextStyle(
+                            fontSize:
+                                26,
                             fontWeight:
                                 FontWeight.w800,
-                            color: kBlack,
-                            height: 1.2,
+                            color:
+                                kBlack,
+                            height:
+                                1.2,
                           ),
                           children: [
                             TextSpan(
-                              text: 'Detecting\n',
+                              text:
+                                  'Detecting\n',
                             ),
                             TextSpan(
                               text:
                                   'Pomegranate',
-                              style: TextStyle(
-                                color: kPrimary,
+                              style:
+                                  TextStyle(
+                                color:
+                                    kPrimary,
                               ),
                             ),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 6),
-
+                      const SizedBox(
+                        height:
+                            6,
+                      ),
                       Text(
                         'Please wait while we analyze your image...',
                         textAlign:
                             TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: kGray,
-                          height: 1.4,
+                        style:
+                            TextStyle(
+                          fontSize:
+                              13,
+                          color:
+                              kGray,
+                          height:
+                              1.4,
                         ),
                       ),
-
-                      const SizedBox(height: 20),
-
-                      // ── Scanner card ──────────────────────
+                      const SizedBox(
+                        height:
+                            20,
+                      ),
                       Container(
                         width:
                             double.infinity,
@@ -724,22 +1005,31 @@ class _DetectingScreenState extends State<DetectingScreen>
                         ),
                         decoration:
                             BoxDecoration(
-                          color: Colors.white,
+                          color:
+                              Colors.white,
                           borderRadius:
-                              BorderRadius
-                                  .circular(28),
-                          border: Border.all(
-                            color: kPrimary
-                                .withOpacity(0.15),
-                            width: 1.5,
+                              BorderRadius.circular(
+                            28,
+                          ),
+                          border:
+                              Border.all(
+                            color:
+                                kPrimary.withOpacity(
+                              0.15,
+                            ),
+                            width:
+                                1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: kPrimary
-                                  .withOpacity(
-                                      0.08),
-                              blurRadius: 24,
-                              spreadRadius: 2,
+                              color:
+                                  kPrimary.withOpacity(
+                                0.08,
+                              ),
+                              blurRadius:
+                                  24,
+                              spreadRadius:
+                                  2,
                               offset:
                                   const Offset(
                                 0,
@@ -748,33 +1038,38 @@ class _DetectingScreenState extends State<DetectingScreen>
                             ),
                           ],
                         ),
-                        child: Column(
+                        child:
+                            Column(
                           children: [
-                            // Image with scan overlay
                             ScaleTransition(
-                              scale: _pulseAnim,
-                              child: SizedBox(
-                                width: 220,
-                                height: 220,
-                                child: Stack(
+                              scale:
+                                  _pulseAnim,
+                              child:
+                                  SizedBox(
+                                width:
+                                    220,
+                                height:
+                                    220,
+                                child:
+                                    Stack(
                                   alignment:
-                                      Alignment
-                                          .center,
+                                      Alignment.center,
                                   children: [
                                     Container(
-                                      width: 180,
-                                      height: 180,
+                                      width:
+                                          180,
+                                      height:
+                                          180,
                                       decoration:
                                           BoxDecoration(
                                         borderRadius:
-                                            BorderRadius
-                                                .circular(
+                                            BorderRadius.circular(
                                           20,
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: kPrimary
-                                                .withOpacity(
+                                            color:
+                                                kPrimary.withOpacity(
                                               0.2,
                                             ),
                                             blurRadius:
@@ -787,15 +1082,13 @@ class _DetectingScreenState extends State<DetectingScreen>
                                       child:
                                           ClipRRect(
                                         borderRadius:
-                                            BorderRadius
-                                                .circular(
+                                            BorderRadius.circular(
                                           20,
                                         ),
                                         child:
                                             _buildUploadedImage(),
                                       ),
                                     ),
-
                                     RotationTransition(
                                       turns:
                                           _ringAnim,
@@ -815,26 +1108,28 @@ class _DetectingScreenState extends State<DetectingScreen>
                                         ),
                                       ),
                                     ),
-
                                     ..._scanCorners(),
-
                                     Positioned(
-                                      bottom: 12,
-                                      right: 12,
+                                      bottom:
+                                          12,
+                                      right:
+                                          12,
                                       child:
                                           Container(
-                                        width: 36,
-                                        height: 36,
+                                        width:
+                                            36,
+                                        height:
+                                            36,
                                         decoration:
                                             BoxDecoration(
-                                          color: Colors
-                                              .white,
-                                          shape: BoxShape
-                                              .circle,
+                                          color:
+                                              Colors.white,
+                                          shape:
+                                              BoxShape.circle,
                                           boxShadow: [
                                             BoxShadow(
-                                              color: kPrimary
-                                                  .withOpacity(
+                                              color:
+                                                  kPrimary.withOpacity(
                                                 0.2,
                                               ),
                                               blurRadius:
@@ -848,7 +1143,8 @@ class _DetectingScreenState extends State<DetectingScreen>
                                               .eco_rounded,
                                           color:
                                               kGreen,
-                                          size: 20,
+                                          size:
+                                              20,
                                         ),
                                       ),
                                     ),
@@ -856,60 +1152,65 @@ class _DetectingScreenState extends State<DetectingScreen>
                                 ),
                               ),
                             ),
-
                             const SizedBox(
-                              height: 16,
+                              height:
+                                  16,
                             ),
-
                             AnimatedSwitcher(
                               duration:
                                   const Duration(
-                                milliseconds: 400,
+                                milliseconds:
+                                    400,
                               ),
-                              child: Text(
+                              child:
+                                  Text(
                                 _steps[
-                                    _currentStep
-                                        .clamp(
+                                    _currentStep.clamp(
                                   0,
                                   _steps.length -
                                       1,
                                 )],
-                                key: ValueKey(
+                                key:
+                                    ValueKey(
                                   _currentStep,
                                 ),
                                 style:
                                     const TextStyle(
-                                  fontSize: 15,
+                                  fontSize:
+                                      15,
                                   fontWeight:
-                                      FontWeight
-                                          .w700,
-                                  color: kBlack,
+                                      FontWeight.w700,
+                                  color:
+                                      kBlack,
                                 ),
                               ),
                             ),
-
                             const SizedBox(
-                              height: 4,
+                              height:
+                                  4,
                             ),
-
                             Text(
                               'Our AI is analyzing the fruit stage, growth\n'
                               'pattern and health...',
                               textAlign:
                                   TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: kGray,
-                                height: 1.4,
+                              style:
+                                  TextStyle(
+                                fontSize:
+                                    12,
+                                color:
+                                    kGray,
+                                height:
+                                    1.4,
                               ),
                             ),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 16),
-
-                      // ── Processing steps card ──────────────
+                      const SizedBox(
+                        height:
+                            16,
+                      ),
                       Container(
                         width:
                             double.infinity,
@@ -919,22 +1220,29 @@ class _DetectingScreenState extends State<DetectingScreen>
                         ),
                         decoration:
                             BoxDecoration(
-                          color: Colors.white,
+                          color:
+                              Colors.white,
                           borderRadius:
-                              BorderRadius
-                                  .circular(24),
-                          border: Border.all(
-                            color: kPrimary
-                                .withOpacity(0.1),
-                            width: 1,
+                              BorderRadius.circular(
+                            24,
+                          ),
+                          border:
+                              Border.all(
+                            color:
+                                kPrimary.withOpacity(
+                              0.1,
+                            ),
+                            width:
+                                1,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black
-                                  .withOpacity(
+                              color:
+                                  Colors.black.withOpacity(
                                 0.04,
                               ),
-                              blurRadius: 12,
+                              blurRadius:
+                                  12,
                               offset:
                                   const Offset(
                                 0,
@@ -943,10 +1251,10 @@ class _DetectingScreenState extends State<DetectingScreen>
                             ),
                           ],
                         ),
-                        child: Column(
+                        child:
+                            Column(
                           crossAxisAlignment:
-                              CrossAxisAlignment
-                                  .start,
+                              CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
@@ -955,30 +1263,31 @@ class _DetectingScreenState extends State<DetectingScreen>
                                       .auto_awesome_rounded,
                                   color:
                                       kPrimary,
-                                  size: 16,
+                                  size:
+                                      16,
                                 ),
                                 const SizedBox(
-                                  width: 6,
+                                  width:
+                                      6,
                                 ),
                                 Text(
                                   'AI Processing Steps',
                                   style:
                                       TextStyle(
-                                    fontSize: 13,
+                                    fontSize:
+                                        13,
                                     fontWeight:
-                                        FontWeight
-                                            .w700,
+                                        FontWeight.w700,
                                     color:
                                         kPrimary,
                                   ),
                                 ),
                               ],
                             ),
-
                             const SizedBox(
-                              height: 16,
+                              height:
+                                  16,
                             ),
-
                             ...List.generate(
                               _steps.length,
                               (i) {
@@ -997,24 +1306,24 @@ class _DetectingScreenState extends State<DetectingScreen>
                                       isDone,
                                   isActive:
                                       isActive,
-                                  isLast: i ==
-                                      _steps
-                                              .length -
-                                          1,
+                                  isLast:
+                                      i ==
+                                          _steps.length -
+                                              1,
                                 );
                               },
                             ),
                           ],
                         ),
                       ),
-
-                      const SizedBox(height: 16),
+                      const SizedBox(
+                        height:
+                            16,
+                      ),
                     ],
                   ),
                 ),
               ),
-
-              // ── Bottom navigation ──────────────────────────
               _BottomNav(),
             ],
           ),
@@ -1024,8 +1333,11 @@ class _DetectingScreenState extends State<DetectingScreen>
   }
 
   List<Widget> _scanCorners() {
-    const double s = 24;
-    const double t = 2.5;
+    const double s =
+        24;
+
+    const double t =
+        2.5;
 
     Widget corner(
       double top,
@@ -1034,17 +1346,28 @@ class _DetectingScreenState extends State<DetectingScreen>
       bool isLeft,
     ) {
       return Positioned(
-        top: top,
-        left: left,
-        child: SizedBox(
-          width: s,
-          height: s,
-          child: CustomPaint(
-            painter: _CornerPainter(
-              isTop: isTop,
-              isLeft: isLeft,
-              thickness: t,
-              color: kPrimary,
+        top:
+            top,
+        left:
+            left,
+        child:
+            SizedBox(
+          width:
+              s,
+          height:
+              s,
+          child:
+              CustomPaint(
+            painter:
+                _CornerPainter(
+              isTop:
+                  isTop,
+              isLeft:
+                  isLeft,
+              thickness:
+                  t,
+              color:
+                  kPrimary,
             ),
           ),
         ),
@@ -1052,15 +1375,34 @@ class _DetectingScreenState extends State<DetectingScreen>
     }
 
     return [
-      corner(20, 20, true, true),
-      corner(20, 176, true, false),
-      corner(176, 20, false, true),
-      corner(176, 176, false, false),
+      corner(
+        20,
+        20,
+        true,
+        true,
+      ),
+      corner(
+        20,
+        176,
+        true,
+        false,
+      ),
+      corner(
+        176,
+        20,
+        false,
+        true,
+      ),
+      corner(
+        176,
+        176,
+        false,
+        false,
+      ),
     ];
   }
 }
 
-// ── Step item widget ──────────────────────────────────────────────
 class _StepItem extends StatelessWidget {
   final String label;
   final bool isDone;
@@ -1075,7 +1417,9 @@ class _StepItem extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Row(
       crossAxisAlignment:
           CrossAxisAlignment.start,
@@ -1084,83 +1428,113 @@ class _StepItem extends StatelessWidget {
           children: [
             AnimatedContainer(
               duration:
-                  const Duration(milliseconds: 400),
-              width: 26,
-              height: 26,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDone
-                    ? kGreen
-                    : isActive
-                        ? Colors.white
-                        : Colors.grey.shade100,
-                border: Border.all(
-                  color: isDone
-                      ? kGreen
-                      : isActive
-                          ? kPrimary
-                          : Colors.grey.shade300,
+                  const Duration(
+                milliseconds:
+                    400,
+              ),
+              width:
+                  26,
+              height:
+                  26,
+              decoration:
+                  BoxDecoration(
+                shape:
+                    BoxShape.circle,
+                color:
+                    isDone
+                        ? kGreen
+                        : isActive
+                            ? Colors.white
+                            : Colors.grey.shade100,
+                border:
+                    Border.all(
+                  color:
+                      isDone
+                          ? kGreen
+                          : isActive
+                              ? kPrimary
+                              : Colors.grey.shade300,
                   width:
-                      isActive ? 2 : 1.5,
+                      isActive
+                          ? 2
+                          : 1.5,
                 ),
               ),
-              child: isDone
-                  ? const Icon(
-                      Icons.check_rounded,
-                      size: 14,
-                      color: Colors.white,
-                    )
-                  : isActive
-                      ? SizedBox(
-                          width: 12,
-                          height: 12,
-                          child: Padding(
-                            padding:
-                                const EdgeInsets
-                                    .all(5),
-                            child:
-                                CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: kPrimary,
-                            ),
-                          ),
+              child:
+                  isDone
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size:
+                              14,
+                          color:
+                              Colors.white,
                         )
-                      : null,
+                      : isActive
+                          ? SizedBox(
+                              width:
+                                  12,
+                              height:
+                                  12,
+                              child:
+                                  Padding(
+                                padding:
+                                    const EdgeInsets.all(
+                                  5,
+                                ),
+                                child:
+                                    CircularProgressIndicator(
+                                  strokeWidth:
+                                      2,
+                                  color:
+                                      kPrimary,
+                                ),
+                              ),
+                            )
+                          : null,
             ),
-
             if (!isLast)
               Container(
-                width: 1.5,
-                height: 24,
-                color: isDone
-                    ? kGreen.withOpacity(
-                        0.4,
-                      )
-                    : Colors
-                        .grey.shade200,
+                width:
+                    1.5,
+                height:
+                    24,
+                color:
+                    isDone
+                        ? kGreen.withOpacity(
+                            0.4,
+                          )
+                        : Colors.grey.shade200,
               ),
           ],
         ),
-
-        const SizedBox(width: 12),
-
+        const SizedBox(
+          width:
+              12,
+        ),
         Padding(
           padding:
               const EdgeInsets.only(
-            top: 4,
-            bottom: 24,
+            top:
+                4,
+            bottom:
+                24,
           ),
-          child: Text(
+          child:
+              Text(
             label,
-            style: TextStyle(
-              fontSize: 13,
-              color: isDone
-                  ? kGreen
-                  : isActive
-                      ? kBlack
-                      : Colors.grey[400],
+            style:
+                TextStyle(
+              fontSize:
+                  13,
+              color:
+                  isDone
+                      ? kGreen
+                      : isActive
+                          ? kBlack
+                          : Colors.grey[400],
               fontWeight:
-                  isDone || isActive
+                  isDone ||
+                          isActive
                       ? FontWeight.w600
                       : FontWeight.normal,
             ),
@@ -1171,7 +1545,6 @@ class _StepItem extends StatelessWidget {
   }
 }
 
-// ── Gradient ring painter ─────────────────────────────────────────
 class _GradientRingPainter
     extends CustomPainter {
   final Color color1;
@@ -1187,37 +1560,52 @@ class _GradientRingPainter
     Canvas canvas,
     Size size,
   ) {
-    final rect = Rect.fromLTWH(
+    final rect =
+        Rect.fromLTWH(
       0,
       0,
       size.width,
       size.height,
     );
 
-    final gradient = SweepGradient(
+    final gradient =
+        SweepGradient(
       colors: [
         color1,
         color2,
-        color1.withOpacity(0.1),
+        color1.withOpacity(
+          0.1,
+        ),
       ],
-      stops: const [
+      stops:
+          const [
         0.0,
         0.5,
         1.0,
       ],
     );
 
-    final paint = Paint()
-      ..shader =
-          gradient.createShader(rect)
-      ..strokeWidth = 3.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
+    final paint =
+        Paint()
+          ..shader =
+              gradient.createShader(
+                rect,
+              )
+          ..strokeWidth =
+              3.5
+          ..style =
+              PaintingStyle.stroke
+          ..strokeCap =
+              StrokeCap.round;
 
     canvas.drawArc(
-      rect.deflate(2),
-      -math.pi / 2,
-      math.pi * 1.7,
+      rect.deflate(
+        2,
+      ),
+      -math.pi /
+          2,
+      math.pi *
+          1.7,
       false,
       paint,
     );
@@ -1231,7 +1619,6 @@ class _GradientRingPainter
   }
 }
 
-// ── Corner painter ────────────────────────────────────────────────
 class _CornerPainter
     extends CustomPainter {
   final bool isTop;
@@ -1251,23 +1638,37 @@ class _CornerPainter
     Canvas canvas,
     Size size,
   ) {
-    final paint = Paint()
-      ..color = color
-      ..strokeWidth = thickness
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+    final paint =
+        Paint()
+          ..color =
+              color
+          ..strokeWidth =
+              thickness
+          ..strokeCap =
+              StrokeCap.round
+          ..style =
+              PaintingStyle.stroke;
 
     final x =
-        isLeft ? 0.0 : size.width;
+        isLeft
+            ? 0.0
+            : size.width;
 
     final y =
-        isTop ? 0.0 : size.height;
+        isTop
+            ? 0.0
+            : size.height;
 
     canvas.drawLine(
-      Offset(x, y),
+      Offset(
+        x,
+        y,
+      ),
       Offset(
         x +
-            (isLeft ? 1 : -1) *
+            (isLeft
+                    ? 1
+                    : -1) *
                 size.width *
                 0.7,
         y,
@@ -1276,11 +1677,16 @@ class _CornerPainter
     );
 
     canvas.drawLine(
-      Offset(x, y),
+      Offset(
+        x,
+        y,
+      ),
       Offset(
         x,
         y +
-            (isTop ? 1 : -1) *
+            (isTop
+                    ? 1
+                    : -1) *
                 size.height *
                 0.7,
       ),
@@ -1296,10 +1702,11 @@ class _CornerPainter
   }
 }
 
-// ── Bottom navigation ─────────────────────────────────────────────
 class _BottomNav extends StatelessWidget {
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Container(
       padding:
           const EdgeInsets.fromLTRB(
@@ -1308,11 +1715,16 @@ class _BottomNav extends StatelessWidget {
         20,
         14,
       ),
-      decoration: BoxDecoration(
-        color: Colors.white,
+      decoration:
+          BoxDecoration(
+        color:
+            Colors.white,
         borderRadius:
             const BorderRadius.vertical(
-          top: Radius.circular(24),
+          top:
+              Radius.circular(
+            24,
+          ),
         ),
         boxShadow: [
           BoxShadow(
@@ -1320,13 +1732,18 @@ class _BottomNav extends StatelessWidget {
                 Colors.black.withOpacity(
               0.07,
             ),
-            blurRadius: 16,
+            blurRadius:
+                16,
             offset:
-                const Offset(0, -4),
+                const Offset(
+              0,
+              -4,
+            ),
           ),
         ],
       ),
-      child: Row(
+      child:
+          Row(
         mainAxisAlignment:
             MainAxisAlignment.spaceAround,
         children: [
@@ -1340,12 +1757,15 @@ class _BottomNav extends StatelessWidget {
             'History',
             false,
           ),
-
           Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
+            width:
+                52,
+            height:
+                52,
+            decoration:
+                BoxDecoration(
+              shape:
+                  BoxShape.circle,
               gradient:
                   const LinearGradient(
                 colors: [
@@ -1359,21 +1779,30 @@ class _BottomNav extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: kPrimary
-                      .withOpacity(0.4),
-                  blurRadius: 14,
+                  color:
+                      kPrimary.withOpacity(
+                    0.4,
+                  ),
+                  blurRadius:
+                      14,
                   offset:
-                      const Offset(0, 4),
+                      const Offset(
+                    0,
+                    4,
+                  ),
                 ),
               ],
             ),
-            child: const Icon(
-              Icons.document_scanner_rounded,
-              color: Colors.white,
-              size: 24,
+            child:
+                const Icon(
+              Icons
+                  .document_scanner_rounded,
+              color:
+                  Colors.white,
+              size:
+                  24,
             ),
           ),
-
           _navItem(
             Icons.bar_chart_rounded,
             'Reports',
@@ -1394,9 +1823,10 @@ class _BottomNav extends StatelessWidget {
     String label,
     bool active,
   ) {
-    final color = active
-        ? kPrimary
-        : Colors.grey[400]!;
+    final color =
+        active
+            ? kPrimary
+            : Colors.grey[400]!;
 
     return Column(
       mainAxisSize:
@@ -1404,18 +1834,27 @@ class _BottomNav extends StatelessWidget {
       children: [
         Icon(
           icon,
-          color: color,
-          size: 22,
+          color:
+              color,
+          size:
+              22,
         ),
-        const SizedBox(height: 3),
+        const SizedBox(
+          height:
+              3,
+        ),
         Text(
           label,
-          style: TextStyle(
-            fontSize: 10,
-            color: color,
-            fontWeight: active
-                ? FontWeight.w700
-                : FontWeight.normal,
+          style:
+              TextStyle(
+            fontSize:
+                10,
+            color:
+                color,
+            fontWeight:
+                active
+                    ? FontWeight.w700
+                    : FontWeight.normal,
           ),
         ),
       ],

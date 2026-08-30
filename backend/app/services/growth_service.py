@@ -1,216 +1,148 @@
 import httpx
 
+from datetime import datetime, timedelta
+
 from app.config.firebase_config import db
 
-
-# ============================================================
-# FIREBASE COLLECTION
-# ============================================================
 
 SENSOR_COLLECTION = "sensor_readings"
 
 
-# ============================================================
-# POMEGRANATE GROWTH / HARVEST TIMELINE
-# ============================================================
-
 STAGE_INFO = {
-
-    # --------------------------------------------------------
-    # STAGE 1 - BUD
-    # --------------------------------------------------------
     "Bud": {
         "display_name": "Bud Stage 🌱",
         "next_stage": "Flower",
-
         "transition_min": 5,
         "transition_max": 15,
-
-        "harvest_min": 125,
-        "harvest_max": 165,
-
+        "harvest_min": 101,
+        "harvest_max": 158,
         "care_tip": (
-            "Maintain adequate soil moisture and normal plant nutrition. "
-            "Avoid allowing the root zone to become excessively dry or waterlogged."
+            "Maintain steady soil moisture during dry periods, but avoid keeping "
+            "the root zone waterlogged. Provide good sunlight and maintain an "
+            "open, well-ventilated canopy."
         ),
-
         "care_action": (
-            "Check irrigation and drainage regularly. "
-            "Observe developing buds for healthy growth and possible pest symptoms."
+            "Inspect buds and tender shoots regularly for insects, discoloration, "
+            "spots, deformation, or drying. Maintain good drainage and remove "
+            "seriously affected plant material."
         ),
-
         "risk_warning": (
-            "Water stress, excessive moisture, or poor plant condition may affect "
-            "healthy bud and flower development."
+            "Rainy or humid weather may increase bud rot and fungal infection risk. "
+            "Too little water may weaken buds, while waterlogged soil may damage "
+            "roots and reduce healthy bud development."
         ),
     },
 
-    # --------------------------------------------------------
-    # STAGE 2 - FLOWER
-    # --------------------------------------------------------
     "Flower": {
         "display_name": "Flower Stage 🌸",
         "next_stage": "EarlyFruit",
-
         "transition_min": 21,
         "transition_max": 28,
-
-        # Sri Lankan reference:
-        # approximately 4-5 months from flowering to maturity
-        "harvest_min": 120,
-        "harvest_max": 150,
-
+        "harvest_min": 96,
+        "harvest_max": 143,
         "care_tip": (
-            "Maintain suitable irrigation and good airflow around the canopy. "
-            "Monitor flowers carefully during rainy or humid conditions."
+            "Maintain moderate and consistent soil moisture during flowering. "
+            "Provide good sunlight and airflow and maintain a healthy flower load."
         ),
-
         "care_action": (
-            "Inspect flowers regularly for pest activity and fungal symptoms. "
-            "Maintain good drainage, sunlight, and air circulation around the plant."
+            "Inspect flowers and tender shoots regularly for pests, disease, "
+            "discoloration, drying, and abnormal flower drop. Maintain good "
+            "drainage and avoid unnecessary overhead watering."
         ),
-
         "risk_warning": (
-            "Rainy and humid conditions may increase disease risk during flowering. "
-            "Monitor flower condition and pest activity closely during wet weather."
+            "Heavy rain may damage flowers and increase flower drop. High humidity "
+            "may increase fungal infection risk, while waterlogging may affect "
+            "flower development and fruit set."
         ),
     },
 
-    # --------------------------------------------------------
-    # STAGE 3 - EARLY FRUIT
-    # --------------------------------------------------------
     "EarlyFruit": {
         "display_name": "Early Fruit Stage 🍑",
         "next_stage": "MidGrowth",
-
-        # Calibrated prototype transition range
-        "transition_min": 71,
-        "transition_max": 87,
-
-        "harvest_min": 99,
-        "harvest_max": 122,
-
+        "transition_min": 15,
+        "transition_max": 45,
+        "harvest_min": 75,
+        "harvest_max": 115,
         "care_tip": (
-            "Maintain consistent soil moisture while young fruits develop. "
-            "Avoid sudden changes between very dry and very wet soil conditions."
+            "Maintain steady soil moisture while young fruits develop. Avoid "
+            "allowing the soil to become very dry followed by excessive watering."
         ),
-
         "care_action": (
-            "Inspect young fruits for insect holes, spots, or physical damage. "
-            "Where practical, protect healthy young fruits using suitable fruit covers."
+            "Inspect young fruits regularly for insect holes, larvae, black spots, "
+            "or other damage. Protect healthy young fruits where practical and "
+            "remove badly damaged fruits."
         ),
-
         "risk_warning": (
-            "Young fruits may be vulnerable to insects and disease. "
-            "Remove seriously damaged fruits and continue regular monitoring."
+            "Pomegranate fruit borers may damage developing fruits. High humidity "
+            "and rain may increase fruit rot risk, while irregular watering may "
+            "increase fruit-cracking risk."
         ),
     },
 
-    # --------------------------------------------------------
-    # STAGE 4 - MID GROWTH
-    # --------------------------------------------------------
     "MidGrowth": {
         "display_name": "Mid-Growth Stage 🍊",
         "next_stage": "MatureFruit",
-
-        "transition_min": 28,
-        "transition_max": 35,
-
-        "harvest_min": 28,
-        "harvest_max": 35,
-
+        "transition_min": 60,
+        "transition_max": 70,
+        "harvest_min": 60,
+        "harvest_max": 70,
         "care_tip": (
             "Maintain consistent soil moisture, adequate drainage, and good airflow "
-            "while the fruit completes its final development."
+            "while the fruit continues developing toward maturity."
         ),
-
         "care_action": (
             "Inspect fruits regularly for cracking, rot, spots, or insect damage. "
-            "Avoid sudden changes in irrigation or soil moisture."
+            "Maintain consistent irrigation and avoid sudden changes in soil moisture."
         ),
-
         "risk_warning": (
-            "Changes in moisture and wet weather near maturity may increase "
-            "fruit cracking and disease risk."
+            "Sudden changes in moisture, heavy rainfall, or irregular irrigation "
+            "may increase fruit-cracking and disease risk as the fruit develops."
         ),
     },
 
-    # --------------------------------------------------------
-    # STAGE 5 - MATURE FRUIT
-    # --------------------------------------------------------
     "MatureFruit": {
         "display_name": "Mature Fruit Stage 🍎",
         "next_stage": None,
-
         "transition_min": 0,
         "transition_max": 0,
-
         "harvest_min": 0,
         "harvest_max": 0,
-
         "care_tip": (
-            "Check the fruit carefully for suitable maturity before harvesting."
+            "Check the fruit carefully for suitable maturity before harvesting. "
+            "Pomegranate should be harvested after reaching proper maturity."
         ),
-
         "care_action": (
-            "Assess maturity and harvest suitable fruits carefully by cutting "
-            "the stalk rather than pulling the fruit."
+            "Harvest suitable fruits carefully using pruning shears or a knife. "
+            "Cut the stalk rather than pulling the fruit and handle harvested "
+            "fruits gently."
         ),
-
         "risk_warning": (
-            "Do not harvest immature fruit expecting it to continue ripening "
-            "after harvest. Inspect mature fruits for cracking, damage, or rot."
+            "Over-mature fruits may crack or lose market quality. Heavy rain or "
+            "sudden changes in water availability may increase cracking risk, "
+            "and damaged mature fruits may be more vulnerable to decay."
         ),
     },
 }
 
 
-# ============================================================
-# GET LATEST IOT SOIL TEMPERATURE FROM FIREBASE
-# ============================================================
-
 def get_latest_soil_temperature(
     farmer_id: str | None,
 ) -> dict:
-    """
-    Read the latest IoT soil temperature stored in Firestore.
-
-    Existing teammate flow:
-        IoT device
-            ->
-        sensor_readings Firestore collection
-            ->
-        soilTemperature
-
-    IMPORTANT:
-    This function is READ-ONLY.
-
-    It does not modify:
-    - IoT code
-    - fertilizer code
-    - irrigation code
-    - Firebase sensor records
-
-    Soil temperature is used as environmental context only.
-    It does NOT add/subtract fixed harvest days.
-    """
-
-    # Farmer ID has not yet been connected
     if not farmer_id:
-
         return {
             "available": False,
             "temperature_celsius": None,
             "timestamp": None,
             "source": None,
+            "farmer_id": None,
+            "reading_id": None,
             "message": (
-                "Farmer soil sensor data is not connected to "
-                "this prediction request yet."
+                "No logged-in farmer ID was provided "
+                "for soil sensor lookup."
             ),
         }
 
     try:
-
         docs = (
             db.collection(SENSOR_COLLECTION)
             .where(
@@ -226,41 +158,38 @@ def get_latest_soil_temperature(
         latest_id = None
 
         for doc in docs:
-
             data = doc.to_dict()
 
-            timestamp = data.get("timestamp")
+            timestamp = data.get(
+                "timestamp"
+            )
 
-            # First available record
             if latest_data is None:
                 latest_data = data
                 latest_timestamp = timestamp
                 latest_id = doc.id
                 continue
 
-            # Choose newest timestamp
-            if (
-                timestamp is not None
-                and (
+            if timestamp is not None:
+                if (
                     latest_timestamp is None
                     or timestamp > latest_timestamp
-                )
-            ):
-                latest_data = data
-                latest_timestamp = timestamp
-                latest_id = doc.id
+                ):
+                    latest_data = data
+                    latest_timestamp = timestamp
+                    latest_id = doc.id
 
-        # No records found for farmer
         if latest_data is None:
-
             return {
                 "available": False,
                 "temperature_celsius": None,
                 "timestamp": None,
                 "source": None,
+                "farmer_id": farmer_id,
+                "reading_id": None,
                 "message": (
-                    "No IoT soil sensor reading was found "
-                    "for this farmer."
+                    "No soil sensor reading was found "
+                    "for the logged-in farmer."
                 ),
             }
 
@@ -269,19 +198,21 @@ def get_latest_soil_temperature(
         )
 
         if soil_temperature is None:
-
             return {
                 "available": False,
                 "temperature_celsius": None,
                 "timestamp": None,
-                "source": latest_data.get("source"),
+                "source": latest_data.get(
+                    "source"
+                ),
+                "farmer_id": farmer_id,
+                "reading_id": latest_id,
                 "message": (
-                    "The latest sensor record does not contain "
-                    "a soil temperature value."
+                    "The latest sensor record does not "
+                    "contain soilTemperature."
                 ),
             }
 
-        # Convert Firebase timestamp for JSON response
         timestamp_value = latest_timestamp
 
         if hasattr(
@@ -294,29 +225,29 @@ def get_latest_soil_temperature(
 
         return {
             "available": True,
-
-            "reading_id": latest_id,
-
             "temperature_celsius": round(
-                float(soil_temperature),
+                float(
+                    soil_temperature
+                ),
                 1,
             ),
-
             "timestamp": timestamp_value,
-
             "source": latest_data.get(
                 "source",
-                "IoT sensor",
+                "esp32_ble",
             ),
-
+            "farmer_id": latest_data.get(
+                "farmerId",
+                farmer_id,
+            ),
+            "reading_id": latest_id,
             "message": (
-                "Latest IoT soil temperature retrieved "
-                "from Firebase."
+                "Latest farmer soil temperature "
+                "retrieved from sensor_readings."
             ),
         }
 
     except Exception as e:
-
         print(
             f"Soil temperature Firebase error: {e}"
         )
@@ -326,39 +257,19 @@ def get_latest_soil_temperature(
             "temperature_celsius": None,
             "timestamp": None,
             "source": None,
+            "farmer_id": farmer_id,
+            "reading_id": None,
             "message": (
-                "Latest soil sensor reading could not "
-                "be retrieved."
+                "The latest soil sensor reading "
+                "could not be retrieved."
             ),
         }
 
-
-# ============================================================
-# CURRENT WEATHER API
-# ============================================================
 
 async def get_weather(
     lat: float = 9.7,
     lon: float = 80.0,
 ) -> dict:
-    """
-    Retrieve CURRENT weather from Open-Meteo.
-
-    IMPORTANT:
-    This is not an ML weather prediction model.
-
-    Open-Meteo provides current:
-    - air temperature
-    - relative humidity
-    - precipitation
-    - weather condition code
-
-    Your system interprets these values for
-    agricultural advisory.
-
-    Weather does NOT automatically alter harvest days.
-    """
-
     url = (
         "https://api.open-meteo.com/v1/forecast"
         f"?latitude={lat}"
@@ -371,12 +282,12 @@ async def get_weather(
     )
 
     try:
-
         async with httpx.AsyncClient(
             timeout=5.0
         ) as client:
-
-            response = await client.get(url)
+            response = await client.get(
+                url
+            )
 
             response.raise_for_status()
 
@@ -405,7 +316,6 @@ async def get_weather(
             0,
         )
 
-        # Open-Meteo rain / precipitation codes
         is_rainy = (
             (
                 precipitation is not None
@@ -420,25 +330,18 @@ async def get_weather(
 
         return {
             "available": True,
-
             "temperature": temperature,
-
             "humidity": humidity,
-
             "precipitation": precipitation,
-
             "weather_code": weather_code,
-
             "is_rainy": is_rainy,
         }
 
     except Exception as e:
-
         print(
             f"Weather API error: {e}"
         )
 
-        # Never use fake/default weather values
         return {
             "available": False,
             "temperature": None,
@@ -449,29 +352,10 @@ async def get_weather(
         }
 
 
-# ============================================================
-# TEMPERATURE COMPARISON
-# ============================================================
-
 def build_temperature_comparison(
     weather: dict,
     soil: dict,
 ) -> dict:
-    """
-    Compare CURRENT air temperature with the latest
-    IoT soil-temperature measurement.
-
-    IMPORTANT:
-    The difference is displayed for context only.
-
-    We do NOT say:
-        +5°C = add days
-        -5°C = subtract days
-
-    because there is no locally validated formula
-    supporting those fixed adjustments.
-    """
-
     air_temp = weather.get(
         "temperature"
     )
@@ -481,15 +365,15 @@ def build_temperature_comparison(
     )
 
     if (
-        not weather.get("available")
-        or
-        not soil.get("available")
-        or
-        air_temp is None
-        or
-        soil_temp is None
+        not weather.get(
+            "available"
+        )
+        or not soil.get(
+            "available"
+        )
+        or air_temp is None
+        or soil_temp is None
     ):
-
         return {
             "available": False,
             "air_temperature_celsius": air_temp,
@@ -509,19 +393,15 @@ def build_temperature_comparison(
 
     return {
         "available": True,
-
         "air_temperature_celsius": round(
             float(air_temp),
             1,
         ),
-
         "soil_temperature_celsius": round(
             float(soil_temp),
             1,
         ),
-
         "difference_celsius": difference,
-
         "message": (
             f"Current air temperature is "
             f"{float(air_temp):.1f}°C and the latest "
@@ -531,35 +411,11 @@ def build_temperature_comparison(
     }
 
 
-# ============================================================
-# ENVIRONMENTAL INTELLIGENCE
-# ============================================================
-
 def build_environment_status(
     predicted_class: str,
     weather: dict,
     soil: dict,
 ) -> dict:
-    """
-    Combine:
-
-        Current growth stage
-        +
-        Current weather
-        +
-        Latest IoT soil temperature
-
-    Output:
-        Favourable / Caution / Unknown
-        Reason
-        Farmer message
-        Harvest impact
-
-    IMPORTANT:
-    Environmental information does NOT add or
-    subtract arbitrary harvest days.
-    """
-
     weather_available = weather.get(
         "available",
         False,
@@ -570,12 +426,16 @@ def build_environment_status(
         False,
     )
 
-    temperature = weather.get(
+    air_temperature = weather.get(
         "temperature"
     )
 
     humidity = weather.get(
         "humidity"
+    )
+
+    precipitation = weather.get(
+        "precipitation"
     )
 
     is_rainy = weather.get(
@@ -587,74 +447,66 @@ def build_environment_status(
         "temperature_celsius"
     )
 
-    # ========================================================
-    # NO WEATHER + NO SOIL
-    # ========================================================
+    air_in_reference_range = (
+        weather_available
+        and air_temperature is not None
+        and 23 <= float(
+            air_temperature
+        ) <= 30
+    )
+
+    soil_in_reference_range = (
+        soil_available
+        and soil_temperature is not None
+        and 23 <= float(
+            soil_temperature
+        ) <= 30
+    )
 
     if (
         not weather_available
-        and
-        not soil_available
+        and not soil_available
     ):
-
         return {
             "level": "Unknown",
-
             "status": (
                 "Environmental data unavailable"
             ),
-
             "reason": (
-                "Current weather information and the "
-                "latest IoT soil temperature are not available."
+                "Current weather data and the latest "
+                "IoT soil temperature are unavailable."
             ),
-
             "farmer_message": (
-                "The normal stage-based estimate is being used. "
-                "Continue monitoring the plant and scan it again later."
+                "Continue normal stage-based monitoring "
+                "and check environmental conditions again later."
             ),
-
             "harvest_impact": (
-                "No environmental day adjustment has been applied."
+                "The estimated growth-stage date range "
+                "remains unchanged."
             ),
         }
 
-    # ========================================================
-    # RAINFALL CONDITION
-    # ========================================================
-
-    if weather_available and is_rainy:
-
+    if is_rainy:
         rain_reasons = {
-
             "Bud": (
-                "Rainy conditions may cause excess moisture "
-                "around the root zone. Good drainage is important "
-                "while buds are developing."
+                "Rainy conditions may increase moisture "
+                "around the root zone while buds are developing."
             ),
-
             "Flower": (
-                "Rainy conditions may increase disease risk "
-                "during flowering. Inspect flowers regularly "
-                "and maintain good airflow."
+                "Rainy conditions may increase flower damage, "
+                "flower drop, and disease pressure during flowering."
             ),
-
             "EarlyFruit": (
                 "Wet conditions may increase disease pressure "
-                "on young fruit. Check drainage and inspect "
-                "developing fruits regularly."
+                "on young developing fruits."
             ),
-
             "MidGrowth": (
-                "Rain and sudden changes in moisture near "
-                "maturity may increase fruit-cracking and "
-                "disease risk."
+                "Rain and sudden changes in moisture may increase "
+                "fruit-cracking and disease risk during fruit development."
             ),
-
             "MatureFruit": (
-                "Wet conditions may increase fruit cracking "
-                "or fruit-rot risk. Inspect mature fruit "
-                "carefully before harvesting."
+                "Wet conditions may increase cracking or fruit-rot "
+                "risk in mature fruits."
             ),
         }
 
@@ -666,218 +518,253 @@ def build_environment_status(
             ),
         )
 
-        if soil_available:
-
+        if air_temperature is not None:
             reason += (
-                f" The latest IoT soil temperature "
-                f"is {soil_temperature:.1f}°C."
+                f" Current air temperature is "
+                f"{float(air_temperature):.1f}°C."
+            )
+
+        if soil_available:
+            reason += (
+                f" Latest IoT soil temperature is "
+                f"{float(soil_temperature):.1f}°C."
             )
 
         return {
             "level": "Caution",
-
             "status": (
-                "Rainfall risk detected"
+                "Rainfall conditions need monitoring"
             ),
-
             "reason": reason,
-
             "farmer_message": (
-                "Maintain good drainage and continue "
-                "monitoring the plant. Check irrigation "
-                "and soil condition before adding more water."
+                "Maintain proper drainage, monitor soil moisture, "
+                "and avoid unnecessary additional irrigation "
+                "during wet conditions."
             ),
-
             "harvest_impact": (
-                "The normal stage-based time range is retained. "
-                "Continue monitoring because development may vary "
-                "under wet conditions."
+                "Environmental conditions are used only "
+                "for development status. The estimated "
+                "date range remains unchanged."
             ),
         }
 
-    # ========================================================
-    # AIR TEMPERATURE OUTSIDE REFERENCE RANGE
-    # ========================================================
-
     if (
         weather_available
-        and
-        temperature is not None
-        and
-        (
-            temperature < 23
-            or
-            temperature > 30
-        )
+        and air_temperature is not None
+        and not air_in_reference_range
     ):
-
-        if temperature > 30:
-
+        if float(
+            air_temperature
+        ) > 30:
             reason = (
                 f"Current air temperature is "
-                f"{temperature:.1f}°C, which is above "
-                "the usual ecological reference range "
-                "used for pomegranate cultivation."
+                f"{float(air_temperature):.1f}°C, "
+                "which is above the general 23–30°C "
+                "reference range used by this system."
             )
 
             farmer_message = (
-                "Monitor plant condition and irrigation "
-                "carefully because warmer conditions may "
-                "increase water stress."
+                "Monitor the plant and irrigation carefully "
+                "because prolonged warmer conditions may "
+                "increase plant water stress."
             )
 
         else:
-
             reason = (
                 f"Current air temperature is "
-                f"{temperature:.1f}°C, which is below "
-                "the usual ecological reference range "
-                "used for pomegranate cultivation."
+                f"{float(air_temperature):.1f}°C, "
+                "which is below the general 23–30°C "
+                "reference range used by this system."
             )
 
             farmer_message = (
-                "Plant development may be slower under "
-                "cooler conditions. Continue monitoring "
-                "the current growth stage."
+                "Continue monitoring the plant because prolonged "
+                "cooler conditions may influence normal development."
             )
 
         if soil_available:
-
             reason += (
-                f" The latest IoT soil temperature "
-                f"is {soil_temperature:.1f}°C."
+                f" Latest IoT soil temperature is "
+                f"{float(soil_temperature):.1f}°C."
             )
 
         return {
             "level": "Caution",
-
             "status": (
-                "Temperature needs monitoring"
+                "Air temperature needs monitoring"
             ),
-
             "reason": reason,
-
             "farmer_message": farmer_message,
-
             "harvest_impact": (
-                "The normal stage-based estimate is retained. "
-                "No fixed number of days is added or removed."
+                "Temperature does not add or subtract "
+                "days from the estimated growth-stage range."
             ),
         }
-
-    # ========================================================
-    # WEATHER UNAVAILABLE, SOIL AVAILABLE
-    # ========================================================
 
     if (
-        not weather_available
-        and
         soil_available
+        and soil_temperature is not None
+        and not soil_in_reference_range
     ):
+        if float(
+            soil_temperature
+        ) > 30:
+            reason = (
+                f"The latest IoT soil temperature is "
+                f"{float(soil_temperature):.1f}°C, "
+                "which is above the general 23–30°C "
+                "reference range used by this system."
+            )
+
+            farmer_message = (
+                "Monitor soil condition and irrigation carefully "
+                "and continue observing the plant for signs of stress."
+            )
+
+        else:
+            reason = (
+                f"The latest IoT soil temperature is "
+                f"{float(soil_temperature):.1f}°C, "
+                "which is below the general 23–30°C "
+                "reference range used by this system."
+            )
+
+            farmer_message = (
+                "Continue monitoring the soil and plant condition. "
+                "Persistent cooler soil conditions may require "
+                "additional attention."
+            )
+
+        if air_temperature is not None:
+            reason += (
+                f" Current air temperature is "
+                f"{float(air_temperature):.1f}°C."
+            )
 
         return {
-            "level": "Unknown",
-
+            "level": "Caution",
             "status": (
-                "Weather unavailable"
+                "Soil temperature needs monitoring"
             ),
-
-            "reason": (
-                f"Current weather information could not "
-                f"be retrieved. The latest IoT soil "
-                f"temperature is {soil_temperature:.1f}°C."
-            ),
-
-            "farmer_message": (
-                "Continue monitoring the plant. "
-                "The soil sensor reading is available, "
-                "but weather information is required for "
-                "a complete environmental assessment."
-            ),
-
+            "reason": reason,
+            "farmer_message": farmer_message,
             "harvest_impact": (
-                "The normal stage-based estimate is used."
+                "Soil temperature is used only for "
+                "development-condition assessment. "
+                "The estimated date range remains unchanged."
             ),
         }
-
-    # ========================================================
-    # WEATHER AVAILABLE, SOIL NOT CONNECTED
-    # ========================================================
 
     if (
         weather_available
-        and
-        not soil_available
+        and soil_available
+        and air_in_reference_range
+        and soil_in_reference_range
     ):
+        humidity_text = ""
+
+        if humidity is not None:
+            humidity_text = (
+                f" Relative humidity is "
+                f"{float(humidity):.0f}%."
+            )
 
         return {
             "level": "Favourable",
-
             "status": (
-                "Weather conditions acceptable"
+                "Normal development conditions"
             ),
-
             "reason": (
                 f"Current air temperature is "
-                f"{temperature:.1f}°C with no rainfall "
-                f"warning. Latest IoT soil temperature "
-                f"is not available for this request."
+                f"{float(air_temperature):.1f}°C and the latest "
+                f"IoT soil temperature is "
+                f"{float(soil_temperature):.1f}°C. "
+                f"Both are within the general 23–30°C "
+                f"reference range used by this system."
+                f"{humidity_text}"
             ),
-
             "farmer_message": (
-                "Continue normal irrigation, plant care, "
-                "and regular monitoring."
+                "Current temperature conditions are suitable "
+                "for normal monitoring. Continue regular crop "
+                "care and irrigation management."
             ),
-
             "harvest_impact": (
-                "Normal stage-based estimate applied."
+                "Environmental conditions do not change "
+                "the estimated growth-stage date range."
             ),
         }
 
-    # ========================================================
-    # BOTH WEATHER + SOIL AVAILABLE
-    # ========================================================
+    if (
+        weather_available
+        and not soil_available
+    ):
+        return {
+            "level": "Unknown",
+            "status": (
+                "Soil sensor data unavailable"
+            ),
+            "reason": (
+                f"Current air temperature is "
+                f"{float(air_temperature):.1f}°C. "
+                "No latest IoT soil-temperature reading "
+                "was available for the logged-in farmer."
+            ),
+            "farmer_message": (
+                "Continue normal plant monitoring. "
+                "Connect or update the soil sensor reading "
+                "for a complete environmental assessment."
+            ),
+            "harvest_impact": (
+                "The estimated growth-stage date range "
+                "remains unchanged."
+            ),
+        }
 
-    humidity_text = ""
-
-    if humidity is not None:
-
-        humidity_text = (
-            f" Current relative humidity is "
-            f"{humidity:.0f}%."
-        )
+    if (
+        not weather_available
+        and soil_available
+    ):
+        return {
+            "level": "Unknown",
+            "status": (
+                "Weather data unavailable"
+            ),
+            "reason": (
+                f"The latest IoT soil temperature is "
+                f"{float(soil_temperature):.1f}°C, "
+                "but current weather information could "
+                "not be retrieved."
+            ),
+            "farmer_message": (
+                "Continue monitoring the plant and soil. "
+                "Weather data is required for a complete "
+                "environmental assessment."
+            ),
+            "harvest_impact": (
+                "The estimated growth-stage date range "
+                "remains unchanged."
+            ),
+        }
 
     return {
         "level": "Favourable",
-
         "status": (
-            "Normal development expected"
+            "Weather conditions acceptable"
         ),
-
         "reason": (
-            f"Current air temperature is "
-            f"{temperature:.1f}°C and the latest "
-            f"IoT soil temperature is "
-            f"{soil_temperature:.1f}°C."
-            f"{humidity_text} "
-            "No major rainfall or air-temperature "
-            "warning is currently detected."
+            "No major environmental warning "
+            "is currently detected."
         ),
-
         "farmer_message": (
             "Continue normal irrigation, plant care, "
             "and regular monitoring."
         ),
-
         "harvest_impact": (
-            "Normal stage-based estimate applied."
+            "The estimated growth-stage date range "
+            "remains unchanged."
         ),
     }
 
-
-# ============================================================
-# MAIN GROWTH RESULT SERVICE
-# ============================================================
 
 async def build_growth_result(
     predicted_class: str,
@@ -885,38 +772,10 @@ async def build_growth_result(
     all_probabilities: dict,
     lat: float = 9.7,
     lon: float = 80.0,
-
-    # OPTIONAL so existing controller does not break
     farmer_id: str | None = None,
+    capture_date: str | None = None,
 ) -> dict:
-    """
-    Build complete growth-stage and harvest advisory.
-
-    CNN:
-        Detects the current growth stage.
-
-    Timeline:
-        Provides next-stage and remaining harvest range.
-
-    Weather:
-        Current Open-Meteo environmental information.
-
-    Soil:
-        Latest IoT soil temperature from Firebase.
-
-    IMPORTANT:
-        Weather and soil information provide advisory
-        context only.
-
-        They do NOT currently add/subtract fixed days.
-    """
-
-    # ========================================================
-    # VALIDATE CNN CLASS
-    # ========================================================
-
     if predicted_class not in STAGE_INFO:
-
         raise ValueError(
             f"Unknown growth stage: {predicted_class}"
         )
@@ -925,26 +784,29 @@ async def build_growth_result(
         predicted_class
     ]
 
-    # ========================================================
-    # CURRENT WEATHER
-    # ========================================================
+    if capture_date:
+        try:
+            captured_at = datetime.strptime(
+                capture_date,
+                "%Y-%m-%d",
+            )
+
+        except ValueError:
+            raise ValueError(
+                "capture_date must use YYYY-MM-DD format"
+            )
+
+    else:
+        captured_at = datetime.now()
 
     weather = await get_weather(
         lat,
         lon,
     )
 
-    # ========================================================
-    # LATEST IOT SOIL TEMPERATURE
-    # ========================================================
-
     soil = get_latest_soil_temperature(
         farmer_id
     )
-
-    # ========================================================
-    # AIR VS SOIL TEMPERATURE COMPARISON
-    # ========================================================
 
     temperature_comparison = (
         build_temperature_comparison(
@@ -953,10 +815,6 @@ async def build_growth_result(
         )
     )
 
-    # ========================================================
-    # ENVIRONMENTAL ADVISORY
-    # ========================================================
-
     environment = (
         build_environment_status(
             predicted_class,
@@ -964,10 +822,6 @@ async def build_growth_result(
             soil,
         )
     )
-
-    # ========================================================
-    # STAGE TIMELINE
-    # ========================================================
 
     transition_min = stage[
         "transition_min"
@@ -985,11 +839,13 @@ async def build_growth_result(
         "harvest_max"
     ]
 
-    # ========================================================
-    # MATURE FRUIT
-    # ========================================================
-
     if predicted_class == "MatureFruit":
+        estimated_start_date = captured_at
+        estimated_end_date = captured_at
+
+        estimated_date_range = (
+            "Mature stage detected"
+        )
 
         transition_range = (
             "Ready for maturity assessment"
@@ -1006,11 +862,26 @@ async def build_growth_result(
             "Check maturity indicators before harvesting."
         )
 
-    # ========================================================
-    # ALL OTHER STAGES
-    # ========================================================
-
     else:
+        estimated_start_date = (
+            captured_at
+            + timedelta(
+                days=transition_min
+            )
+        )
+
+        estimated_end_date = (
+            captured_at
+            + timedelta(
+                days=transition_max
+            )
+        )
+
+        estimated_date_range = (
+            f"{estimated_start_date.strftime('%d %b %Y')} "
+            f"– "
+            f"{estimated_end_date.strftime('%d %b %Y')}"
+        )
 
         transition_range = (
             f"{transition_min}–"
@@ -1022,87 +893,46 @@ async def build_growth_result(
             f"{harvest_max} days"
         )
 
-        # Midpoint retained only for compatibility
-        # with your current Flutter result screen.
         estimated_days = (
             harvest_min
-            +
-            harvest_max
+            + harvest_max
         ) // 2
 
         harvest_message = (
-            f"Estimated harvest window: "
+            f"Estimated remaining time to mature stage: "
             f"{harvest_range}"
         )
-
-    # ========================================================
-    # WEATHER DISPLAY
-    # ========================================================
 
     if not weather.get(
         "available"
     ):
-
         weather_condition = (
             "Unavailable"
-        )
-
-        weather_effect = (
-            "Weather unavailable — base "
-            "estimate used"
         )
 
     elif weather.get(
         "is_rainy"
     ):
-
         weather_condition = (
             "Rainy"
-        )
-
-        weather_effect = (
-            "Rainfall risk detected — "
-            "monitor crop condition"
         )
 
     elif environment[
         "level"
     ] == "Caution":
-
         weather_condition = (
             "Needs Monitoring"
         )
 
-        weather_effect = (
-            "Environmental caution — "
-            "base estimate retained"
-        )
-
     else:
-
         weather_condition = (
             "Favourable"
         )
 
-        weather_effect = (
-            "Normal conditions — "
-            "base estimate applied"
-        )
-
-    # ========================================================
-    # FINAL API RESPONSE
-    # ========================================================
-
     return {
-
         "status": "success",
 
-        # ----------------------------------------------------
-        # CNN RESULT
-        # ----------------------------------------------------
-
         "growth_stage": {
-
             "detected": predicted_class,
 
             "display_name": stage[
@@ -1123,45 +953,50 @@ async def build_growth_result(
             ),
         },
 
-        # ----------------------------------------------------
-        # NEXT STAGE
-        # ----------------------------------------------------
-
         "next_stage": stage[
             "next_stage"
         ],
 
         "transition_prediction": {
+            "min_days": transition_min,
 
-            "min_days": (
-                transition_min
+            "max_days": transition_max,
+
+            "range": transition_range,
+
+            "capture_date": (
+                captured_at.strftime(
+                    "%Y-%m-%d"
+                )
             ),
 
-            "max_days": (
-                transition_max
+            "estimated_start_date": (
+                estimated_start_date.strftime(
+                    "%Y-%m-%d"
+                )
             ),
 
-            "range": (
-                transition_range
+            "estimated_end_date": (
+                estimated_end_date.strftime(
+                    "%Y-%m-%d"
+                )
+            ),
+
+            "estimated_date_range": (
+                estimated_date_range
             ),
 
             "message": (
-                "Current stage is ready for "
-                "maturity assessment."
-                if predicted_class
-                == "MatureFruit"
+                "Current stage is ready for maturity assessment."
+                if predicted_class == "MatureFruit"
                 else
-                "Expected next-stage transition: "
+                f"Estimated time to reach "
+                f"{stage['next_stage']}: "
                 f"{transition_range}"
             ),
         },
 
-        # ----------------------------------------------------
-        # HARVEST ESTIMATION
-        # ----------------------------------------------------
-
         "harvest_prediction": {
-
             "estimated_days": (
                 estimated_days
             ),
@@ -1182,24 +1017,17 @@ async def build_growth_result(
                 harvest_message
             ),
 
-            # Weather and soil DO NOT currently
-            # alter the numerical range.
             "weather_adjusted": False,
 
             "soil_adjusted": False,
 
             "method": (
-                "Evidence-informed stage-based "
-                "harvest estimation"
+                "Farmer-observed stage-based "
+                "growth timeline estimation"
             ),
         },
 
-        # ----------------------------------------------------
-        # CURRENT WEATHER
-        # ----------------------------------------------------
-
         "weather": {
-
             "available": weather.get(
                 "available",
                 False,
@@ -1223,30 +1051,40 @@ async def build_growth_result(
                 )
             ),
 
+            "weather_code": (
+                weather.get(
+                    "weather_code"
+                )
+            ),
+
+            "is_rainy": (
+                weather.get(
+                    "is_rainy",
+                    False,
+                )
+            ),
+
             "condition": (
                 weather_condition
             ),
-
-            "effect_on_harvest": (
-                weather_effect
-            ),
         },
 
-        # ----------------------------------------------------
-        # IOT SOIL TEMPERATURE
-        # ----------------------------------------------------
-
         "soil": {
-
             "available": soil.get(
                 "available",
                 False,
             ),
 
-            "temperature_celsius": (
-                soil.get(
-                    "temperature_celsius"
-                )
+            "farmer_id": soil.get(
+                "farmer_id"
+            ),
+
+            "reading_id": soil.get(
+                "reading_id"
+            ),
+
+            "temperature_celsius": soil.get(
+                "temperature_celsius"
             ),
 
             "timestamp": soil.get(
@@ -1262,20 +1100,11 @@ async def build_growth_result(
             ),
         },
 
-        # ----------------------------------------------------
-        # AIR + SOIL COMPARISON
-        # ----------------------------------------------------
-
         "temperature_comparison": (
             temperature_comparison
         ),
 
-        # ----------------------------------------------------
-        # ENVIRONMENTAL INTELLIGENCE
-        # ----------------------------------------------------
-
         "environment": {
-
             "level": environment[
                 "level"
             ],
@@ -1297,12 +1126,7 @@ async def build_growth_result(
             ],
         },
 
-        # ----------------------------------------------------
-        # FARMER GUIDANCE
-        # ----------------------------------------------------
-
         "recommendations": {
-
             "care_tip": stage[
                 "care_tip"
             ],

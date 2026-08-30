@@ -70,6 +70,12 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /growth_predictions/{recordId} {
+      allow create: if createsFarmerDoc();
+      allow read: if ownsFarmerDoc();
+      allow update, delete: if false;
+    }
+
     // Application logs can be completed later (end time, actual amount).
     match /irrigation_logs/{recordId} {
       allow create: if createsFarmerDoc();
