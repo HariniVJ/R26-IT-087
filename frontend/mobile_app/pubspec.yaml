@@ -30,6 +30,10 @@ dependencies:
   firebase_core: ^4.14.0
   firebase_auth: ^6.6.0
   cloud_firestore: ^6.9.0
+  path_provider: ^2.1.6
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+  firebase_storage: 13.5.0
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -64,6 +68,10 @@ flutter:
     - assets/images/Early_Fruit.jpg
     - assets/images/Mature_fruit.jpg
     - assets/images/Mid_Growth.jpg
+    - assets/models/binary_pomegranate_validator.tflite
+    - assets/models/pomegranate_disease_classifier.tflite
+    - assets/models/pomegranate_severity_seg_v2.tflite
+
     - assets/models/pomegranate_yolo.tflite
     - assets/models/pomegranate_cnn.tflite
     - assets/models/growth_yolo_labels.txt

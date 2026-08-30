@@ -8,6 +8,10 @@ import 'firebase_options.dart';
 import 'l10n/app_strings.dart';
 import 'screens/splash_view/splash_view.dart';
 import 'services/auth/auth_service.dart';
+import 'screens/disease/disease_view.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,10 +24,17 @@ Future<void> main() async {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     }
+
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+    
   } catch (e) {
     debugPrint('Firebase initialization failed: $e');
   }
 
+  await Permission.notification.request();
   await AuthService.instance.loadSession();
   await LanguageController.instance.load();
 
