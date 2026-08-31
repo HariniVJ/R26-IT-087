@@ -141,6 +141,27 @@ class _DiseaseViewState extends State<DiseaseView>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: BrandColor.background,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: BrandColor.darkText,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Disease Detection',
+          style: TextStyle(
+            color: BrandColor.darkText,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        centerTitle: true,
+      ),
+
+
       bottomNavigationBar: const AppBottomNavBar(current: AppNavTab.home),
       body: SafeArea(
         child: SingleChildScrollView(
