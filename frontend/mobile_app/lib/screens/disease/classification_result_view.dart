@@ -293,9 +293,13 @@ class _ClassificationResultViewState extends State<ClassificationResultView> {
                 child: _statCard(
                   icon: _severityIcon,
                   label: 'Severity',
+                  // FIX: was the literal string 'result.severityLevel'
+                  // (missing $ interpolation) — now correctly shows the
+                  // actual level + percentage, e.g. "Moderate (41%)".
                   value: isHealthy
-                      ? 'N/A'
-                      : '${result.severityLevel} (${result.severityPercentage.toStringAsFixed(1)}%)',
+                      ? 'No Disease'
+                      : '${result.severityLevel} '
+                            '(${result.severityPercentage.toStringAsFixed(0)}%)',
                   color: isHealthy ? BrandColor.lightText : _severityColor,
                 ),
               ),
