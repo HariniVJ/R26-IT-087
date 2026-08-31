@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../l10n/app_strings.dart';
 import '../../models/soil_sensor_reading.dart';
 import '../firebase/firestore_service.dart';
 
@@ -37,48 +38,77 @@ class SoilBluetoothService {
   final ValueNotifier<String?> errorMessage = ValueNotifier<String?>(null);
 
   Future<void> connect() async {
-    if (_connecting) return;
+    if (_connecting || isConnected.value) return;
     _connecting = true;
     _shouldReconnect = true;
     errorMessage.value = null;
 
     try {
-      await _requestPermissions();
+      await _prepareAdapter();
       await FlutterBluePlus.stopScan();
 
       isScanning.value = true;
-      status.value = 'Scanning for ESP32 sensor...';
+      status.value = t('connectingDevice');
       isConnected.value = false;
 
-      BluetoothDevice? target;
+      final already = _findKnownDevice(FlutterBluePlus.connectedDevices);
+      if (already != null) {
+        await _completeConnection(already);
+        return;
+      }
 
+      try {
+        final bonded = await FlutterBluePlus.bondedDevices;
+        final known = _findKnownDevice(bonded);
+        if (known != null) {
+          await _completeConnection(known);
+          return;
+        }
+      } catch (_) {}
+
+      final found = Completer<BluetoothDevice>();
       await _scanSub?.cancel();
-      _scanSub = FlutterBluePlus.scanResults.listen((results) async {
+      _scanSub = FlutterBluePlus.scanResults.listen((results) {
+        if (found.isCompleted) return;
         for (final result in results) {
-          final name = result.device.platformName;
-          final advName = result.advertisementData.advName;
-          if (name == deviceName || advName == deviceName) {
-            target = result.device;
-            await FlutterBluePlus.stopScan();
-            await _scanSub?.cancel();
-            await _completeConnection(target!);
+          if (_isSensor(result.device.platformName) ||
+              _isSensor(result.advertisementData.advName)) {
+            found.complete(result.device);
             return;
           }
         }
       });
 
-      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 10));
-      await Future.delayed(const Duration(seconds: 11));
+      await FlutterBluePlus.startScan(
+        timeout: const Duration(seconds: 15),
+        androidUsesFineLocation: true,
+        androidScanMode: AndroidScanMode.lowLatency,
+      );
 
-      if (target == null && !isConnected.value) {
-        await _scanSub?.cancel();
+      BluetoothDevice? target;
+      try {
+        target = await found.future.timeout(const Duration(seconds: 15));
+      } on TimeoutException {
+        target = null;
+      }
+
+      await FlutterBluePlus.stopScan();
+      await _scanSub?.cancel();
+
+      if (target != null) {
+        await _completeConnection(target);
+        return;
+      }
+
+      if (!isConnected.value) {
         isScanning.value = false;
-        status.value = 'ESP32 not found. Restart the sensor and try again.';
+        status.value = t('bleNotFound');
+        errorMessage.value = t('bleBusyOtherPhone');
       }
     } catch (e) {
       isScanning.value = false;
       isConnected.value = false;
-      status.value = 'Bluetooth error: $e';
+      status.value = e.toString().replaceFirst('Exception: ', '');
       errorMessage.value = status.value;
     } finally {
       _connecting = false;
@@ -179,10 +209,54 @@ class SoilBluetoothService {
     }
   }
 
-  Future<void> _requestPermissions() async {
-    await Permission.bluetoothScan.request();
-    await Permission.bluetoothConnect.request();
-    await Permission.location.request();
+  bool _isSensor(String? name) {
+    final n = (name ?? '').trim().toLowerCase();
+    if (n.isEmpty) return false;
+    return n == deviceName.toLowerCase() || n.contains('soil sensor');
+  }
+
+  BluetoothDevice? _findKnownDevice(Iterable<BluetoothDevice> devices) {
+    for (final device in devices) {
+      if (_isSensor(device.platformName) || _isSensor(device.advName)) {
+        return device;
+      }
+    }
+    return null;
+  }
+
+  Future<void> _prepareAdapter() async {
+    if (!await FlutterBluePlus.isSupported) {
+      throw Exception(t('bleNotSupported'));
+    }
+
+    await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.bluetooth,
+      Permission.locationWhenInUse,
+    ].request();
+
+    final scanOk = await Permission.bluetoothScan.isGranted ||
+        await Permission.locationWhenInUse.isGranted ||
+        await Permission.bluetooth.isGranted;
+    final connectOk = await Permission.bluetoothConnect.isGranted ||
+        await Permission.bluetooth.isGranted ||
+        await Permission.locationWhenInUse.isGranted;
+    if (!scanOk && !connectOk) {
+      throw Exception(t('blePermissionDenied'));
+    }
+
+    var adapter = await FlutterBluePlus.adapterState.first;
+    if (adapter != BluetoothAdapterState.on) {
+      try {
+        await FlutterBluePlus.turnOn();
+        adapter = await FlutterBluePlus.adapterState
+            .firstWhere((state) => state == BluetoothAdapterState.on)
+            .timeout(const Duration(seconds: 8));
+      } catch (_) {
+        throw Exception(t('bleOff'));
+      }
+    }
   }
 
   Future<void> dispose() async {

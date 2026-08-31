@@ -255,6 +255,14 @@ const _en = {
   'connectingDevice': 'Connecting...',
   'connectDevice': 'Connect Device',
   'connectionFailed': 'Could not connect. Tap to try again.',
+  'bleNotSupported': 'This phone does not support Bluetooth Low Energy.',
+  'blePermissionDenied':
+      'Allow Bluetooth (and Location on older Android) in phone settings, then tap Connect Device.',
+  'bleOff': 'Turn on Bluetooth and try again.',
+  'bleBusyOtherPhone':
+      'පස් සංවේදකය දැනටමත් වෙනත් දුරකථනයකට සම්බන්ධයි. එහි විසන්ධි කරන්න හෝ සංවේදකය නැවත ආරම්භ කර මෙහි සම්බන්ධ කරන්න.',
+  'bleNotFound':
+      'ESP32 හමු නොවීය. Bluetooth ක්‍රියාත්මක කර, සංවේදකය අසල සිට, අනෙක් දුරකථනය විසන්ධි කර නැවත උත්සාහ කරන්න.',
   'doNotIrrigateTitle': 'Do Not Irrigate',
   'doNotIrrigateBody':
       'Heavy rain or thunderstorms are expected. Irrigation is not required now.',
@@ -457,6 +465,14 @@ const _si = {
   'connectingDevice': 'සම්බන්ධ වෙමින්...',
   'connectDevice': 'උපාංගය සම්බන්ධ කරන්න',
   'connectionFailed': 'සම්බන්ධ විය නොහැක. නැවත උත්සාහ කරන්න.',
+  'bleNotSupported': 'මෙම දුරකථනය Bluetooth Low Energy සඳහා සහාය නොදක්වයි.',
+  'blePermissionDenied':
+      'දුරකථන සැකසුම් තුළ Bluetooth (පැරණි Android හි Location ද) ඉඩ දී Connect Device තබන්න.',
+  'bleOff': 'Bluetooth ක්‍රියාත්මක කර නැවත උත්සාහ කරන්න.',
+  'bleBusyOtherPhone':
+      'පස් සංවේදකය දැනටමත් වෙනත් දුරකථනයකට සම්බන්ධයි. එහි විසන්ධි කරන්න හෝ සංවේදකය නැවත ආරම්භ කර මෙහි සම්බන්ධ කරන්න.',
+  'bleNotFound':
+      'ESP32 හමු නොවීය. Bluetooth ක්‍රියාත්මක කර, සංවේදකය අසල සිට, අනෙක් දුරකථනය විසන්ධි කර නැවත උත්සාහ කරන්න.',
   'doNotIrrigateTitle': 'ජලය යෙදීමෙන් වළකින්න',
   'doNotIrrigateBody':
       'දැඩි වැස්සක් හෝ ගිගුරුම් සහිත වැස්සක් බලාපොරොත්තුයි. දැන් ජල සම්පාදනය අවශ්‍ය නැත.',
@@ -659,6 +675,14 @@ const _ta = {
   'connectingDevice': 'இணைக்கிறது...',
   'connectDevice': 'சாதனத்தை இணைக்கவும்',
   'connectionFailed': 'இணைக்க முடியவில்லை. மீண்டும் முயலவும்.',
+  'bleNotSupported': 'இந்த தொலைபேசி Bluetooth Low Energy ஐ ஆதரிக்கவில்லை.',
+  'blePermissionDenied':
+      'தொலைபேசி அமைப்புகளில் Bluetooth (பழைய Android-ல் Location) அனுமதித்து Connect Device அழுத்தவும்.',
+  'bleOff': 'Bluetooth-ஐ இயக்கி மீண்டும் முயலவும்.',
+  'bleBusyOtherPhone':
+      'පස් සංවේදකය දැනටමත් වෙනත් දුරකථනයකට සම්බන්ධයි. එහි විසන්ධි කරන්න හෝ සංවේදකය නැවත ආරම්භ කර මෙහි සම්බන්ධ කරන්න.',
+  'bleNotFound':
+      'ESP32 හමු නොවීය. Bluetooth ක්‍රියාත්මක කර, සංවේදකය අසල සිට, අනෙක් දුරකථනය විසන්ධි කර නැවත උත්සාහ කරන්න.',
   'doNotIrrigateTitle': 'நீர்ப்பாசனம் செய்ய வேண்டாம்',
   'doNotIrrigateBody':
       'கனமழை அல்லது இடியுடன் கூடிய மழை எதிர்பார்க்கப்படுகிறது. இப்போது நீர்ப்பாசனம் தேவையில்லை.',
