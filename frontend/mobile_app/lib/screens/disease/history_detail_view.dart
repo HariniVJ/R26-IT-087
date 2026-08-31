@@ -6,6 +6,12 @@ import '../../common/brand_color.dart';
 import '../../models/Disease_prediction_result_model.dart';
 
 class HistoryDetailView extends StatelessWidget {
+  // `result` is a PredictionResultModel — its `severityLevel` and
+  // `severityPercentage` fields are populated by DiseaseService
+  // (disease_service.dart) directly from
+  // ModelInferenceService.analyzeSeverity()'s SeverityResult
+  // (.level -> severityLevel, .percentage -> severityPercentage).
+  // No field-name mismatch here; this mapping is correct end-to-end.
   final PredictionResultModel result;
 
   const HistoryDetailView({super.key, required this.result});
@@ -60,6 +66,8 @@ class HistoryDetailView extends StatelessWidget {
 
             _row('Disease', result.diseaseName.replaceAll('_', ' ')),
 
+            // result.severityLevel  -> e.g. "Mild" / "Moderate" / "Severe" / "N/A"
+            // result.severityPercentage -> e.g. 42.5
             _row(
               'Severity',
               '${result.severityLevel} '
