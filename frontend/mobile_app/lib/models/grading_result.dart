@@ -3,10 +3,20 @@ class GradingResult {
   final String userId;
   final String quality;
   final double confidence;
-  final String? defectType; 
-  final double? severityPercent; 
-  final int? weightGrams; 
+  final String? defectType;
+  final double? severityPercent;
+  final int? weightGrams;
   final String recommendation;
+
+  // 🆕 FIX: these 3 fields were missing from the model, so the
+  // recommendation_service's explanation / waste_usage / safety_note
+  // were never saved or displayed anywhere (history_detail_screen.dart
+  // was already reading result.explanation / result.wasteUsage /
+  // result.safetyNote, but the model never had them -> always null).
+  final String? explanation;
+  final String? wasteUsage;
+  final String? safetyNote;
+
   final String? imageUrl;
   final String? createdAt;
 
@@ -19,6 +29,9 @@ class GradingResult {
     this.severityPercent,
     this.weightGrams,
     required this.recommendation,
+    this.explanation,
+    this.wasteUsage,
+    this.safetyNote,
     this.imageUrl,
     this.createdAt,
   });
@@ -34,6 +47,9 @@ class GradingResult {
       severityPercent: (json['severity_percent'] as num?)?.toDouble(),
       weightGrams: (json['weight_grams'] as num?)?.toInt(),
       recommendation: json['recommendation'] as String? ?? '',
+      explanation: json['explanation'] as String?,
+      wasteUsage: json['waste_usage'] as String?,
+      safetyNote: json['safety_note'] as String?,
       imageUrl: json['image_url'] as String?,
       createdAt: json['created_at'] as String?,
     );
@@ -47,12 +63,19 @@ class GradingResult {
     'severity_percent': severityPercent,
     'weight_grams': weightGrams,
     'recommendation': recommendation,
+    'explanation': explanation,
+    'waste_usage': wasteUsage,
+    'safety_note': safetyNote,
     'image_url': imageUrl,
     'created_at': createdAt,
   };
 
   String get confidencePercent => '${(confidence * 100).toStringAsFixed(1)}%';
   double get confidenceArc => confidence.clamp(0.0, 1.0);
+
+  String get severityDisplay => severityPercent != null
+      ? '${severityPercent!.toStringAsFixed(1)}%'
+      : 'N/A';
 
   String get displayDate {
     if (createdAt == null) return '';
@@ -78,8 +101,6 @@ class GradingResult {
     }
   }
 
-  // grading_result.dart-ல், displayDate getter-க்கு கீழே சேருங்க
-
   DateTime? get dateTime {
     if (createdAt == null) return null;
     try {
@@ -89,5 +110,3 @@ class GradingResult {
     }
   }
 }
-
-

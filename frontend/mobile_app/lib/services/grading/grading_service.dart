@@ -37,8 +37,20 @@ class GradingService {
         ruleRow?['recommended_usage'] as String? ??
         'Manual inspection recommended';
 
+    // 🆕 FIX: previously only 'recommended_usage' was read from the rule
+    // row, so explanation / waste_usage / safety_note were silently
+    // dropped and never reached the UI. Pull them out here too.
+    final explanation = ruleRow?['explanation'] as String?;
+    final wasteUsage = ruleRow?['waste_usage'] as String?;
+    final safetyNote = ruleRow?['safety_note'] as String?;
+
     String? imageUrl;
     if (imageFile != null) {
+      // Image is uploaded to Firebase Storage first, and the returned
+      // download URL is what actually gets stored in Firestore below
+      // (via GradingResult.imageUrl -> toJson()['image_url']). History
+      // screens then just Image.network(result.imageUrl) that URL back —
+      // no separate fetch step is needed.
       imageUrl = await _imageStorage.uploadGradingImage(imageFile, userId);
     }
 
@@ -51,6 +63,9 @@ class GradingService {
       severityPercent: severityPercent,
       weightGrams: weightGrams,
       recommendation: recommendation,
+      explanation: explanation,
+      wasteUsage: wasteUsage,
+      safetyNote: safetyNote,
       imageUrl: imageUrl,
       createdAt: DateTime.now().toIso8601String(),
     );

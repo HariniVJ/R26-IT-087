@@ -97,7 +97,7 @@ class RecommendationService {
       'severity_max': 0.0,
       'weight_min': 1,
       'weight_max': _maximumWeight,
-      'recommended_usage': 'Local Fresh Market or Controlled Food Processing',
+      'recommended_usage': 'Local Fresh Market',
       'explanation':
           'The fruit is classified as medium quality with minor cosmetic or '
           'appearance-related imperfections but no specific severe defect was '

@@ -1,5 +1,4 @@
 // lib/screens/history_screen.dart
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../models/grading_result.dart';
 import '../../services/grading/grading_service.dart';
@@ -29,6 +28,10 @@ class _HistoryScreenState extends State<HistoryScreen>
   _QFilter _qFilter = _QFilter.all;
   late final AnimationController _listCtrl;
 
+  // 🆕 Multi-select state
+  bool _selectionMode = false;
+  final Set<String> _selectedIds = {};
+
   static const _red = Color(0xFFC1121F);
   static const _redSoft = Color(0xFFFFEEF3);
   static const _textDark = Color(0xFF1F2937);
@@ -52,12 +55,13 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Future<void> _loadHistory({bool silent = false}) async {
-    if (!silent)
+    if (!silent) {
       setState(() {
         _loading = true;
         _error = null;
         _isOffline = false;
       });
+    }
 
     try {
       final results = await _service.getHistory(widget.userId);
@@ -99,6 +103,82 @@ class _HistoryScreenState extends State<HistoryScreen>
     setState(() => _filtered = list);
   }
 
+  // ══════════════════════════════════════════════════════════════
+  // 🆕 SELECTION MODE
+  // ══════════════════════════════════════════════════════════════
+
+  void _enterSelectionMode(String id) {
+    setState(() {
+      _selectionMode = true;
+      _selectedIds
+        ..clear()
+        ..add(id);
+    });
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+      if (_selectedIds.isEmpty) _selectionMode = false;
+    });
+  }
+
+  void _exitSelectionMode() {
+    setState(() {
+      _selectionMode = false;
+      _selectedIds.clear();
+    });
+  }
+
+  bool get _allSelected =>
+      _filtered.isNotEmpty && _selectedIds.length == _filtered.length;
+
+  void _toggleSelectAll() {
+    setState(() {
+      if (_allSelected) {
+        _selectedIds.clear();
+        _selectionMode = false;
+      } else {
+        _selectedIds
+          ..clear()
+          ..addAll(_filtered.map((r) => r.id));
+        _selectionMode = true;
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_selectedIds.isEmpty) return;
+    final count = _selectedIds.length;
+    final ok = await _confirmDialog(
+      'Delete $count result${count > 1 ? "s" : ""}?',
+      'This cannot be undone.',
+    );
+    if (!ok) return;
+
+    final idsToDelete = Set<String>.from(_selectedIds);
+    try {
+      for (final id in idsToDelete) {
+        await _service.deleteOne(id);
+      }
+      setState(() {
+        _all.removeWhere((r) => idsToDelete.contains(r.id));
+        _selectedIds.clear();
+        _selectionMode = false;
+      });
+      _applyFilters();
+      _showSnack('$count result${count > 1 ? "s" : ""} deleted');
+    } catch (e) {
+      _showSnack('Delete failed — check your connection', isError: true);
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+
   Future<void> _deleteOne(GradingResult item) async {
     final ok = await _confirmDialog(
       'Delete this result?',
@@ -129,6 +209,8 @@ class _HistoryScreenState extends State<HistoryScreen>
       setState(() {
         _all.clear();
         _filtered.clear();
+        _selectionMode = false;
+        _selectedIds.clear();
       });
       _showSnack('All history cleared');
     } catch (e) {
@@ -184,23 +266,39 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            if (_isOffline) _buildOfflineBanner(),
-            _buildQualityTabs(),
-            const SizedBox(height: 8),
-            Expanded(child: _buildBody()),
-          ],
+    return PopScope(
+      canPop: !_selectionMode,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _selectionMode) _exitSelectionMode();
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              if (_isOffline) _buildOfflineBanner(),
+              if (!_selectionMode) _buildQualityTabs(),
+              const SizedBox(height: 8),
+              Expanded(child: _buildBody()),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader() => Container(
+  // ══════════════════════════════════════════════════════════════
+  // HEADER — switches between normal view and selection view
+  // ══════════════════════════════════════════════════════════════
+
+  Widget _buildHeader() {
+    if (_selectionMode) return _buildSelectionHeader();
+    return _buildNormalHeader();
+  }
+
+  Widget _buildNormalHeader() => Container(
+    key: const ValueKey('normal-header'),
     padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
     decoration: const BoxDecoration(
       color: Colors.white,
@@ -247,6 +345,60 @@ class _HistoryScreenState extends State<HistoryScreen>
           icon: const Icon(Icons.delete_sweep_rounded, color: _red),
           tooltip: 'Delete all',
           onPressed: _deleteAll,
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildSelectionHeader() => Container(
+    key: const ValueKey('selection-header'),
+    padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
+    decoration: BoxDecoration(
+      color: _red,
+      border: const Border(bottom: BorderSide(color: _border)),
+    ),
+    child: Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
+          onPressed: _exitSelectionMode,
+        ),
+        Expanded(
+          child: Text(
+            '${_selectedIds.length} selected',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        TextButton.icon(
+          onPressed: _toggleSelectAll,
+          icon: Icon(
+            _allSelected
+                ? Icons.check_box_rounded
+                : Icons.check_box_outline_blank_rounded,
+            color: Colors.white,
+            size: 18,
+          ),
+          label: Text(
+            _allSelected ? 'Unselect All' : 'Select All',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.delete_outline_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
+          tooltip: 'Delete selected',
+          onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
         ),
       ],
     ),
@@ -340,14 +492,16 @@ class _HistoryScreenState extends State<HistoryScreen>
   }
 
   Widget _buildBody() {
-    if (_loading)
+    if (_loading) {
       return const Center(child: CircularProgressIndicator(color: _red));
+    }
     if (_filtered.isEmpty) return _buildEmpty();
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       itemCount: _filtered.length,
       itemBuilder: (_, i) {
+        final item = _filtered[i];
         final delay = i * 0.05;
         return AnimatedBuilder(
           animation: _listCtrl,
@@ -359,8 +513,25 @@ class _HistoryScreenState extends State<HistoryScreen>
             );
           },
           child: _HistoryCard(
-            result: _filtered[i],
-            onDelete: () => _deleteOne(_filtered[i]),
+            result: item,
+            selectionMode: _selectionMode,
+            selected: _selectedIds.contains(item.id),
+            onDelete: () => _deleteOne(item),
+            onTap: () {
+              if (_selectionMode) {
+                _toggleSelection(item.id);
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistoryDetailScreen(result: item),
+                  ),
+                );
+              }
+            },
+            onLongPress: () {
+              if (!_selectionMode) _enterSelectionMode(item.id);
+            },
           ),
         );
       },
@@ -391,13 +562,28 @@ class _HistoryScreenState extends State<HistoryScreen>
   );
 }
 
-// _HistoryCard build() method-ல், Column(children: [Container(height:4,...), Padding(...)])
-// இதற்கு பதிலா:
+// ══════════════════════════════════════════════════════════════════
+// HISTORY CARD — cleaner layout: image on the left, no confidence
+// arc (just a compact percentage chip), long-press to multi-select,
+// checkbox overlay on the thumbnail while in selection mode.
+// ══════════════════════════════════════════════════════════════════
 
 class _HistoryCard extends StatelessWidget {
   final GradingResult result;
+  final bool selectionMode;
+  final bool selected;
   final VoidCallback onDelete;
-  const _HistoryCard({required this.result, required this.onDelete});
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  const _HistoryCard({
+    required this.result,
+    required this.selectionMode,
+    required this.selected,
+    required this.onDelete,
+    required this.onTap,
+    required this.onLongPress,
+  });
 
   static const _red = Color(0xFFC1121F);
   static const _textDark = Color(0xFF1F2937);
@@ -409,6 +595,151 @@ class _HistoryCard extends StatelessWidget {
     final fg = QualityTheme.fgColor(result.quality);
     final bg = QualityTheme.bgColor(result.quality);
     final qualityLabel = QualityTheme.label(result.quality);
+
+    final card = AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: selected ? _red.withOpacity(0.05) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: selected ? _red : _border,
+          width: selected ? 1.6 : 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _red.withOpacity(selected ? 0.10 : 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(19),
+        child: Column(
+          children: [
+            Container(height: 4, color: fg),
+            InkWell(
+              onTap: onTap,
+              onLongPress: onLongPress,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _thumbnail(bg),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: fg.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  qualityLabel,
+                                  style: TextStyle(
+                                    color: fg,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              // 🔧 simple confidence chip — replaces the
+                              // circular arc, just plain % text.
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF3F4F6),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  result.confidencePercent,
+                                  style: const TextStyle(
+                                    color: _textSoft,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 7),
+                          Text(
+                            result.recommendation,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _textDark,
+                              fontSize: 12,
+                              height: 1.3,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          if (result.defectType != null) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              '${result.defectType} · ${result.severityDisplay}',
+                              style: const TextStyle(
+                                color: _textSoft,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 4),
+                          Text(
+                            result.displayDate,
+                            style: const TextStyle(
+                              color: _textSoft,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (!selectionMode)
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 20,
+                          color: _red,
+                        ),
+                        onPressed: onDelete,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      )
+                    else
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Colors.transparent,
+                        size: 20,
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    // Swipe-to-delete only when NOT in selection mode, so it doesn't
+    // fight with the long-press / checkbox selection gestures.
+    if (selectionMode) return card;
 
     return Dismissible(
       key: Key(result.id),
@@ -428,231 +759,100 @@ class _HistoryCard extends StatelessWidget {
           size: 28,
         ),
       ),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _border),
-          boxShadow: [
-            BoxShadow(
-              color: _red.withOpacity(0.06),
-              blurRadius: 14,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Column(
-            children: [
-              Container(height: 4, color: fg),
-              // 🆕 whole row tappable → detail screen
-              InkWell(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => HistoryDetailScreen(result: result),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 🔧 Square thumbnail
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
-                        child: SizedBox(
-                          width: 64,
-                          height: 64,
-                          child: result.imageUrl != null
-                              ? Image.network(
-                                  result.imageUrl!,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, progress) =>
-                                      progress == null
-                                      ? child
-                                      : Container(
-                                          color: bg,
-                                          child: const Center(
-                                            child: SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                  errorBuilder: (_, __, ___) => Container(
-                                    color: bg,
-                                    child: Center(
-                                      child: Text(
-                                        QualityTheme.emoji(result.quality),
-                                        style: const TextStyle(fontSize: 26),
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  color: bg,
-                                  child: Center(
-                                    child: Text(
-                                      QualityTheme.emoji(result.quality),
-                                      style: const TextStyle(fontSize: 26),
-                                    ),
-                                  ),
-                                ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: fg.withOpacity(0.12),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                qualityLabel,
-                                style: TextStyle(
-                                  color: fg,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
+      child: card,
+    );
+  }
+
+  Widget _thumbnail(Color bg) {
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: SizedBox(
+            width: 64,
+            height: 64,
+            child: result.imageUrl != null && result.imageUrl!.isNotEmpty
+                ? Image.network(
+                    result.imageUrl!,
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, progress) =>
+                        progress == null
+                        ? child
+                        : Container(
+                            color: bg,
+                            child: const Center(
+                              child: SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
                                 ),
                               ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              result.recommendation,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: _textDark,
-                                fontSize: 12,
-                                height: 1.3,
-                              ),
-                            ),
-                            if (result.defectType != null) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                '${result.defectType} · ${result.severityPercent?.toStringAsFixed(1) ?? "N/A"}%',
-                                style: const TextStyle(
-                                  color: _textSoft,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 4),
-                            Text(
-                              result.displayDate,
-                              style: const TextStyle(
-                                color: _textSoft,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        children: [
-                          _ConfidenceArc(
-                            value: result.confidenceArc,
-                            color: fg,
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            result.confidencePercent,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: fg,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          size: 20,
-                          color: _red,
+                    errorBuilder: (_, __, ___) => Container(
+                      color: bg,
+                      child: Center(
+                        child: Text(
+                          QualityTheme.emoji(result.quality),
+                          style: const TextStyle(fontSize: 26),
                         ),
-                        onPressed: onDelete,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
                       ),
-                    ],
+                    ),
+                  )
+                : Container(
+                    color: bg,
+                    child: Center(
+                      child: Text(
+                        QualityTheme.emoji(result.quality),
+                        style: const TextStyle(fontSize: 26),
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ],
           ),
         ),
-      ),
+        // 🆕 selection checkbox overlay
+        if (selectionMode)
+          Positioned(
+            top: -4,
+            left: -4,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? _red : Colors.white,
+                border: Border.all(
+                  color: selected ? _red : _border,
+                  width: 1.6,
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+              child: selected
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 14,
+                    )
+                  : null,
+            ),
+          ),
+        // dim the image slightly when selected, like gallery apps
+        if (selectionMode && selected)
+          Positioned.fill(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: Container(color: _red.withOpacity(0.18)),
+            ),
+          ),
+      ],
     );
   }
-}
-
-
-class _ConfidenceArc extends StatelessWidget {
-  final double value;
-  final Color color;
-  const _ConfidenceArc({required this.value, required this.color});
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 36,
-    height: 36,
-    child: CustomPaint(
-      painter: _ArcPainter(value: value.clamp(0.0, 1.0), color: color),
-    ),
-  );
-}
-
-class _ArcPainter extends CustomPainter {
-  final double value;
-  final Color color;
-  _ArcPainter({required this.value, required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final r = size.width / 2 - 3;
-    canvas.drawArc(
-      Rect.fromCircle(center: c, radius: r),
-      -math.pi * 0.8,
-      math.pi * 1.6,
-      false,
-      Paint()
-        ..color = color.withOpacity(0.15)
-        ..strokeWidth = 4
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.drawArc(
-      Rect.fromCircle(center: c, radius: r),
-      -math.pi * 0.8,
-      math.pi * 1.6 * value,
-      false,
-      Paint()
-        ..color = color
-        ..strokeWidth = 4
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_ArcPainter old) => old.value != value;
 }
