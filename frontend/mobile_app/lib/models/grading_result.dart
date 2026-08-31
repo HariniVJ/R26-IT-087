@@ -7,17 +7,26 @@ class GradingResult {
   final double? severityPercent;
   final int? weightGrams;
   final String recommendation;
-
-  // 🆕 FIX: these 3 fields were missing from the model, so the
-  // recommendation_service's explanation / waste_usage / safety_note
-  // were never saved or displayed anywhere (history_detail_screen.dart
-  // was already reading result.explanation / result.wasteUsage /
-  // result.safetyNote, but the model never had them -> always null).
   final String? explanation;
   final String? wasteUsage;
   final String? safetyNote;
 
+  // 🆕 Populated only for defectType == 'disease', after the Disease
+  // component's pipeline identifies which disease it is. Lets the
+  // history "eye" icon show the same treatment info the original popup
+  // showed, without re-running the disease model every time.
+  final String? diseaseName;
+  final String? diseaseTreatment;
+  final List<String>? diseasePrevention;
+
   final String? imageUrl;
+
+  // 🆕 Local device file path, saved alongside imageUrl. This lets the
+  // UI show the photo instantly (before/without a Storage upload) and
+  // acts as a fallback if imageUrl ever ends up null (upload failed,
+  // offline, etc). See widgets/grading_image.dart for the fallback logic.
+  final String? imagePath;
+
   final String? createdAt;
 
   const GradingResult({
@@ -32,7 +41,11 @@ class GradingResult {
     this.explanation,
     this.wasteUsage,
     this.safetyNote,
+    this.diseaseName,
+    this.diseaseTreatment,
+    this.diseasePrevention,
     this.imageUrl,
+    this.imagePath,
     this.createdAt,
   });
 
@@ -50,7 +63,13 @@ class GradingResult {
       explanation: json['explanation'] as String?,
       wasteUsage: json['waste_usage'] as String?,
       safetyNote: json['safety_note'] as String?,
+      diseaseName: json['disease_name'] as String?,
+      diseaseTreatment: json['disease_treatment'] as String?,
+      diseasePrevention: (json['disease_prevention'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
       imageUrl: json['image_url'] as String?,
+      imagePath: json['image_path'] as String?,
       createdAt: json['created_at'] as String?,
     );
   }
@@ -66,7 +85,11 @@ class GradingResult {
     'explanation': explanation,
     'waste_usage': wasteUsage,
     'safety_note': safetyNote,
+    'disease_name': diseaseName,
+    'disease_treatment': diseaseTreatment,
+    'disease_prevention': diseasePrevention,
     'image_url': imageUrl,
+    'image_path': imagePath,
     'created_at': createdAt,
   };
 

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/grading_result.dart';
 import '../../services/grading/grading_service.dart';
 import '../../theme/app_theme.dart';
+import '../../widgets/grading_image.dart';
 import 'history_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -771,44 +772,14 @@ class _HistoryCard extends StatelessWidget {
           child: SizedBox(
             width: 64,
             height: 64,
-            child: result.imageUrl != null && result.imageUrl!.isNotEmpty
-                ? Image.network(
-                    result.imageUrl!,
-                    fit: BoxFit.cover,
-                    loadingBuilder: (context, child, progress) =>
-                        progress == null
-                        ? child
-                        : Container(
-                            color: bg,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                            ),
-                          ),
-                    errorBuilder: (_, __, ___) => Container(
-                      color: bg,
-                      child: Center(
-                        child: Text(
-                          QualityTheme.emoji(result.quality),
-                          style: const TextStyle(fontSize: 26),
-                        ),
-                      ),
-                    ),
-                  )
-                : Container(
-                    color: bg,
-                    child: Center(
-                      child: Text(
-                        QualityTheme.emoji(result.quality),
-                        style: const TextStyle(fontSize: 26),
-                      ),
-                    ),
-                  ),
+            // 🆕 url -> local file -> emoji fallback, so a null/failed
+            // image_url never leaves the thumbnail blank.
+            child: GradingImage(
+              imageUrl: result.imageUrl,
+              imagePath: result.imagePath,
+              background: bg,
+              emoji: QualityTheme.emoji(result.quality),
+            ),
           ),
         ),
         // 🆕 selection checkbox overlay

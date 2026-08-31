@@ -36,21 +36,18 @@ class GradingService {
     final recommendation =
         ruleRow?['recommended_usage'] as String? ??
         'Manual inspection recommended';
-
-    // 🆕 FIX: previously only 'recommended_usage' was read from the rule
-    // row, so explanation / waste_usage / safety_note were silently
-    // dropped and never reached the UI. Pull them out here too.
     final explanation = ruleRow?['explanation'] as String?;
     final wasteUsage = ruleRow?['waste_usage'] as String?;
     final safetyNote = ruleRow?['safety_note'] as String?;
 
+    // 🆕 Store BOTH image_url (Firebase Storage download URL) and
+    // image_path (local device path) so the photo is never lost even
+    // if the Storage upload fails or is slow. image_path is recorded
+    // up front, before the (possibly slow/failing) upload even starts.
+    final imagePath = imageFile?.path;
+
     String? imageUrl;
     if (imageFile != null) {
-      // Image is uploaded to Firebase Storage first, and the returned
-      // download URL is what actually gets stored in Firestore below
-      // (via GradingResult.imageUrl -> toJson()['image_url']). History
-      // screens then just Image.network(result.imageUrl) that URL back —
-      // no separate fetch step is needed.
       imageUrl = await _imageStorage.uploadGradingImage(imageFile, userId);
     }
 
@@ -67,6 +64,7 @@ class GradingService {
       wasteUsage: wasteUsage,
       safetyNote: safetyNote,
       imageUrl: imageUrl,
+      imagePath: imagePath,
       createdAt: DateTime.now().toIso8601String(),
     );
 
@@ -120,6 +118,19 @@ class GradingService {
       _firestore.getHistory(userId);
   Future<void> deleteOne(String id) => _firestore.deleteOne(id);
   Future<void> deleteAll(String userId) => _firestore.deleteAll(userId);
+
+  // 🆕 See GradingFirestoreService.attachDiseaseInfo.
+  Future<void> attachDiseaseInfo({
+    required String resultId,
+    required String diseaseName,
+    required String treatment,
+    required List<String> prevention,
+  }) => _firestore.attachDiseaseInfo(
+    id: resultId,
+    diseaseName: diseaseName,
+    treatment: treatment,
+    prevention: prevention,
+  );
 }
 
 /// Describes what kind of low-quality popup to show — either a
