@@ -37,18 +37,18 @@ class GradingFirestoreService {
     // automatically once connectivity returns.
     await docRef.set(data);
 
-    return GradingResult(
-      id: docRef.id,
-      userId: uid,
-      quality: result.quality,
-      confidence: result.confidence,
-      defectType: result.defectType,
-      severityPercent: result.severityPercent,
-      weightGrams: result.weightGrams,
-      recommendation: result.recommendation,
-      imageUrl: result.imageUrl,
-      createdAt: now,
-    );
+    // 🔧 FIX: this used to manually rebuild a GradingResult field by
+    // field, and it had drifted out of sync with the model — it was
+    // missing explanation / waste_usage / safety_note / image_path.
+    // That meant those 4 fields would vanish from the UI the instant
+    // this save completed and replaced the local (correct) result.
+    //
+    // Building the returned object straight from `data` — the exact
+    // same map that was just written to Firestore — guarantees every
+    // field that was saved is also what gets returned, so this can
+    // never drift out of sync again even if more fields are added to
+    // GradingResult later.
+    return GradingResult.fromJson({...data, 'id': docRef.id});
   }
 
   Future<List<GradingResult>> getHistory(String userId) async {
@@ -73,6 +73,23 @@ class GradingFirestoreService {
 
   Future<void> deleteOne(String id) async {
     await _db.collection(FirestoreSchema.qualityResults).doc(id).delete();
+  }
+
+  // 🆕 Patches disease name/treatment/prevention onto an already-saved
+  // grading record. Called after the (slower) disease pipeline finishes,
+  // once we know exactly which disease it is — so the history "eye"
+  // icon can show these details later without re-running the model.
+  Future<void> attachDiseaseInfo({
+    required String id,
+    required String diseaseName,
+    required String treatment,
+    required List<String> prevention,
+  }) async {
+    await _db.collection(FirestoreSchema.qualityResults).doc(id).update({
+      'disease_name': diseaseName,
+      'disease_treatment': treatment,
+      'disease_prevention': prevention,
+    });
   }
 
   Future<void> deleteAll(String userId) async {

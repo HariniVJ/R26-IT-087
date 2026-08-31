@@ -1,18 +1,22 @@
 // lib/screens/quality_grading_screen.dart
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import '../models/grading_result.dart';
-import '../models/Q_prediction_result.dart';
-import '../services/grading/grading_service.dart';
-import '../services/grading/tflite_service.dart';
-import '../theme/app_theme.dart';
-import '../widgets/glass_box.dart';
-import '../widgets/stack_storage_bar.dart';
-import '../widgets/date_range_pill.dart';
-import '../l10n/q_app_strings.dart';
+import '../../models/grading_result.dart';
+import '../../models/Q_prediction_result.dart';
+import '../../services/grading/grading_service.dart';
+import '../../services/grading/recommendation_service.dart';
+import '../../services/grading/tflite_service.dart';
+import '../../theme/app_theme.dart';
+import '../../widgets/glass_box.dart';
+import '../../widgets/stack_storage_bar.dart';
+import '../../widgets/date_range_pill.dart';
+import '../../widgets/grading_image.dart';
+import '../../widgets/low_quality_disease_popup.dart';
+import '../../l10n/q_app_strings.dart';
 import 'history_screen.dart';
 import 'history_detail_screen.dart';
 
@@ -38,18 +42,14 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   bool _saving = false;
   bool? _savedOk;
   bool _validatingImage = false;
-
   int? _weightGrams;
   final _weightController = TextEditingController();
-
   Uint8List? _preprocessedBytes;
   bool _showPreprocessed = false;
-
   int _highCount = 0;
   int _mediumCount = 0;
   int _lowCount = 0;
   DateRange _selectedRange = DateRange.week;
-
   List<GradingResult> _recentResults = [];
 
   final _steps = [
@@ -66,6 +66,11 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   final _picker = ImagePicker();
   final _service = GradingService();
   final _tflite = TfliteService();
+  // Same rule engine GradingService uses internally — calling it
+  // directly here means explanation / waste usage / safety note are
+  // ready the instant the result screen appears, instead of waiting
+  // for the Firestore save round-trip to come back.
+  final _recommendation = RecommendationService.instance;
 
   static const _red = Color(0xFFC1121F);
   static const _redLight = Color(0xFFFFEEEE);
@@ -73,6 +78,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   static const _textDark = Color(0xFF1F2937);
   static const _textMid = Color(0xFF6B7280);
   static const _border = Color(0xFFE5E7EB);
+  static const _blue = Color(0xFF2563EB);
+  static const _blueLight = Color(0xFFEFF6FF);
+  static const _green = Color(0xFF16803A);
+  static const _greenLight = Color(0xFFECFDF3);
+  static const _orange = Color(0xFFEA580C);
+  static const _orangeLight = Color(0xFFFFF7ED);
 
   @override
   void initState() {
@@ -89,7 +100,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       parent: _resultCtrl,
       curve: Curves.elasticOut,
     );
-
     _tflite.loadModel().catchError((e) => debugPrint('⚠️ TFLite: $e'));
     _loadStats();
   }
@@ -109,13 +119,11 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     try {
       final all = await _service.getHistory(uid);
       if (!mounted) return;
-
       final filtered = all.where((r) {
         final dt = r.dateTime;
         if (dt == null) return false;
         return _selectedRange.contains(dt);
       }).toList();
-
       setState(() {
         _highCount = filtered.where((r) => r.quality == 'high_quality').length;
         _mediumCount = filtered
@@ -136,7 +144,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       maxWidth: 1024,
     );
     if (x == null) return;
-
     final pickedFile = File(x.path);
     setState(() {
       _image = pickedFile;
@@ -149,7 +156,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _showPreprocessed = false;
       _validatingImage = true;
     });
-
     bool isPomegranate;
     try {
       isPomegranate = await _tflite.checkIsPomegranate(pickedFile);
@@ -157,10 +163,8 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       debugPrint('⚠️ Validation error: $e');
       isPomegranate = true;
     }
-
     if (!mounted) return;
     setState(() => _validatingImage = false);
-
     if (!isPomegranate) {
       _showNotPomegranatePopup();
     }
@@ -265,13 +269,11 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
 
   Future<void> _analyse() async {
     if (_image == null) return;
-
     final uid = _userId;
     if (uid == null) {
       setState(() => _error = 'Please log in before analysing a fruit.');
       return;
     }
-
     setState(() {
       _phase = _Phase.analysing;
       _progress = 0;
@@ -279,14 +281,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _error = null;
       _savedOk = null;
     });
-
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() {
       _stepIndex = 0;
       _progress = 0.25;
     });
-
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
     setState(() {
@@ -328,6 +328,24 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
 
     _weightGrams = int.tryParse(_weightController.text.trim());
 
+    // Compute the full recommendation (usage + explanation + waste
+    // usage + safety note) right now — this is a local, in-memory rule
+    // lookup (see RecommendationService), not a network call, so it's
+    // effectively instant. No need to wait for the Firestore save to
+    // come back before these sections can show.
+    final ruleRow = await _recommendation.getRecommendation(
+      quality: prediction.quality,
+      defectType: prediction.defectType,
+      severityPercent: prediction.severityPercent,
+      weightGrams: _weightGrams,
+    );
+
+    final recommendedUsage =
+        ruleRow?['recommended_usage'] as String? ?? prediction.recommendation;
+    final explanation = ruleRow?['explanation'] as String?;
+    final wasteUsage = ruleRow?['waste_usage'] as String?;
+    final safetyNote = ruleRow?['safety_note'] as String?;
+
     final localResult = GradingResult(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       userId: uid,
@@ -336,8 +354,13 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       defectType: prediction.defectType,
       severityPercent: prediction.severityPercent,
       weightGrams: _weightGrams,
-      recommendation: prediction.recommendation,
+      recommendation: recommendedUsage,
+      explanation: explanation,
+      wasteUsage: wasteUsage,
+      safetyNote: safetyNote,
       imageUrl: null,
+      // local path available immediately, before any upload happens
+      imagePath: _image?.path,
       createdAt: DateTime.now().toIso8601String(),
     );
 
@@ -355,20 +378,32 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     if (!mounted) return;
     setState(() => _saving = true);
 
+    // The disease check doesn't depend on the save's result at all, so
+    // kick it off right now, in parallel with the save, using the
+    // quality/defectType we already have from `p`.
+    Future<LowQualityInfo?>? diseaseInfoFuture;
+    if (p.quality == 'low_quality' && _image != null) {
+      diseaseInfoFuture = _service.checkDiseaseIfLowQuality(
+        quality: p.quality,
+        defectType: p.defectType,
+        imageFile: _image!,
+      );
+    }
+
+    GradingResult? savedResult;
     try {
-      final saved = await _service.saveResult(
+      savedResult = await _service.saveResult(
         userId: uid,
         quality: p.quality,
         confidence: p.confidenceDecimal,
-        imageFile:
-            _image, // 🔧 now actually uploaded to Storage inside GradingService
+        imageFile: _image,
         defectType: p.defectType,
         severityPercent: p.severityPercent,
         weightGrams: _weightGrams,
       );
       if (!mounted) return;
       setState(() {
-        _result = saved;
+        _result = savedResult;
         _savedOk = true;
         _saving = false;
       });
@@ -382,6 +417,58 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         _error =
             'Could not save result: ${e.toString().replaceFirst("Exception: ", "")}';
       });
+    }
+
+    if (diseaseInfoFuture != null) {
+      final lowQualityInfo = await diseaseInfoFuture;
+
+      // 🆕 Persist disease name/treatment/prevention onto the saved
+      // history record (if the save succeeded) so the "eye" icon on
+      // the history detail screen can show this later without
+      // re-running the disease pipeline.
+      if (lowQualityInfo != null &&
+          lowQualityInfo.isDiseaseCase &&
+          lowQualityInfo.diseaseResult != null &&
+          savedResult != null) {
+        final dr = lowQualityInfo.diseaseResult!;
+        try {
+          await _service.attachDiseaseInfo(
+            resultId: savedResult.id,
+            diseaseName: dr.diseaseName,
+            treatment: dr.treatment,
+            prevention: dr.prevention,
+          );
+          if (mounted) {
+            setState(() {
+              _result = GradingResult(
+                id: savedResult!.id,
+                userId: savedResult.userId,
+                quality: savedResult.quality,
+                confidence: savedResult.confidence,
+                defectType: savedResult.defectType,
+                severityPercent: savedResult.severityPercent,
+                weightGrams: savedResult.weightGrams,
+                recommendation: savedResult.recommendation,
+                explanation: savedResult.explanation,
+                wasteUsage: savedResult.wasteUsage,
+                safetyNote: savedResult.safetyNote,
+                diseaseName: dr.diseaseName,
+                diseaseTreatment: dr.treatment,
+                diseasePrevention: dr.prevention,
+                imageUrl: savedResult.imageUrl,
+                imagePath: savedResult.imagePath,
+                createdAt: savedResult.createdAt,
+              );
+            });
+          }
+        } catch (e) {
+          debugPrint('Disease info attach failed: $e');
+        }
+      }
+
+      if (lowQualityInfo != null && mounted) {
+        await showLowQualityPopup(context, lowQualityInfo);
+      }
     }
   }
 
@@ -511,12 +598,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -664,65 +751,133 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     ],
   );
 
-  // 🔧 FIXED — preprocessed preview shown as true 224x224 square (letterboxed)
   Widget _uploadBox() {
     if (_image == null) {
+      // 🆕 Same concept (tap-to-upload placeholder), just livelier:
+      // the icon card gently floats up/down and scales, a soft glow
+      // ring pulses outward behind it, and two small sparkles twinkle
+      // — all driven by the existing _pulseCtrl, so no extra
+      // AnimationController/dispose plumbing is needed.
       return AnimatedBuilder(
         animation: _pulseCtrl,
-        builder: (_, __) => Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
-          decoration: BoxDecoration(
-            color: _redLight,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: _red.withOpacity(0.25 + 0.15 * _pulseCtrl.value),
-              width: 1.5,
+        builder: (_, __) {
+          final t = _pulseCtrl.value; // 0 -> 1 -> 0, looping
+          final bounce = math.sin(t * math.pi) * 6;
+          final iconScale = 1.0 + 0.06 * math.sin(t * math.pi);
+          return Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 44, horizontal: 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [_redLight, Colors.white],
+              ),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: _red.withOpacity(0.25 + 0.2 * t),
+                width: 1.6,
+              ),
             ),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _redMid, width: 1.5),
-                  boxShadow: [
-                    BoxShadow(
-                      color: _red.withOpacity(0.12),
-                      blurRadius: 16,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 96,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    clipBehavior: Clip.none,
+                    children: [
+                      // soft glow ring, expands and fades out on loop
+                      Transform.scale(
+                        scale: 1.2 + 0.5 * t,
+                        child: Opacity(
+                          opacity: (1 - t) * 0.35,
+                          child: Container(
+                            width: 82,
+                            height: 82,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: _red.withOpacity(0.18),
+                            ),
+                          ),
+                        ),
+                      ),
+                      // the icon card itself — floats up/down, scales
+                      Transform.translate(
+                        offset: Offset(0, -bounce),
+                        child: Transform.scale(
+                          scale: iconScale,
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: _redMid, width: 1.5),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _red.withOpacity(0.18 + 0.1 * t),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.add_photo_alternate_rounded,
+                              color: _red,
+                              size: 30,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // twinkling sparkle accents
+                      Positioned(
+                        top: 6 - bounce,
+                        right: 28,
+                        child: Opacity(
+                          opacity: (0.25 + 0.65 * t).clamp(0.0, 1.0),
+                          child: Icon(
+                            Icons.auto_awesome_rounded,
+                            color: _red.withOpacity(0.85),
+                            size: 13,
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 8 + bounce,
+                        left: 26,
+                        child: Opacity(
+                          opacity: (0.85 - 0.55 * t).clamp(0.0, 1.0),
+                          child: Icon(
+                            Icons.auto_awesome_rounded,
+                            color: _red.withOpacity(0.5),
+                            size: 10,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: const Icon(
-                  Icons.add_photo_alternate_rounded,
-                  color: _red,
-                  size: 30,
+                const SizedBox(height: 12),
+                Text(
+                  AppStrings.get("tap_to_upload"),
+                  style: const TextStyle(
+                    color: _textDark,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                AppStrings.get("tap_to_upload"),
-                style: const TextStyle(
-                  color: _textDark,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+                const SizedBox(height: 4),
+                const Text(
+                  'JPG · PNG · Max 10 MB',
+                  style: TextStyle(color: _textMid, fontSize: 12),
                 ),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'JPG · PNG · Max 10 MB',
-                style: TextStyle(color: _textMid, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       );
     }
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: Stack(
@@ -746,7 +901,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               width: double.infinity,
               fit: BoxFit.cover,
             ),
-
           if (!_validatingImage)
             Positioned(
               top: 10,
@@ -788,7 +942,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                 ),
               ),
             ),
-
           if (!_validatingImage)
             Positioned(
               bottom: 0,
@@ -902,12 +1055,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         builder: (_, __) => Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             border: Border.all(color: _border),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 12,
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
             ],
@@ -957,12 +1110,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: _border),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 16,
               offset: const Offset(0, 4),
             ),
           ],
@@ -1131,7 +1284,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   Widget _resultBody() {
     final r = _result!;
     final fg = QualityTheme.fgColor(r.quality);
-
     return ScaleTransition(
       scale: _resultAnim,
       child: Column(
@@ -1139,81 +1291,100 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(24),
               border: Border.all(color: _border),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 16,
                   offset: const Offset(0, 4),
                 ),
               ],
             ),
-            padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  AppStrings.get("detected_result"),
-                  style: const TextStyle(
-                    color: _textDark,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                if (_image != null)
+                  ClipRRect(
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                    child: Image.file(
+                      _image!,
+                      height: 180,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'AI-powered pomegranate quality detection',
-                  style: TextStyle(color: _textMid, fontSize: 11),
-                ),
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: fg.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: fg.withOpacity(0.2)),
-                  ),
-                  child: Row(
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        QualityTheme.emoji(r.quality),
-                        style: const TextStyle(fontSize: 36),
+                        AppStrings.get("detected_result"),
+                        style: const TextStyle(
+                          color: _textDark,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      const SizedBox(height: 2),
+                      const Text(
+                        'AI-powered pomegranate quality detection',
+                        style: TextStyle(color: _textMid, fontSize: 11),
+                      ),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: fg.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: fg.withOpacity(0.2)),
+                        ),
+                        child: Row(
                           children: [
                             Text(
-                              QualityTheme.label(r.quality),
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: _textDark,
-                              ),
+                              QualityTheme.emoji(r.quality),
+                              style: const TextStyle(fontSize: 36),
                             ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: fg,
-                                    shape: BoxShape.circle,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    QualityTheme.label(r.quality),
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: _textDark,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Confidence Score ${_prediction?.confidencePercent ?? r.confidencePercent}',
-                                  style: TextStyle(
-                                    color: fg,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: BoxDecoration(
+                                          color: fg,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Confidence Score ${_prediction?.confidencePercent ?? r.confidencePercent}',
+                                        style: TextStyle(
+                                          color: fg,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -1229,65 +1400,53 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
             _defectInfoCard(),
             const SizedBox(height: 14),
           ],
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _border),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: _redLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.lightbulb_outline_rounded,
-                    color: _red,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        AppStrings.get("recommendation").toUpperCase(),
-                        style: const TextStyle(
-                          color: _textMid,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        r.recommendation,
-                        style: const TextStyle(
-                          color: _textDark,
-                          fontSize: 13,
-                          height: 1.5,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          if (r.weightGrams != null) ...[
+            _weightInfoCard(r),
+            const SizedBox(height: 14),
+          ],
+
+          _sectionTitleWidget(
+            title: 'UTILIZATION RECOMMENDATION',
+            subtitle: 'Generated using the configured recommendation rules',
           ),
+          const SizedBox(height: 10),
+
+          // ── Recommendation section (usage + explanation + waste + safety) ──
+          _recommendationUsageCard(r),
+          if (_hasValue(r.explanation)) ...[
+            const SizedBox(height: 12),
+            _recommendationSectionCard(
+              icon: Icons.info_outline_rounded,
+              color: _blue,
+              backgroundColor: _blueLight,
+              title: 'WHY THIS RECOMMENDATION?',
+              text: r.explanation!,
+            ),
+          ],
+          if (_hasValue(r.wasteUsage)) ...[
+            const SizedBox(height: 12),
+            _recommendationSectionCard(
+              icon: Icons.recycling_rounded,
+              color: _green,
+              backgroundColor: _greenLight,
+              title: 'WASTE UTILIZATION METHOD',
+              text: r.wasteUsage!,
+            ),
+          ],
+          if (_hasValue(r.safetyNote)) ...[
+            const SizedBox(height: 12),
+            _recommendationSectionCard(
+              icon: Icons.health_and_safety_outlined,
+              color: _orange,
+              backgroundColor: _orangeLight,
+              title: 'SAFETY NOTE',
+              text: r.safetyNote!,
+            ),
+          ],
+
+          const SizedBox(height: 14),
+          _dateInfoCard(r),
+
           const SizedBox(height: 16),
           _primaryActionButton(
             AppStrings.get("scan_another"),
@@ -1299,19 +1458,274 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  Widget _defectInfoCard() {
-    final defectType = _prediction!.defectType!;
-    final severity = _prediction!.severityDisplay;
+  bool _hasValue(String? value) => value != null && value.trim().isNotEmpty;
 
+  Widget _recommendationUsageCard(GradingResult r) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _redLight,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.lightbulb_outline_rounded,
+              color: _red,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  AppStrings.get("recommendation").toUpperCase(),
+                  style: const TextStyle(
+                    color: _textMid,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  r.recommendation,
+                  style: const TextStyle(
+                    color: _textDark,
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // shared card style for explanation / waste usage / safety note,
+  // shown right below the recommended usage card — all populated the
+  // moment the result screen appears (see _analyse()).
+  Widget _recommendationSectionCard({
+    required IconData icon,
+    required Color color,
+    required Color backgroundColor,
+    required String title,
+    required String text,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: color.withOpacity(0.20)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: _textDark,
+                    fontSize: 13,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // mirrors history_detail_screen.dart's FRUIT WEIGHT card, so the
+  // same info shown in history is also shown right after grading.
+  Widget _weightInfoCard(GradingResult r) {
+    return _basicInfoCard(
+      icon: Icons.scale_rounded,
+      iconColor: _blue,
+      iconBackground: _blueLight,
+      label: 'FRUIT WEIGHT',
+      child: Text(
+        '${r.weightGrams} g',
+        style: const TextStyle(
+          color: _textDark,
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+
+  // mirrors history_detail_screen.dart's GRADED ON card.
+  Widget _dateInfoCard(GradingResult r) {
+    return _basicInfoCard(
+      icon: Icons.calendar_today_rounded,
+      iconColor: _textMid,
+      iconBackground: const Color(0xFFF3F4F6),
+      label: 'GRADED ON',
+      child: Text(
+        r.displayDate,
+        style: const TextStyle(
+          color: _textDark,
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  // generic icon + label + value card, same look as
+  // history_detail_screen.dart's _basicInfoCard.
+  Widget _basicInfoCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBackground,
+    required String label,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: iconBackground,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(icon, color: iconColor, size: 21),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: _textMid,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                child,
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // mirrors history_detail_screen.dart's _sectionTitle.
+  Widget _sectionTitleWidget({
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: _textDark,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(subtitle, style: const TextStyle(color: _textMid, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  Widget _defectInfoCard() {
+    final defectType = _prediction!.defectType!;
+    final severity = _prediction!.severityDisplay;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: _border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1372,16 +1786,16 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-    Widget _recentHistoryCard() {
+  Widget _recentHistoryCard() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: _border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1455,7 +1869,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   Widget _recentHistoryRow(GradingResult r) {
     final fg = QualityTheme.fgColor(r.quality);
     final bg = QualityTheme.bgColor(r.quality);
-
     return GestureDetector(
       onTap: () => Navigator.push(
         context,
@@ -1464,51 +1877,25 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // 🆕 Square thumbnail (56x56), photo if available, else emoji fallback
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 56,
-                height: 56,
-                child: r.imageUrl != null
-                    ? Image.network(
-                        r.imageUrl!,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) =>
-                            progress == null
-                            ? child
-                            : Container(
-                                color: bg,
-                                child: const Center(
-                                  child: SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                        errorBuilder: (_, __, ___) => Container(
-                          color: bg,
-                          child: Center(
-                            child: Text(
-                              QualityTheme.emoji(r.quality),
-                              style: const TextStyle(fontSize: 22),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: bg,
-                        child: Center(
-                          child: Text(
-                            QualityTheme.emoji(r.quality),
-                            style: const TextStyle(fontSize: 22),
-                          ),
-                        ),
-                      ),
+            SizedBox(
+              width: 56,
+              height: 56,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 1.0, // forces a perfect square crop
+                  // url -> local file -> emoji fallback, so a
+                  // null/failed image_url never leaves this blank.
+                  child: GradingImage(
+                    imageUrl: r.imageUrl,
+                    imagePath: r.imagePath,
+                    background: bg,
+                    emoji: QualityTheme.emoji(r.quality),
+                    emojiSize: 22,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -1560,7 +1947,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  
   Widget _primaryActionButton(
     String label,
     IconData icon,
