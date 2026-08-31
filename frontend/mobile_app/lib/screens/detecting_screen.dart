@@ -11,11 +11,6 @@ import '../services/growth/growth_advisory_service.dart';
 import '../services/growth/growth_tflite_service.dart';
 import 'result_screen.dart';
 
-
-
-String get apiBaseUrl =>
-    kIsWeb ? 'http://localhost:8000' : 'http://127.0.0.1:8000';
-
 // ── Brand colors ─────────────────────────────────────────────────
 
 const Color kPrimary = Color(0xFFB22222);
@@ -276,7 +271,7 @@ class _DetectingScreenState extends State<DetectingScreen>
           '==========================================',
         );
         debugPrint(
-          'BACKEND GROWTH ADVISORY',
+          'ON-DEVICE GROWTH ADVISORY',
         );
 
         debugPrint(
