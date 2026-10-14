@@ -35,6 +35,7 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   timezone: ^0.10.1
   firebase_storage: ^13.5.0
+  gal: ^2.3.0
 
 dev_dependencies:
   flutter_launcher_icons: ^0.13.1
@@ -82,6 +83,31 @@ flutter:
     - assets/models/pomegranate_cnn.tflite
     - assets/models/growth_yolo_labels.txt
     - assets/models/growth_cnn_labels.txt
+
+    - assets/models/disease/disease_classifier_calibrated.tflite
+    - assets/models/disease/pomegranate_severity_seg.tflite
+    - assets/models/disease/pomegranate_validator.tflite
+
+    - assets/images/treatments/alternaria_mild.png
+    - assets/images/treatments/alternaria_moderate.png
+    - assets/images/treatments/alternaria_severe.png
+    - assets/images/treatments/anthracnose_mild.png
+    - assets/images/treatments/anthracnose_moderate.png
+    - assets/images/treatments/anthracnose_severe.png
+    - assets/images/treatments/bacterial_blight_mild.png
+    - assets/images/treatments/bacterial_blight_moderate.png
+    - assets/images/treatments/bacterial_blight_severe.png
+
+    - assets/images/treatments/Calternaria_mild.png
+    - assets/images/treatments/Calternaria_moderate.png
+    - assets/images/treatments/Calternaria_severe.jpeg
+    - assets/images/treatments/Canthrocnose_mild.png
+    - assets/images/treatments/Canthrocnose_moderate.png
+    - assets/images/treatments/Canthrocnose_severe.png
+    - assets/images/treatments/Cblight_mild.png
+    - assets/images/treatments/Ccercospora_mild.png
+    - assets/images/treatments/Ccercospora_moderate.png
+    - assets/images/treatments/Ccercospora_severe.png
 
 flutter_launcher_icons:
   android: true

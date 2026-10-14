@@ -1,36 +1,47 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:tflite_flutter/tflite_flutter.dart';
 
+import '../../../config/disease_ml_config.dart';
+import 'fruit_segmentation_service.dart';
+import 'image_utils.dart';
+import 'tflite_helper.dart';
+
+/// Kept for backward compatibility — values now come from disease_ml_config.dart.
 class MlLabels {
   MlLabels._();
-  static const diseaseClasses = [
-    'Alternaria',
-    'Anthracnose',
-    'Bacterial_Blight',
-    'Cercospora',
-    'Healthy',
-  ];
+  static const diseaseClasses = DiseaseLabels.diseaseClasses;
+  static const segClasses = DiseaseLabels.segClasses;
 }
 
+/// Kept for backward compatibility — edit disease_ml_config.dart instead.
 class MlConfig {
   MlConfig._();
-  static const classifierInputSize = 224;
-
-  static const classifierAssetPath =
-      'assets/models/pomegranate_disease_classifier.tflite';
-
-  // NOTE: Segmentation model (pomegranate_severity_seg_v2.tflite) has
-  // been removed from this service. Severity is currently estimated
-  // using a color heuristic below — TEMPORARY, until a validated
-  // segmentation model is reintroduced.
+  static const classifierInputSize = DiseaseImageConfig.cnnInputSize;
+  static const classifierAssetPath = DiseaseModels.classifier;
+  static const segmentationAssetPath = DiseaseModels.segmenter;
+  static const segConfThreshold = DiseaseThresholds.segConfidence;
+  static const segIouThreshold = DiseaseThresholds.segIou;
 }
 
 class MlResult {
   final String label;
-  final double confidence;
-  MlResult(this.label, this.confidence);
+  final double confidence; // 0..1
+
+  /// Second most likely disease (for the "uncertain" rule and the UI).
+  final String secondLabel;
+  final double secondConfidence; // 0..1
+  final List<double> scores;
+
+  MlResult(
+    this.label,
+    this.confidence, {
+    this.secondLabel = '',
+    this.secondConfidence = 0.0,
+    this.scores = const [],
+  });
 }
 
 class SeverityResult {
@@ -39,153 +50,74 @@ class SeverityResult {
   SeverityResult(this.percentage, this.level);
 }
 
-// ═══════════════════════════════════════════════════════════════════
-// TEMPORARY color-heuristic severity estimation.
-// No TFLite segmentation model involved — analyzes pixel color/
-// brightness to roughly estimate how much of the fruit surface looks
-// dark/decayed/discolored. Replace with a proper segmentation-based
-// calculation once a validated model is available.
-// ═══════════════════════════════════════════════════════════════════
-
-double _colorHeuristicSeverity(img.Image image) {
-  int abnormalPixels = 0;
-  int totalPixels = 0;
-
-  for (int y = 0; y < image.height; y += 2) {
-    for (int x = 0; x < image.width; x += 2) {
-      final p = image.getPixel(x, y);
-      final r = p.r, g = p.g, b = p.b;
-      final brightness = (r + g + b) / 3;
-
-      // Dark / decayed-looking pixels.
-      final isDark = brightness < 60;
-
-      // Brownish / rot-colored pixels.
-      final isBrown =
-          r > 60 && r < 160 && g > 30 && g < 120 && b < 80 && r > g && g >= b;
-
-      if (isDark || isBrown) abnormalPixels++;
-      totalPixels++;
-    }
-  }
-
-  if (totalPixels == 0) return 0.0;
-  final pct = (abnormalPixels / totalPixels) * 100;
-  return double.parse(pct.clamp(0, 100).toStringAsFixed(2));
-}
-
-String _levelFromPercentage(double percentage) {
-  if (percentage <= 38) return 'Mild';
-  if (percentage <= 58) return 'Moderate';
-  return 'Severe';
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// Main service class
-// ═══════════════════════════════════════════════════════════════════
-
+/// Model 2 (disease classifier) + severity access.
 class ModelInferenceService {
   ModelInferenceService._();
   static final ModelInferenceService instance = ModelInferenceService._();
 
   Interpreter? _classifier;
-
   bool get isLoaded => _classifier != null;
 
   Future<void> loadModels() async {
-    if (isLoaded) return;
-
-    try {
-      _classifier = await Interpreter.fromAsset(MlConfig.classifierAssetPath);
-      _debugPrintShapes('classifier', _classifier!);
-    } catch (e) {
-      throw Exception(
-        'Failed to load disease classifier model. Check that '
-        '${MlConfig.classifierAssetPath} exists and is a valid TFLite '
-        'file.\nOriginal error: $e',
-      );
-    }
-    // Segmentation model loading removed — severity no longer depends
-    // on a second TFLite model.
+    _classifier ??= await TfliteHelper.load(DiseaseModels.classifier, 'classifier');
   }
 
-  void _debugPrintShapes(String name, Interpreter interp) {
-    // ignore: avoid_print
-    print(
-      '[$name] input=${interp.getInputTensor(0).shape} '
-      'output0=${interp.getOutputTensor(0).shape}',
-    );
-  }
-
-  List<List<List<double>>> _preprocessScaled(File file, int size) {
-    final bytes = file.readAsBytesSync();
-    final decoded = img.decodeImage(bytes);
-    if (decoded == null) throw Exception('Could not decode image.');
-
-    final resized = img.copyResize(
-      decoded,
-      width: size,
-      height: size,
-      interpolation: img.Interpolation.average,
-    );
-
-    return List.generate(size, (y) {
-      return List.generate(size, (x) {
-        final p = resized.getPixel(x, y);
-        return [p.r / 255.0, p.g / 255.0, p.b / 255.0];
-      });
-    });
-  }
-
-  int _argmax(List<double> scores) {
-    int best = 0;
-    for (int i = 1; i < scores.length; i++) {
-      if (scores[i] > scores[best]) best = i;
-    }
-    return best;
-  }
-
-  Future<MlResult> classifyDisease(File imageFile) async {
+  /// Classifies the gray-background fruit crop (same input as Colab).
+  /// The model already contains temperature scaling + softmax.
+  Future<MlResult> classifyCrop(img.Image crop) async {
     await loadModels();
+    final labels = DiseaseLabels.diseaseClasses;
+    final modelClasses = _classifier!.getOutputTensor(0).shape.last;
+    if (modelClasses != labels.length) {
+      throw Exception('Disease model outputs $modelClasses classes but '
+          'DiseaseLabels.diseaseClasses has ${labels.length} labels.');
+    }
 
-    final size = MlConfig.classifierInputSize;
-    final input = [_preprocessScaled(imageFile, size)];
-
-    final numClasses = MlLabels.diseaseClasses.length;
-    final output = List.generate(1, (_) => List.filled(numClasses, 0.0));
-
+    final input = ImageUtils.toInput01(crop, DiseaseImageConfig.cnnInputSize);
+    final output = List.generate(1, (_) => List.filled(labels.length, 0.0));
     _classifier!.run(input, output);
 
-    final scores = output[0];
-    final idx = _argmax(scores);
-    return MlResult(MlLabels.diseaseClasses[idx], scores[idx]);
+    final scores = List<double>.from(output[0]);
+    final order = List<int>.generate(scores.length, (i) => i)
+      ..sort((a, b) => scores[b].compareTo(scores[a]));
+
+    debugPrint('🔍 Disease scores: ${[
+      for (var i = 0; i < labels.length; i++) '${labels[i]}=${scores[i].toStringAsFixed(3)}'
+    ].join(', ')}');
+
+    return MlResult(
+      labels[order[0]],
+      scores[order[0]],
+      secondLabel: labels[order[1]],
+      secondConfidence: scores[order[1]],
+      scores: scores,
+    );
   }
 
-  /// TEMPORARY severity calculation — color heuristic only, no
-  /// segmentation model involved. Kept synchronous-ish (just wrapped in
-  /// Future for API compatibility with the rest of the app) so
-  /// disease_service.dart and callers don't need any changes.
-  Future<SeverityResult> analyzeSeverity(File imageFile) async {
-    final bytes = await imageFile.readAsBytes();
-    final decoded = img.decodeImage(bytes);
+  /// Same signature as before. Now crops the fruit first (YOLO), exactly like
+  /// Colab. Falls back to the whole photo only if no fruit is found.
+  Future<MlResult> classifyDisease(File imageFile) async {
+    final image = ImageUtils.loadForInference(imageFile);
+    final fruit = await FruitSegmentationService.instance.analyze(image);
+    return classifyCrop(fruit?.crop ?? image);
+  }
 
-    if (decoded == null) {
-      // ignore: avoid_print
-      print('⚠️ Could not decode image for severity — defaulting to 0%/N/A');
+  /// Same signature as before.
+  Future<SeverityResult> analyzeSeverity(File imageFile) async {
+    try {
+      final image = ImageUtils.loadForInference(imageFile);
+      final fruit = await FruitSegmentationService.instance.analyze(image);
+      if (fruit == null) return SeverityResult(0.0, 'N/A');
+      return SeverityResult(fruit.severityPercent, severityLevelFor(fruit.severityPercent));
+    } catch (e) {
+      debugPrint('⚠️ Severity segmentation failed — defaulting to 0%/N/A: $e');
       return SeverityResult(0.0, 'N/A');
     }
-
-    final pct = _colorHeuristicSeverity(decoded);
-    final level = _levelFromPercentage(pct);
-
-    // ignore: avoid_print
-    print('🔍 Severity (color heuristic): ${pct.toStringAsFixed(1)}% ($level)');
-
-    return SeverityResult(pct, level);
   }
 
   void dispose() {
     _classifier?.close();
     _classifier = null;
+    FruitSegmentationService.instance.dispose();
   }
 }
