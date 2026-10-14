@@ -1,8 +1,12 @@
-// lib/screens/grading/history_detail_screen.dart
+// lib/screens/quality/history_detail_screen.dart
 import 'package:flutter/material.dart';
+import '../../l10n/d_app_strings.dart' as d;
+import '../../l10n/q_app_strings.dart';
 import '../../models/grading_result.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/grading_image.dart';
+import '../../widgets/grading/low_quality_disease_popup.dart'
+    show DiseaseTreatmentPanel;
 
 class HistoryDetailScreen extends StatelessWidget {
   final GradingResult result;
@@ -22,6 +26,14 @@ class HistoryDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild when the language is changed on the Profile page.
+    return ListenableBuilder(
+      listenable: QStrings.listenable,
+      builder: (context, _) => _buildPage(context),
+    );
+  }
+
+  Widget _buildPage(BuildContext context) {
     final qualityColor = QualityTheme.fgColor(result.quality);
     final imageBackground = QualityTheme.bgColor(result.quality);
     return Scaffold(
@@ -48,9 +60,8 @@ class HistoryDetailScreen extends StatelessWidget {
                       const SizedBox(height: 14),
                     ],
                     _sectionTitle(
-                      title: 'UTILIZATION RECOMMENDATION',
-                      subtitle:
-                          'Generated using the configured recommendation rules',
+                      title: qt('utilization_recommendation').toUpperCase(),
+                      subtitle: qt('rules_subtitle'),
                     ),
                     const SizedBox(height: 10),
                     _recommendedUsageCard(),
@@ -95,11 +106,11 @@ class HistoryDetailScreen extends StatelessWidget {
             ),
             onPressed: () => Navigator.pop(context),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Result Details',
+              qt('result_details'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: _textDark,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -166,7 +177,7 @@ class HistoryDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  QualityTheme.label(result.quality),
+                  qQuality(result.quality),
                   style: const TextStyle(
                     color: _textDark,
                     fontSize: 23,
@@ -187,7 +198,7 @@ class HistoryDetailScreen extends StatelessWidget {
                     const SizedBox(width: 7),
                     Expanded(
                       child: Text(
-                        'Confidence Score '
+                        '${qt("quality_confidence")} '
                         '${result.confidencePercent}',
                         style: TextStyle(
                           color: qualityColor,
@@ -213,11 +224,21 @@ class HistoryDetailScreen extends StatelessWidget {
     final defect = result.defectType?.trim();
     final isDisease = defect == 'disease';
 
+    // 🔧 FIXED: for disease, show the Disease component name + severity
+    // (same numbers as the Disease screen), not the colour estimate.
+    final showDisease = isDisease && result.hasDiseaseInfo;
+    final title = showDisease
+        ? '${qDefect(defect)} · $_diseaseName'
+        : (defect == null ? qt('unknown') : qDefect(defect));
+    final severityText = showDisease
+        ? _diseaseSeverityText
+        : result.severityDisplay;
+
     return _basicInfoCard(
       icon: Icons.warning_amber_rounded,
       iconColor: _red,
       iconBackground: _redLight,
-      label: 'DEFECT DETECTED',
+      label: qt('defect_detected').toUpperCase(),
       trailing: isDisease
           ? _eyeButton(() => _showDiseaseDetailsPopup(context))
           : null,
@@ -225,7 +246,7 @@ class HistoryDetailScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            _formatName(defect ?? 'Unknown'),
+            title,
             style: const TextStyle(
               color: _textDark,
               fontSize: 16,
@@ -237,16 +258,38 @@ class HistoryDetailScreen extends StatelessWidget {
             children: [
               const Icon(Icons.analytics_outlined, color: _textMid, size: 16),
               const SizedBox(width: 5),
-              Text(
-                'Severity: ${result.severityDisplay}',
-                style: const TextStyle(
-                  color: _textMid,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Text(
+                  '${qt("severity")}: $severityText',
+                  style: const TextStyle(
+                    color: _textMid,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
             ],
           ),
+          if (showDisease && result.diseaseConfidence != null) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                const Icon(Icons.verified_outlined, color: _textMid, size: 16),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    '${qt("disease_confidence")}: '
+                    '${result.diseaseConfidenceDisplay}',
+                    style: const TextStyle(
+                      color: _textMid,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -268,180 +311,150 @@ class HistoryDetailScreen extends StatelessWidget {
     );
   }
 
-  // 🆕 popup showing the disease name + treatment + prevention that was
-  // captured at grading time (see quality_grading_screen.dart ->
-  // GradingService.attachDiseaseInfo). If an older record doesn't have
-  // this saved, shows a graceful fallback instead of an empty popup.
+  // 🔧 FIXED eye popup: disease name, disease confidence and severity
+  // come from the Disease component values saved at grading time (same
+  // numbers as the Disease screen). Organic / Chemical treatment and
+  // prevention tips are rebuilt in the CURRENT app language (same tips).
+  // Older records without disease info show a graceful fallback.
   void _showDiseaseDetailsPopup(BuildContext context) {
-    final hasDetails = _hasValue(result.diseaseName);
+    final hasDetails = result.hasDiseaseInfo;
 
     showDialog(
       context: context,
-      builder: (_) => Dialog(
+      builder: (dialogContext) => Dialog(
         backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: Container(
           padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(26),
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: const BoxDecoration(
-                      color: _redLight,
-                      shape: BoxShape.circle,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 46,
+                      height: 46,
+                      decoration: const BoxDecoration(
+                        color: _redLight,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.coronavirus_rounded,
+                        color: _red,
+                        size: 24,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.coronavirus_rounded,
-                      color: _red,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Disease Details',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                            color: _textDark,
-                          ),
-                        ),
-                        if (hasDetails)
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            result.diseaseName!.replaceAll('_', ' '),
+                            qt('disease_details'),
                             style: const TextStyle(
-                              color: _textMid,
-                              fontSize: 12.5,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                              color: _textDark,
                             ),
                           ),
-                      ],
+                          if (hasDetails)
+                            Text(
+                              _diseaseName,
+                              style: const TextStyle(
+                                color: _textMid,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              if (hasDetails) ...[
-                if (_hasValue(result.diseaseTreatment)) ...[
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.medication_liquid_rounded,
-                        color: _blue,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'Recommended Treatment',
-                        style: TextStyle(
-                          color: _blue,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                if (hasDetails)
+                  DiseaseTreatmentPanel(
+                    confidenceText: result.diseaseConfidenceDisplay,
+                    severityText: _diseaseSeverityText,
+                    isUncertain: result.isDiseaseUncertain,
+                    treatmentFor: result.diseaseTreatmentFor,
+                    scheduleFor: result.diseaseScheduleFor,
+                    primary: _red,
+                    secondary: _green,
+                    softBackground: _redLight,
+                    textColor: _textMid,
+                    titleColor: _textDark,
+                  )
+                else
                   Text(
-                    result.diseaseTreatment!,
+                    _noDiseaseNote,
+                    textAlign: TextAlign.justify,
                     style: const TextStyle(
                       color: _textMid,
                       fontSize: 12.5,
                       height: 1.5,
                     ),
                   ),
-                ],
-                if (result.diseasePrevention != null &&
-                    result.diseasePrevention!.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  const Text(
-                    'Prevention Tips',
-                    style: TextStyle(
-                      color: _green,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...result.diseasePrevention!.map(
-                    (tip) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Container(
-                              width: 5,
-                              height: 5,
-                              decoration: const BoxDecoration(
-                                color: _blue,
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              tip,
-                              style: const TextStyle(
-                                color: _textMid,
-                                fontSize: 12,
-                                height: 1.45,
-                              ),
-                            ),
-                          ),
-                        ],
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(dialogContext),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _red,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                  ),
-                ],
-              ] else
-                const Text(
-                  'Detailed disease information was not captured for '
-                  'this result. Scan the fruit again to get the disease '
-                  'name and treatment.',
-                  style: TextStyle(
-                    color: _textMid,
-                    fontSize: 12.5,
-                    height: 1.5,
-                  ),
-                ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _red,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
+                    child: Text(
+                      qt('got_it'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
-                  child: const Text(
-                    'Got It',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
+  }
+
+  /// Translated disease name, e.g. "ஆந்த்ராக்னோஸ்".
+  String get _diseaseName =>
+      d.LanguageController.instance.disease(result.diseaseName ?? '');
+
+  /// "Moderate (28.7%)" with the level translated. Uses the Disease
+  /// component severity; older records fall back to the saved value.
+  String get _diseaseSeverityText {
+    final pct = result.diseaseSeverityPercent;
+    if (pct == null) return result.severityDisplay;
+    final level = result.diseaseSeverityLevel;
+    final levelText = level == null
+        ? ''
+        : '${d.LanguageController.instance.severity(level)} ';
+    return '$levelText(${pct.toStringAsFixed(1)}%)';
+  }
+
+  /// Message when no disease was identified for this record.
+  String get _noDiseaseNote {
+    switch (result.diseaseStatus) {
+      case 'healthy':
+        return qt('disease_healthy_note');
+      case 'not_detected':
+        return qt('disease_not_detected_note');
+      case 'failed':
+        return qt('disease_failed_note');
+      default:
+        return qt('disease_not_captured');
+    }
   }
 
   Widget _weightCard() {
@@ -449,9 +462,9 @@ class HistoryDetailScreen extends StatelessWidget {
       icon: Icons.scale_rounded,
       iconColor: _blue,
       iconBackground: _blueLight,
-      label: 'FRUIT WEIGHT',
+      label: qt('fruit_weight').toUpperCase(),
       child: Text(
-        '${result.weightGrams} g',
+        qtf('weight_value', {'g': '${result.weightGrams}'}),
         style: const TextStyle(
           color: _textDark,
           fontSize: 17,
@@ -489,7 +502,7 @@ class HistoryDetailScreen extends StatelessWidget {
       icon: Icons.lightbulb_outline_rounded,
       color: _red,
       backgroundColor: _redLight,
-      title: 'RECOMMENDED USAGE',
+      title: qt('recommended_usage').toUpperCase(),
       text: result.recommendation,
     );
   }
@@ -499,7 +512,7 @@ class HistoryDetailScreen extends StatelessWidget {
       icon: Icons.info_outline_rounded,
       color: _blue,
       backgroundColor: _blueLight,
-      title: 'WHY THIS RECOMMENDATION?',
+      title: qt('why_recommendation').toUpperCase(),
       text: result.explanation!,
     );
   }
@@ -509,7 +522,7 @@ class HistoryDetailScreen extends StatelessWidget {
       icon: Icons.recycling_rounded,
       color: _green,
       backgroundColor: _greenLight,
-      title: 'WASTE UTILIZATION METHOD',
+      title: qt('waste_method').toUpperCase(),
       text: result.wasteUsage!,
     );
   }
@@ -519,7 +532,7 @@ class HistoryDetailScreen extends StatelessWidget {
       icon: Icons.health_and_safety_outlined,
       color: _orange,
       backgroundColor: _orangeLight,
-      title: 'SAFETY NOTE',
+      title: qt('safety_note').toUpperCase(),
       text: result.safetyNote!,
     );
   }
@@ -595,7 +608,7 @@ class HistoryDetailScreen extends StatelessWidget {
       icon: Icons.calendar_today_rounded,
       iconColor: _textMid,
       iconBackground: const Color(0xFFF3F4F6),
-      label: 'GRADED ON',
+      label: qt('graded_on').toUpperCase(),
       child: Text(
         result.displayDate,
         style: const TextStyle(
@@ -671,18 +684,5 @@ class HistoryDetailScreen extends StatelessWidget {
 
   bool _hasValue(String? value) {
     return value != null && value.trim().isNotEmpty;
-  }
-
-  String _formatName(String value) {
-    final words = value
-        .replaceAll('_', ' ')
-        .replaceAll('-', ' ')
-        .split(RegExp(r'\s+'))
-        .where((word) => word.isNotEmpty);
-    return words
-        .map((word) {
-          return word[0].toUpperCase() + word.substring(1).toLowerCase();
-        })
-        .join(' ');
   }
 }

@@ -1,9 +1,10 @@
-// lib/screens/history_screen.dart
+// lib/screens/quality/history_screen.dart
 import 'package:flutter/material.dart';
+import '../../l10n/q_app_strings.dart';
 import '../../models/grading_result.dart';
 import '../../services/grading/grading_service.dart';
 import '../../theme/app_theme.dart';
-import '../../widgets/grading_image.dart';
+import '../../widgets/grading/grading_history_tile.dart';
 import 'history_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
@@ -34,10 +35,12 @@ class _HistoryScreenState extends State<HistoryScreen>
   final Set<String> _selectedIds = {};
 
   static const _red = Color(0xFFC1121F);
-  static const _redSoft = Color(0xFFFFEEF3);
+  static const _redDark = Color(0xFF8E0B16);
+  static const _redSoft = Color(0xFFFFF1F2);
+  static const _bg = Color(0xFFF7F7F9);
   static const _textDark = Color(0xFF1F2937);
   static const _textSoft = Color(0xFF6B7280);
-  static const _border = Color(0xFFE5E7EB);
+  static const _border = Color(0xFFEDEDF0);
 
   @override
   void initState() {
@@ -46,11 +49,18 @@ class _HistoryScreenState extends State<HistoryScreen>
       vsync: this,
       duration: const Duration(milliseconds: 600),
     );
+    // Rebuild when the language is changed on the Profile page.
+    QStrings.listenable.addListener(_onLanguageChanged);
     _loadHistory();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    QStrings.listenable.removeListener(_onLanguageChanged);
     _listCtrl.dispose();
     super.dispose();
   }
@@ -156,8 +166,8 @@ class _HistoryScreenState extends State<HistoryScreen>
     if (_selectedIds.isEmpty) return;
     final count = _selectedIds.length;
     final ok = await _confirmDialog(
-      'Delete $count result${count > 1 ? "s" : ""}?',
-      'This cannot be undone.',
+      qtf('delete_n_title', {'n': '$count'}),
+      qt('cannot_undo'),
     );
     if (!ok) return;
 
@@ -172,9 +182,9 @@ class _HistoryScreenState extends State<HistoryScreen>
         _selectionMode = false;
       });
       _applyFilters();
-      _showSnack('$count result${count > 1 ? "s" : ""} deleted');
+      _showSnack(qtf('n_deleted', {'n': '$count'}));
     } catch (e) {
-      _showSnack('Delete failed — check your connection', isError: true);
+      _showSnack(qt('delete_failed'), isError: true);
     }
   }
 
@@ -182,8 +192,8 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   Future<void> _deleteOne(GradingResult item) async {
     final ok = await _confirmDialog(
-      'Delete this result?',
-      'This cannot be undone.',
+      qt('delete_this_result'),
+      qt('cannot_undo'),
     );
     if (!ok) return;
     try {
@@ -192,17 +202,17 @@ class _HistoryScreenState extends State<HistoryScreen>
         _all.removeWhere((r) => r.id == item.id);
         _applyFilters();
       });
-      _showSnack('Result deleted');
+      _showSnack(qt('result_deleted'));
     } catch (e) {
-      _showSnack('Delete failed — check your connection', isError: true);
+      _showSnack(qt('delete_failed'), isError: true);
     }
   }
 
   Future<void> _deleteAll() async {
     if (_all.isEmpty) return;
     final ok = await _confirmDialog(
-      'Clear all history?',
-      'All ${_all.length} results will be permanently deleted.',
+      qt('clear_all_title'),
+      qtf('clear_all_msg', {'n': '${_all.length}'}),
     );
     if (!ok) return;
     try {
@@ -213,9 +223,9 @@ class _HistoryScreenState extends State<HistoryScreen>
         _selectionMode = false;
         _selectedIds.clear();
       });
-      _showSnack('All history cleared');
+      _showSnack(qt('history_cleared'));
     } catch (e) {
-      _showSnack('Failed — check your connection', isError: true);
+      _showSnack(qt('failed_connection'), isError: true);
     }
   }
 
@@ -242,11 +252,14 @@ class _HistoryScreenState extends State<HistoryScreen>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel', style: TextStyle(color: _textSoft)),
+                child: Text(
+                  qt('cancel'),
+                  style: const TextStyle(color: _textSoft),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const Text('Delete', style: TextStyle(color: _red)),
+                child: Text(qt('delete'), style: const TextStyle(color: _red)),
               ),
             ],
           ),
@@ -273,166 +286,171 @@ class _HistoryScreenState extends State<HistoryScreen>
         if (!didPop && _selectionMode) _exitSelectionMode();
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildHeader(),
-              if (_isOffline) _buildOfflineBanner(),
-              if (!_selectionMode) _buildQualityTabs(),
-              const SizedBox(height: 8),
-              Expanded(child: _buildBody()),
-            ],
-          ),
+        backgroundColor: _bg,
+        body: Column(
+          children: [
+            _buildHeader(),
+            if (_isOffline) _buildOfflineBanner(),
+            if (!_selectionMode) _buildQualityTabs(),
+            Expanded(child: _buildBody()),
+          ],
         ),
       ),
     );
   }
 
   // ══════════════════════════════════════════════════════════════
-  // HEADER — switches between normal view and selection view
+  // HEADER — normal view / selection view
   // ══════════════════════════════════════════════════════════════
 
   Widget _buildHeader() {
-    if (_selectionMode) return _buildSelectionHeader();
-    return _buildNormalHeader();
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: _selectionMode ? _buildSelectionHeader() : _buildNormalHeader(),
+    );
   }
 
   Widget _buildNormalHeader() => Container(
     key: const ValueKey('normal-header'),
-    padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
-    decoration: const BoxDecoration(
-      color: Colors.white,
-      border: Border(bottom: BorderSide(color: _border)),
-    ),
-    child: Row(
-      children: [
-        IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            size: 20,
-            color: _textDark,
-          ),
-          onPressed: () => Navigator.pop(context),
+    color: Colors.white,
+    child: SafeArea(
+      bottom: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: _border)),
         ),
-        const Expanded(
-          child: Text(
-            'Grading History',
-            style: TextStyle(
-              color: _textDark,
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
+        child: Row(
+          children: [
+            _barIcon(
+              Icons.arrow_back_ios_new_rounded,
+              () => Navigator.pop(context),
             ),
-          ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    qt('grading_history'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _textDark,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (_all.isNotEmpty)
+              _barIcon(
+                Icons.delete_sweep_rounded,
+                _deleteAll,
+                tooltip: qt('delete_all'),
+              ),
+          ],
         ),
-        if (_all.isNotEmpty) ...[
-          _countBadge(
-            _all.where((r) => r.quality == 'high_quality').length,
-            AppColors.chartHigh,
-          ),
-          const SizedBox(width: 4),
-          _countBadge(
-            _all.where((r) => r.quality == 'medium_quality').length,
-            AppColors.chartMed,
-          ),
-          const SizedBox(width: 4),
-          _countBadge(
-            _all.where((r) => r.quality == 'low_quality').length,
-            AppColors.chartLow,
-          ),
-          const SizedBox(width: 4),
-        ],
-        IconButton(
-          icon: const Icon(Icons.delete_sweep_rounded, color: _red),
-          tooltip: 'Delete all',
-          onPressed: _deleteAll,
-        ),
-      ],
+      ),
     ),
   );
 
   Widget _buildSelectionHeader() => Container(
     key: const ValueKey('selection-header'),
-    padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
-    decoration: BoxDecoration(
-      color: _red,
-      border: const Border(bottom: BorderSide(color: _border)),
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(colors: [_red, _redDark]),
     ),
-    child: Row(
-      children: [
-        IconButton(
-          icon: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
-          onPressed: _exitSelectionMode,
-        ),
-        Expanded(
-          child: Text(
-            '${_selectedIds.length} selected',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
+    child: SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(4, 8, 8, 8),
+        child: Row(
+          children: [
+            IconButton(
+              icon: const Icon(
+                Icons.close_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+              onPressed: _exitSelectionMode,
             ),
-          ),
-        ),
-        TextButton.icon(
-          onPressed: _toggleSelectAll,
-          icon: Icon(
-            _allSelected
-                ? Icons.check_box_rounded
-                : Icons.check_box_outline_blank_rounded,
-            color: Colors.white,
-            size: 18,
-          ),
-          label: Text(
-            _allSelected ? 'Unselect All' : 'Select All',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+            Expanded(
+              child: Text(
+                qtf('n_selected', {'n': '${_selectedIds.length}'}),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
-          ),
+            TextButton.icon(
+              onPressed: _toggleSelectAll,
+              icon: Icon(
+                _allSelected
+                    ? Icons.check_box_rounded
+                    : Icons.check_box_outline_blank_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
+              label: Text(
+                _allSelected ? qt('unselect_all') : qt('select_all'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+              tooltip: qt('delete_selected'),
+              onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+            ),
+          ],
         ),
-        IconButton(
-          icon: const Icon(
-            Icons.delete_outline_rounded,
-            color: Colors.white,
-            size: 22,
-          ),
-          tooltip: 'Delete selected',
-          onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
-        ),
-      ],
+      ),
     ),
   );
 
-  Widget _countBadge(int n, Color color) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-    decoration: BoxDecoration(
-      color: color.withOpacity(0.12),
-      borderRadius: BorderRadius.circular(8),
-    ),
-    child: Text(
-      '$n',
-      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
-    ),
-  );
+  Widget _barIcon(IconData icon, VoidCallback onTap, {String? tooltip}) {
+    final button = Material(
+      color: _redSoft,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: SizedBox(
+          width: 40,
+          height: 40,
+          child: Icon(icon, color: _red, size: 19),
+        ),
+      ),
+    );
+    return tooltip == null ? button : Tooltip(message: tooltip, child: button);
+  }
 
   Widget _buildOfflineBanner() => Container(
-    margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+    margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
     decoration: BoxDecoration(
       color: _redSoft,
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: _red.withOpacity(0.2)),
     ),
-    child: const Row(
+    child: Row(
       children: [
-        Icon(Icons.wifi_off_rounded, size: 18, color: _red),
-        SizedBox(width: 10),
+        const Icon(Icons.wifi_off_rounded, size: 18, color: _red),
+        const SizedBox(width: 10),
         Expanded(
           child: Text(
-            'Weak or no connection — showing cached results',
-            style: TextStyle(
+            qt('offline_cached'),
+            style: const TextStyle(
               fontSize: 12,
               color: _red,
               fontWeight: FontWeight.w600,
@@ -443,29 +461,43 @@ class _HistoryScreenState extends State<HistoryScreen>
     ),
   );
 
-  Widget _buildQualityTabs() => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-    child: Container(
-      decoration: BoxDecoration(
-        color: _redSoft,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _red.withOpacity(0.12)),
-      ),
-      padding: const EdgeInsets.all(4),
-      child: Row(
+  // ── Filter chips with counts: All · High · Medium · Low ──
+  Widget _buildQualityTabs() {
+    int count(String q) => _all.where((r) => r.quality == q).length;
+    return SizedBox(
+      height: 56,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
         children: [
-          _qTab(_QFilter.all, 'All', _red),
-          _qTab(_QFilter.high, 'High', AppColors.chartHigh),
-          _qTab(_QFilter.medium, 'Medium', AppColors.chartMed),
-          _qTab(_QFilter.low, 'Low', AppColors.chartLow),
+          _qTab(_QFilter.all, qt('all'), _all.length, _red),
+          _qTab(
+            _QFilter.high,
+            qt('high'),
+            count('high_quality'),
+            AppColors.chartHigh,
+          ),
+          _qTab(
+            _QFilter.medium,
+            qt('medium'),
+            count('medium_quality'),
+            AppColors.chartMed,
+          ),
+          _qTab(
+            _QFilter.low,
+            qt('low'),
+            count('low_quality'),
+            AppColors.chartLow,
+          ),
         ],
       ),
-    ),
-  );
+    );
+  }
 
-  Widget _qTab(_QFilter f, String label, Color color) {
+  Widget _qTab(_QFilter f, String label, int n, Color color) {
     final selected = _qFilter == f;
-    return Expanded(
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
         onTap: () {
           setState(() => _qFilter = f);
@@ -473,19 +505,45 @@ class _HistoryScreenState extends State<HistoryScreen>
         },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? color : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: selected ? Colors.white : color,
+            color: selected ? color : Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: selected ? color : color.withOpacity(0.35),
             ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? Colors.white : color,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                decoration: BoxDecoration(
+                  color: selected
+                      ? Colors.white.withOpacity(0.25)
+                      : color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$n',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: selected ? Colors.white : color,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -498,258 +556,84 @@ class _HistoryScreenState extends State<HistoryScreen>
     }
     if (_filtered.isEmpty) return _buildEmpty();
 
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-      itemCount: _filtered.length,
-      itemBuilder: (_, i) {
-        final item = _filtered[i];
-        final delay = i * 0.05;
-        return AnimatedBuilder(
-          animation: _listCtrl,
-          builder: (_, child) {
-            final t = ((_listCtrl.value - delay) / (1 - delay)).clamp(0.0, 1.0);
-            return Transform.translate(
-              offset: Offset(0, 30 * (1 - t)),
-              child: Opacity(opacity: t, child: child),
-            );
-          },
-          child: _HistoryCard(
-            result: item,
-            selectionMode: _selectionMode,
-            selected: _selectedIds.contains(item.id),
-            onDelete: () => _deleteOne(item),
-            onTap: () {
-              if (_selectionMode) {
-                _toggleSelection(item.id);
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => HistoryDetailScreen(result: item),
-                  ),
-                );
-              }
+    return RefreshIndicator(
+      color: _red,
+      onRefresh: () => _loadHistory(silent: true),
+      child: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+        itemCount: _filtered.length,
+        itemBuilder: (_, i) {
+          final item = _filtered[i];
+          final delay = (i * 0.05).clamp(0.0, 0.6);
+          return AnimatedBuilder(
+            animation: _listCtrl,
+            builder: (_, child) {
+              final t = ((_listCtrl.value - delay) / (1 - delay)).clamp(
+                0.0,
+                1.0,
+              );
+              return Transform.translate(
+                offset: Offset(0, 24 * (1 - t)),
+                child: Opacity(opacity: t, child: child),
+              );
             },
-            onLongPress: () {
-              if (!_selectionMode) _enterSelectionMode(item.id);
-            },
-          ),
-        );
-      },
+            child: _buildItem(item),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildEmpty() => Center(
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
-        Text('🍎', style: TextStyle(fontSize: 52)),
-        SizedBox(height: 16),
-        Text(
-          'No results found',
-          style: TextStyle(
-            color: _textDark,
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        SizedBox(height: 8),
-        Text(
-          'Scan a fruit to view grading history',
-          style: TextStyle(color: _textSoft, fontSize: 13),
-        ),
-      ],
-    ),
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════
-// HISTORY CARD — cleaner layout: image on the left, no confidence
-// arc (just a compact percentage chip), long-press to multi-select,
-// checkbox overlay on the thumbnail while in selection mode.
-// ══════════════════════════════════════════════════════════════════
-
-class _HistoryCard extends StatelessWidget {
-  final GradingResult result;
-  final bool selectionMode;
-  final bool selected;
-  final VoidCallback onDelete;
-  final VoidCallback onTap;
-  final VoidCallback onLongPress;
-
-  const _HistoryCard({
-    required this.result,
-    required this.selectionMode,
-    required this.selected,
-    required this.onDelete,
-    required this.onTap,
-    required this.onLongPress,
-  });
-
-  static const _red = Color(0xFFC1121F);
-  static const _textDark = Color(0xFF1F2937);
-  static const _textSoft = Color(0xFF6B7280);
-  static const _border = Color(0xFFE5E7EB);
-
-  @override
-  Widget build(BuildContext context) {
-    final fg = QualityTheme.fgColor(result.quality);
-    final bg = QualityTheme.bgColor(result.quality);
-    final qualityLabel = QualityTheme.label(result.quality);
-
-    final card = AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: selected ? _red.withOpacity(0.05) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: selected ? _red : _border,
-          width: selected ? 1.6 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _red.withOpacity(selected ? 0.10 : 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(19),
-        child: Column(
-          children: [
-            Container(height: 4, color: fg),
-            InkWell(
-              onTap: onTap,
-              onLongPress: onLongPress,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _thumbnail(bg),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 10,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: fg.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  qualityLabel,
-                                  style: TextStyle(
-                                    color: fg,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              // 🔧 simple confidence chip — replaces the
-                              // circular arc, just plain % text.
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF3F4F6),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  result.confidencePercent,
-                                  style: const TextStyle(
-                                    color: _textSoft,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 7),
-                          Text(
-                            result.recommendation,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _textDark,
-                              fontSize: 12,
-                              height: 1.3,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          if (result.defectType != null) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              '${result.defectType} · ${result.severityDisplay}',
-                              style: const TextStyle(
-                                color: _textSoft,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 4),
-                          Text(
-                            result.displayDate,
-                            style: const TextStyle(
-                              color: _textSoft,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (!selectionMode)
-                      IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline_rounded,
-                          size: 20,
-                          color: _red,
-                        ),
-                        onPressed: onDelete,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      )
-                    else
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Colors.transparent,
-                        size: 20,
-                      ),
-                  ],
-                ),
+  /// Same tile as the main screen, plus delete / select / swipe.
+  Widget _buildItem(GradingResult item) {
+    final tile = GradingHistoryTile(
+      result: item,
+      selectionMode: _selectionMode,
+      selected: _selectedIds.contains(item.id),
+      trailing: _selectionMode
+          ? null
+          : IconButton(
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                size: 20,
+                color: _red,
               ),
+              tooltip: qt('delete'),
+              onPressed: () => _deleteOne(item),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
             ),
-          ],
-        ),
-      ),
+      onTap: () {
+        if (_selectionMode) {
+          _toggleSelection(item.id);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => HistoryDetailScreen(result: item),
+            ),
+          );
+        }
+      },
+      onLongPress: () {
+        if (!_selectionMode) _enterSelectionMode(item.id);
+      },
     );
 
-    // Swipe-to-delete only when NOT in selection mode, so it doesn't
-    // fight with the long-press / checkbox selection gestures.
-    if (selectionMode) return card;
+    // Swipe-to-delete only when NOT in selection mode.
+    if (_selectionMode) return tile;
 
     return Dismissible(
-      key: Key(result.id),
+      key: Key(item.id),
       direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
+      confirmDismiss: (_) async {
+        await _deleteOne(item);
+        return false; // list is updated by _deleteOne
+      },
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(right: 22),
+        margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           color: _red,
           borderRadius: BorderRadius.circular(18),
@@ -757,73 +641,49 @@ class _HistoryCard extends StatelessWidget {
         child: const Icon(
           Icons.delete_outline_rounded,
           color: Colors.white,
-          size: 28,
+          size: 26,
         ),
       ),
-      child: card,
+      child: tile,
     );
   }
 
-  Widget _thumbnail(Color bg) {
-    return Stack(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(14),
-          child: SizedBox(
-            width: 64,
-            height: 64,
-            // 🆕 url -> local file -> emoji fallback, so a null/failed
-            // image_url never leaves the thumbnail blank.
-            child: GradingImage(
-              imageUrl: result.imageUrl,
-              imagePath: result.imagePath,
-              background: bg,
-              emoji: QualityTheme.emoji(result.quality),
+  Widget _buildEmpty() => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 86,
+            height: 86,
+            decoration: const BoxDecoration(
+              color: _redSoft,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.inventory_2_outlined,
+              color: _red,
+              size: 38,
             ),
           ),
-        ),
-        // 🆕 selection checkbox overlay
-        if (selectionMode)
-          Positioned(
-            top: -4,
-            left: -4,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected ? _red : Colors.white,
-                border: Border.all(
-                  color: selected ? _red : _border,
-                  width: 1.6,
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 4,
-                    offset: Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: selected
-                  ? const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 14,
-                    )
-                  : null,
+          const SizedBox(height: 16),
+          Text(
+            qt('no_results'),
+            style: const TextStyle(
+              color: _textDark,
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
             ),
           ),
-        // dim the image slightly when selected, like gallery apps
-        if (selectionMode && selected)
-          Positioned.fill(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Container(color: _red.withOpacity(0.18)),
-            ),
+          const SizedBox(height: 6),
+          Text(
+            qt('scan_to_view'),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _textSoft, fontSize: 13),
           ),
-      ],
-    );
-  }
+        ],
+      ),
+    ),
+  );
 }
