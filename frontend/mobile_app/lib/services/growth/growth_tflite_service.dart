@@ -132,16 +132,13 @@ class GrowthTfliteService {
     // ── Stage 1: does a pomegranate exist in this image? ─────────
     final detection = _runYolo(decoded);
 
-    if (detection == null) {
-      return GrowthDetectionResult.rejected(
-        'No pomegranate was detected in this image. '
-        'Please upload a clear photo of a pomegranate plant or fruit.',
-        0,
-      );
-    }
+    // A close-up bud or stage image may be valid even when YOLO cannot
+    // produce a fruit box. The CNN remains the final confidence gate below.
 
     // ── Stage 2: crop the fruit and classify its stage ───────────
-    final crop = _cropDetection(decoded, detection);
+    final crop = detection == null
+        ? decoded
+        : _cropDetection(decoded, detection);
     final classification = _runCnn(crop);
 
     final topStage = classification.entries
@@ -151,7 +148,7 @@ class GrowthTfliteService {
     if (topStage.key == 'Unknown') {
       return GrowthDetectionResult.rejected(
         'This does not appear to be a pomegranate fruit.',
-        detection.score,
+        detection?.score ?? 0,
       );
     }
 
@@ -159,7 +156,7 @@ class GrowthTfliteService {
       return GrowthDetectionResult.rejected(
         'The growth stage could not be determined confidently. '
         'Try a clearer, closer photo of the fruit.',
-        detection.score,
+        detection?.score ?? 0,
       );
     }
 
@@ -167,7 +164,7 @@ class GrowthTfliteService {
       detected: true,
       stage: topStage.key,
       confidence: topStage.value,
-      detectionScore: detection.score,
+      detectionScore: detection?.score ?? 0,
       allProbabilities: classification,
     );
   }

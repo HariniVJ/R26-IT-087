@@ -7,16 +7,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../services/firebase/firestore_service.dart';
 import '../services/growth/growth_advisory_service.dart';
 import '../services/growth/growth_tflite_service.dart';
 import 'result_screen.dart';
 
-
-
 String get apiBaseUrl =>
     kIsWeb ? 'http://localhost:8000' : 'http://127.0.0.1:8000';
-
-// ── Brand colors ─────────────────────────────────────────────────
 
 const Color kPrimary = Color(0xFFB22222);
 const Color kPrimaryPink = Color(0xFFE14D75);
@@ -218,8 +215,11 @@ class _DetectingScreenState extends State<DetectingScreen>
 
       final String farmerId = user.uid;
 
+      final DateTime captureTime =
+          DateTime.now();
+
       final String captureDate =
-          DateTime.now()
+          captureTime
               .toIso8601String()
               .split('T')
               .first;
@@ -240,9 +240,15 @@ class _DetectingScreenState extends State<DetectingScreen>
         debugPrint(
           'FARMER / SOIL SENSOR LOOKUP',
         );
+
         debugPrint(
           'Farmer ID: $farmerId',
         );
+
+        debugPrint(
+          'Capture time: $captureTime',
+        );
+
         debugPrint(
           '==========================================',
         );
@@ -315,6 +321,11 @@ class _DetectingScreenState extends State<DetectingScreen>
         );
 
         debugPrint(
+          'Remaining to mature: '
+          '${resultData['harvest_prediction']?['range']}',
+        );
+
+        debugPrint(
           'Weather available: '
           '${resultData['weather']?['available']}',
         );
@@ -368,6 +379,61 @@ class _DetectingScreenState extends State<DetectingScreen>
           '==========================================',
         );
         debugPrint('');
+      }
+
+      try {
+        if (kDebugMode) {
+          debugPrint('');
+          debugPrint(
+            '==========================================',
+          );
+          debugPrint(
+            'STARTING FIRESTORE GROWTH SAVE',
+          );
+          debugPrint(
+            '==========================================',
+          );
+        }
+
+        await FirestoreService.instance
+            .saveGrowthDetectionResult(
+          resultData:
+              resultData,
+          imagePath:
+              widget.xfile.path,
+          captureTime:
+              captureTime,
+        );
+
+        if (kDebugMode) {
+          debugPrint(
+            'GROWTH PREDICTION FIRESTORE SAVE COMPLETED',
+          );
+          debugPrint(
+            '==========================================',
+          );
+          debugPrint('');
+        }
+      } catch (firestoreError, firestoreStackTrace) {
+        if (kDebugMode) {
+          debugPrint('');
+          debugPrint(
+            '==========================================',
+          );
+          debugPrint(
+            'GROWTH PREDICTION FIRESTORE SAVE FAILED',
+          );
+          debugPrint(
+            '$firestoreError',
+          );
+          debugPrint(
+            '$firestoreStackTrace',
+          );
+          debugPrint(
+            '==========================================',
+          );
+          debugPrint('');
+        }
       }
 
       if (!mounted) return;
