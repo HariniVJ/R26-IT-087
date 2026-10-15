@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../services/sensor/soil_bluetooth_service.dart';
-import '../services/firebase/firestore_service.dart';
 
 const Color kPrimary = Color(0xFFC13B57);
 const Color kPrimaryPink = Color(0xFFE14D75);
@@ -120,25 +119,8 @@ class _ResultScreenState extends State<ResultScreen>
     
     // Start soil sensor connection
     _initializeSoilSensor();
-    
-    // Save growth detection result to Firebase
-    _saveResultsToDatabase();
   }
   
-  Future<void> _saveResultsToDatabase() async {
-    try {
-      await FirestoreService.instance.saveGrowthDetectionResult(
-        resultData: widget.resultData,
-        imagePath: widget.xfile.path,
-        soilTemperature: _liveSoilTemperature,
-        captureTime: DateTime.now(),
-      );
-      debugPrint('✓ Growth detection result saved to Firebase');
-    } catch (e) {
-      debugPrint('✗ Failed to save growth detection result: $e');
-    }
-  }
-
   Future<void> _initializeSoilSensor() async {
     try {
       // Only connect if not already connected
