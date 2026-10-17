@@ -72,22 +72,29 @@ class DiseaseHelpers {
     return '${r.severityLevel} (${r.severityPercentage.toStringAsFixed(decimals)}%)';
   }
 
-  /// Today / Yesterday / 3 days ago / 12/10/2026
+  /// Today / Yesterday / 3 days ago / 12/10/2026 (calendar days)
+    /// Always the actual date — e.g. 15/10/2026
   static String relativeDate(DateTime date) {
-    final diff = DateTime.now().difference(date);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    return '${date.day}/${date.month}/${date.year}';
+    final d = date.toLocal();
+    return '${d.day}/${d.month}/${d.year}';
   }
 
   /// Today, 09:30 / Tomorrow, 09:30 / 12/10/2026, 09:30
+    /// Today, 09:30 / Tomorrow, 09:30 / 12/10/2026, 09:30 (calendar days)
   static String reminderDate(DateTime date) {
-    final diff = date.difference(DateTime.now());
+    final d = date.toLocal();
+    final days = _calendarDays(d, DateTime.now());
     final time =
-        '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    if (diff.inDays == 0) return 'Today, $time';
-    if (diff.inDays == 1) return 'Tomorrow, $time';
-    return '${date.day}/${date.month}/${date.year}, $time';
+        '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    if (days == 0) return 'Today, $time';
+    if (days == 1) return 'Tomorrow, $time';
+    return '${d.day}/${d.month}/${d.year}, $time';
   }
+
+  /// Whole calendar days from [b] to [a] (time of day ignored).
+  static int _calendarDays(DateTime a, DateTime b) => DateTime(
+    a.year,
+    a.month,
+    a.day,
+  ).difference(DateTime(b.year, b.month, b.day)).inDays;
 }

@@ -100,14 +100,10 @@ String dtf(String key, Map<String, String> vars) {
 }
 
 /// Today / Yesterday / 3 days ago / 12/10/2026 — translated.
-String dRelativeDate(DateTime date) {
-  final diff = DateTime.now().difference(date);
-  if (diff.inDays == 0) return dt('today');
-  if (diff.inDays == 1) return dt('yesterday');
-  if (diff.inDays < 7) return dtf('days_ago', {'n': '${diff.inDays}'});
-  return '${date.day}/${date.month}/${date.year}';
-}
-
+/// Compares CALENDAR days (not 24-hour blocks), so a photo taken on the
+/// 15th always shows "2 days ago" on the 17th — whatever the time.
+/// Always the actual date — e.g. "15 Oct 2026" (month name translated).
+String dRelativeDate(DateTime date) => dShortDate(date.toLocal());
 /// "14 Oct 2026" with translated month names.
 String dShortDate(DateTime d) {
   final months = dt('months').split(',');
