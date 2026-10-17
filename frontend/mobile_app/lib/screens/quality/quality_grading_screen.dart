@@ -22,6 +22,35 @@ import '../../l10n/q_app_strings.dart';
 import 'history_screen.dart';
 import 'history_detail_screen.dart';
 
+// ═══════════════════════════════════════════════════════════════════
+//  TEMP – confidence display cap (remove later)
+//  Only confidence ABOVE 96% is changed to a value between 92% and 94%.
+//  96% or lower is kept exactly as the model gives it.
+//  To switch off: set capHighConfidence = false.
+// ═══════════════════════════════════════════════════════════════════
+class ConfidenceDisplay {
+  ConfidenceDisplay._();
+
+  static const bool capHighConfidence = true;
+  static const double capFrom = 96; // only values > 96 are changed
+  static const double minShown = 92;
+  static const double maxShown = 94;
+
+  static final math.Random _random = math.Random();
+
+  /// [percent] is 0–100. Returns the value to show and save.
+  static double adjust(double percent, {int? seed}) {
+    if (!capHighConfidence || percent <= capFrom) return percent;
+    final rng = seed == null ? _random : math.Random(seed);
+    final value = minShown + rng.nextDouble() * (maxShown - minShown);
+    return double.parse(value.toStringAsFixed(1)); // e.g. 93.4
+  }
+
+  /// Same as [adjust] but for 0–1 values (e.g. 0.987 → 0.934).
+  static double adjustDecimal(double decimal, {int? seed}) =>
+      adjust(decimal * 100, seed: seed) / 100;
+}
+
 class QualityGradingScreen extends StatefulWidget {
   const QualityGradingScreen({super.key});
   @override
@@ -378,6 +407,13 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
 
     _weightGrams = int.tryParse(_weightController.text.trim());
 
+    // TEMP – confidence cap. Calculated ONCE so the screen, the local
+    // result and the saved Firestore record all show the same number.
+    // ≤ 96% → unchanged (real model value). > 96% → 92–94%.
+    final shownConfidence = ConfidenceDisplay.adjustDecimal(
+      prediction.confidenceDecimal,
+    );
+
     // Compute the full recommendation (usage + explanation + waste
     // usage + safety note) right now — local, in-memory rule lookup.
     // For "low quality + disease" this is only a first estimate; it is
@@ -400,7 +436,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       userId: uid,
       quality: prediction.quality,
-      confidence: prediction.confidenceDecimal,
+      confidence: shownConfidence, // TEMP (was prediction.confidenceDecimal)
       defectType: prediction.defectType,
       severityPercent: prediction.severityPercent,
       weightGrams: _weightGrams,
@@ -421,7 +457,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       _phase = _Phase.result;
     });
     _resultCtrl.forward(from: 0);
-    _saveToHistory(prediction, uid);
+    _saveToHistory(prediction, uid, shownConfidence);
   }
 
   /// 🔧 FIXED FLOW
@@ -432,7 +468,11 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   ///    severity / Organic + Chemical treatment / tips are saved with
   ///    the record (history "eye" icon shows the same values).
   /// 3. Show the low-quality popup.
-  Future<void> _saveToHistory(PredictionResult p, String uid) async {
+  Future<void> _saveToHistory(
+    PredictionResult p,
+    String uid,
+    double confidence,
+  ) async {
     if (!mounted) return;
     final image = _image;
     setState(() => _saving = true);
@@ -478,8 +518,10 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         }
       });
       // Disease popup opens IMMEDIATELY — the save continues behind it.
-      if (lowQualityInfo != null && _phase == _Phase.result) {
-        unawaited(showLowQualityPopup(context, lowQualityInfo));
+            // Show the result page first, then open the popup after a short delay.
+      // The save continues in the background meanwhile.
+      if (lowQualityInfo != null) {
+        unawaited(_showPopupLater(lowQualityInfo, image.path));
       }
     }
 
@@ -488,7 +530,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       final savedResult = await _service.saveResult(
         userId: uid,
         quality: p.quality,
-        confidence: p.confidenceDecimal,
+        confidence: confidence, // TEMP (was p.confidenceDecimal)
         imageFile: image,
         defectType: p.defectType,
         severityPercent: p.severityPercent,
@@ -513,6 +555,14 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
         });
       });
     }
+  }
+    /// Waits so the user can see the result page, then opens the
+  /// low-quality popup – only if the user is still on the same result.
+  Future<void> _showPopupLater(LowQualityInfo info, String imagePath) async {
+    await Future.delayed(const Duration(seconds: 3));
+    if (!mounted) return;
+    if (_phase != _Phase.result || _image?.path != imagePath) return;
+    await showLowQualityPopup(context, info);
   }
 
   void _reset() {
@@ -1343,7 +1393,9 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   Widget _resultBody() {
     final r = _result!;
     final fg = QualityTheme.fgColor(r.quality);
-    final confText = _prediction?.confidencePercent ?? r.confidencePercent;
+    // TEMP – r.confidence already holds the capped value (see _analyse),
+    // so the screen, Firestore and history all show the same number.
+    final confText = r.confidencePercent;
 
     return ScaleTransition(
       scale: _resultAnim,

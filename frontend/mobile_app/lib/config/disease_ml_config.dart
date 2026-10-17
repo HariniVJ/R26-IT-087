@@ -103,7 +103,7 @@ class ConfidenceDisplay {
 
   static const bool capHighConfidence = true; 
   static const double capFrom = 95; 
-  static const double minShown = 88;
+  static const double minShown = 91;
   static const double maxShown = 94;
 
   static final Random _random = Random();
