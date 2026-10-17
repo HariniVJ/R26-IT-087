@@ -5,7 +5,7 @@ import '../l10n/app_strings.dart';
 import '../screens/history/research_history_screen.dart';
 import '../screens/irrigation/irrigation_screen.dart';
 import '../screens/profile/profile_screen.dart';
-import '../screens/reports/research_reports_screen.dart';
+import '../screens/reports/farm_dataset_report_screen.dart';
 
 enum AppNavTab { home, history, reports, profile }
 
@@ -77,7 +77,7 @@ class AppBottomNavBar extends StatelessWidget {
                 active: current == AppNavTab.reports,
                 onTap: () => _open(
                   context,
-                  const ResearchReportsScreen(),
+                  const FarmDatasetReportScreen(),
                   AppNavTab.reports,
                 ),
               ),

@@ -241,7 +241,7 @@ class _HistoryScreenState extends State<HistoryScreen>
     _showSnack(uploaded ? qt('photo_updated') : qt('photo_saved_offline'));
     _loadHistory(silent: true); // refresh → new image shows
   }
-  
+
   Future<void> _deleteOne(GradingResult item) async {
     final ok = await _confirmDialog(
       qt('delete_this_result'),
@@ -640,7 +640,7 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget _buildItem(GradingResult item) {
     final tile = GradingHistoryTile(
       result: item,
-      onEditImage: () => _editImage(item), 
+      //onEditImage: () => _editImage(item), 
       selectionMode: _selectionMode,
       selected: _selectedIds.contains(item.id),
       trailing: _selectionMode
