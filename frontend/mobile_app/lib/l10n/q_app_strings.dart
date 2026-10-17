@@ -85,7 +85,7 @@ class QStrings {
       'explanation': 'Explanation',
       'waste_usage': 'Waste Usage',
       'safety_note': 'Safety Note',
-      'no_defect': 'No defect detected',
+      'no_defect': 'No defect',
       'na': 'N/A',
 
       // Quality / confidence
@@ -210,6 +210,7 @@ class QStrings {
       'recommended_usage': 'Recommended Usage',
       'result_details': 'Result Details',
       'unknown': 'Unknown',
+      'other_defect': 'Other defect',
     },
 
     // ─────────────────────────────── TAMIL ────────────────────────────────
@@ -369,6 +370,7 @@ class QStrings {
       'recommended_usage': 'பரிந்துரைக்கப்பட்ட பயன்பாடு',
       'result_details': 'முடிவு விவரங்கள்',
       'unknown': 'தெரியவில்லை',
+          'other_defect': 'வேறு குறைபாடு',
     },
 
     // ────────────────────────────── SINHALA ───────────────────────────────
@@ -524,6 +526,7 @@ class QStrings {
       'recommended_usage': 'නිර්දේශිත භාවිතය',
       'result_details': 'ප්‍රතිඵල විස්තර',
       'unknown': 'නොදනී',
+          'other_defect': 'වෙනත් දෝෂයක්',
     },
   };
 }

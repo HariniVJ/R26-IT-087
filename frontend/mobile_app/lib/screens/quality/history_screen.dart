@@ -6,6 +6,8 @@ import '../../services/grading/grading_service.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/grading/grading_history_tile.dart';
 import 'history_detail_screen.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 
 class HistoryScreen extends StatefulWidget {
   final String userId;
@@ -190,6 +192,56 @@ class _HistoryScreenState extends State<HistoryScreen>
 
   // ══════════════════════════════════════════════════════════════
 
+  // TEMP: pick a new image for an old record and save it like normal
+  Future<void> _editImage(GradingResult item) async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: Text(qt('gallery')),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: Text(qt('camera')),
+              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
+
+    final picked = await ImagePicker().pickImage(
+      source: source,
+      maxWidth: 1280,
+      imageQuality: 85,
+    );
+    if (picked == null || !mounted) return;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
+    bool uploaded = false;
+    try {
+      uploaded = await _service.replaceImage(
+        result: item,
+        imageFile: File(picked.path),
+      );
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.pop(context); // close loading
+    _showSnack(uploaded ? qt('photo_updated') : qt('photo_saved_offline'));
+    _loadHistory(silent: true); // refresh → new image shows
+  }
+  
   Future<void> _deleteOne(GradingResult item) async {
     final ok = await _confirmDialog(
       qt('delete_this_result'),
@@ -588,6 +640,7 @@ class _HistoryScreenState extends State<HistoryScreen>
   Widget _buildItem(GradingResult item) {
     final tile = GradingHistoryTile(
       result: item,
+      onEditImage: () => _editImage(item), 
       selectionMode: _selectionMode,
       selected: _selectedIds.contains(item.id),
       trailing: _selectionMode

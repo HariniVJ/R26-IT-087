@@ -8,6 +8,7 @@ import 'grading_disease_bridge_service.dart';
 import 'grading_firestore_service.dart';
 import 'image_storage_service.dart';
 import 'recommendation_service.dart';
+import 'package:path_provider/path_provider.dart';
 
 export 'grading_disease_bridge_service.dart'
     show DiseaseFinding, DiseaseCheckStatus;
@@ -96,7 +97,9 @@ class GradingService {
     );
 
     // Local path first (offline fallback), then best-effort upload.
-    final imagePath = imageFile?.path;
+        final imagePath = imageFile == null
+        ? null
+        : await _keepLocalCopy(imageFile);
     String? imageUrl;
     if (imageFile != null) {
       imageUrl = await _imageStorage.uploadGradingImage(imageFile, userId);
@@ -238,6 +241,52 @@ class GradingService {
     treatment: treatment,
     prevention: prevention,
   );
+    // ════════════════════════════════════════════════════════════════════
+  //  IMAGE — keep on phone + change photo (TEMP edit from history)
+  // ════════════════════════════════════════════════════════════════════
+
+  /// Copies the picked image from the image_picker cache into the app's
+  /// documents folder, so it survives "Clear cache". Returns the new path.
+  Future<String> _keepLocalCopy(File file) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final folder = Directory('${dir.path}/grading_images');
+      if (!await folder.exists()) await folder.create(recursive: true);
+      final name = 'grading_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final copy = await file.copy('${folder.path}/$name');
+      return copy.path;
+    } catch (_) {
+      return file.path; // fallback: original path
+    }
+  }
+
+  /// Replaces the photo of an already-saved record: keeps a local copy,
+  /// tries to upload to Firebase Storage and updates image_path / image_url.
+  /// Returns true when the upload worked (image_url saved).
+  Future<bool> replaceImage({
+    required GradingResult result,
+    required File imageFile,
+  }) async {
+    if (result.id.isEmpty) return false;
+
+    final localPath = await _keepLocalCopy(imageFile);
+
+    String? url;
+    try {
+      url = await _imageStorage.uploadGradingImage(
+        File(localPath),
+        result.userId,
+      );
+    } catch (_) {
+      url = null; // offline / Storage not ready → phone copy still saved
+    }
+
+    await _firestore.updateFields(result.id, {
+      'image_path': localPath,
+      if (url != null) 'image_url': url,
+    });
+    return url != null;
+  }
 
   // ════════════════════════════════════════════════════════════════════
   //  HISTORY

@@ -12,6 +12,7 @@ import '../../models/Q_prediction_result.dart';
 import '../../services/grading/grading_service.dart';
 import '../../services/grading/recommendation_service.dart';
 import '../../services/grading/tflite_service.dart';
+import '../../common/brand_color.dart';
 import '../../theme/app_theme.dart';
 import '../../widgets/stack_storage_bar.dart';
 import '../../widgets/date_range_pill.dart';
@@ -455,10 +456,31 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
       }
       // User pressed reset / picked another photo meanwhile → stop.
       if (!mounted || _image?.path != image.path) return;
+      final f = lowQualityInfo?.finding;
       setState(() {
-        _disease = lowQualityInfo?.finding;
+        _disease = f;
         _checkingDisease = false;
+        // Disease info on the page right away (before the save finishes).
+        if (f != null && _result != null) {
+          _result = f.hasDisease
+              ? _result!.copyWith(
+                  diseaseStatus: f.statusKey,
+                  diseaseName: f.diseaseName,
+                  diseaseConfidence: f.confidence,
+                  diseaseSeverityPercent: f.severityPercent,
+                  diseaseSeverityLevel: f.severityLevel,
+                  diseaseTreatment: f.organic.recommendation,
+                  diseaseChemicalTreatment: f.chemical.recommendation,
+                  diseasePrevention: f.prevention,
+                  diseaseTipsSeed: f.tipsSeed,
+                )
+              : _result!.copyWith(diseaseStatus: f.statusKey);
+        }
       });
+      // Disease popup opens IMMEDIATELY — the save continues behind it.
+      if (lowQualityInfo != null && _phase == _Phase.result) {
+        unawaited(showLowQualityPopup(context, lowQualityInfo));
+      }
     }
 
     // ── 2. Save once (with disease info when available) ──
@@ -490,11 +512,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
           'msg': e.toString().replaceFirst("Exception: ", ""),
         });
       });
-    }
-
-    // ── 3. Popup ──
-    if (lowQualityInfo != null && mounted && _phase == _Phase.result) {
-      await showLowQualityPopup(context, lowQualityInfo);
     }
   }
 
@@ -1326,7 +1343,6 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   Widget _resultBody() {
     final r = _result!;
     final fg = QualityTheme.fgColor(r.quality);
-    final conf = _prediction?.confidenceDecimal ?? r.confidence;
     final confText = _prediction?.confidencePercent ?? r.confidencePercent;
 
     return ScaleTransition(
@@ -1341,51 +1357,14 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (_image != null)
-                  Stack(
-                    children: [
-                      Image.file(
-                        _image!,
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                      Positioned(
-                        top: 12,
-                        left: 12,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: fg,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                QualityTheme.emoji(r.quality),
-                                style: const TextStyle(fontSize: 13),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                qQuality(r.quality),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Positioned(top: 12, right: 12, child: _saveStatusChip()),
-                    ],
+                  Image.file(
+                    _image!,
+                    height: 270,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
                   ),
                 Padding(
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1399,48 +1378,40 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                         ),
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        qQuality(r.quality),
-                        style: TextStyle(
-                          color: fg,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      // This is the QUALITY model's confidence — kept
-                      // separate from the disease confidence (defect card).
                       Row(
                         children: [
                           Expanded(
                             child: Text(
-                              qt('quality_confidence'),
-                              style: const TextStyle(
-                                color: _textMid,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
+                              qQuality(r.quality),
+                              style: TextStyle(
+                                color: fg,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
                               ),
                             ),
                           ),
-                          Text(
-                            confText,
-                            style: TextStyle(
-                              color: fg,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
+                          const SizedBox(width: 10),
+                          // Quality-model confidence — small oval.
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: fg.withOpacity(0.10),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: fg.withOpacity(0.35)),
+                            ),
+                            child: Text(
+                              confText,
+                              style: TextStyle(
+                                color: fg,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: LinearProgressIndicator(
-                          value: conf.clamp(0.0, 1.0),
-                          minHeight: 7,
-                          backgroundColor: fg.withOpacity(0.12),
-                          valueColor: AlwaysStoppedAnimation(fg),
-                        ),
                       ),
                     ],
                   ),
@@ -1528,63 +1499,16 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
     );
   }
 
-  /// "Saving..." / "Saved" chip on the result image.
-  Widget _saveStatusChip() {
-    if (!_saving && _savedOk != true) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.55),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (_saving)
-            const SizedBox(
-              width: 11,
-              height: 11,
-              child: CircularProgressIndicator(
-                strokeWidth: 1.6,
-                color: Colors.white,
-              ),
-            )
-          else
-            const Icon(Icons.cloud_done_rounded, color: Colors.white, size: 13),
-          const SizedBox(width: 5),
-          Text(
-            _saving ? qt('saving') : qt('saved'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   bool _hasValue(String? value) => value != null && value.trim().isNotEmpty;
 
-  /// Main recommendation — highlighted red card.
+  /// Main recommendation — light red card with primary-colour accents.
   Widget _recommendationUsageCard(GradingResult r) {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_red, _redDark],
-        ),
+        color: _redLight,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: _red.withOpacity(0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        border: Border.all(color: BrandColor.primary.withOpacity(0.25)),
       ),
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -1594,12 +1518,12 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(
               Icons.lightbulb_outline_rounded,
-              color: Colors.white,
+              color: BrandColor.primary,
               size: 20,
             ),
           ),
@@ -1610,10 +1534,10 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
               children: [
                 Text(
                   qt('recommendation').toUpperCase(),
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.8),
+                  style: const TextStyle(
+                    color: BrandColor.primary,
                     fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: 0.9,
                   ),
                 ),
@@ -1621,7 +1545,7 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
                 Text(
                   r.recommendation,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: _textDark,
                     fontSize: 14,
                     height: 1.45,
                     fontWeight: FontWeight.w600,
@@ -2074,10 +1998,10 @@ class _QualityGradingScreenState extends State<QualityGradingScreen>
   ) => Container(
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(16),
-      gradient: const LinearGradient(colors: [_red, _redDark]),
+      color: BrandColor.primary,
       boxShadow: [
         BoxShadow(
-          color: _red.withOpacity(0.30),
+          color: BrandColor.primary.withOpacity(0.30),
           blurRadius: 14,
           offset: const Offset(0, 6),
         ),

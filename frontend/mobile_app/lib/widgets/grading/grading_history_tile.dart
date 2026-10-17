@@ -4,8 +4,7 @@
 //   • main screen  → "Grading History" (latest 3)
 //   • View All     → history_screen.dart (with select / delete)
 //
-// Shows: image · quality level · defect / disease chip · date & time ·
-// small quality badge — all in the quality colour.
+// Shows: image · quality level · defect / disease chip · date & time.
 // (Recommendation text is NOT shown here on purpose.)
 import 'package:flutter/material.dart';
 
@@ -25,6 +24,9 @@ class GradingHistoryTile extends StatelessWidget {
   /// Optional widget on the right (e.g. delete button). When null a
   /// chevron is shown.
   final Widget? trailing;
+
+  /// TEMP: when given, a small edit icon appears on the image.
+  final VoidCallback? onEditImage;
   final EdgeInsetsGeometry margin;
 
   const GradingHistoryTile({
@@ -35,6 +37,7 @@ class GradingHistoryTile extends StatelessWidget {
     this.selectionMode = false,
     this.selected = false,
     this.trailing,
+    this.onEditImage,
     this.margin = const EdgeInsets.only(bottom: 10),
   });
 
@@ -42,9 +45,32 @@ class GradingHistoryTile extends StatelessWidget {
   static const _textSoft = Color(0xFF6B7280);
   static const _border = Color(0xFFEDEDF0);
 
+  // ── Quality colours: High → green · Medium → yellow · Low → red ──
+  static const highGreen = Color(0xFF16A34A);
+  static const mediumYellow = Color(0xFFEAB308); // ring / border
+  static const mediumYellowText = Color(0xFFCA8A04); // readable text
+  static const lowRed = Color(0xFFDC2626);
+
+  /// Main colour (ring / border).
+  static Color qualityColor(String quality) {
+    switch (quality) {
+      case 'high_quality':
+        return highGreen;
+      case 'medium_quality':
+        return mediumYellow;
+      default:
+        return lowRed;
+    }
+  }
+
+  /// Text colour (yellow is darkened a little so it is readable on white).
+  static Color qualityTextColor(String quality) =>
+      quality == 'medium_quality' ? mediumYellowText : qualityColor(quality);
+
   @override
   Widget build(BuildContext context) {
-    final fg = QualityTheme.fgColor(result.quality);
+    final ring = qualityColor(result.quality);
+    final textColor = qualityTextColor(result.quality);
     final bg = QualityTheme.bgColor(result.quality);
 
     return AnimatedContainer(
@@ -75,7 +101,7 @@ class GradingHistoryTile extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                _thumbnail(fg, bg),
+                _thumbnail(ring, bg),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -86,13 +112,13 @@ class GradingHistoryTile extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: fg,
+                          color: textColor,
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: 5),
-                      _issueChip(fg),
+                      _issueChip(textColor),
                       const SizedBox(height: 6),
                       Row(
                         children: [
@@ -120,9 +146,7 @@ class GradingHistoryTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _qualityBadge(fg),
                 if (trailing != null) ...[
-                  const SizedBox(width: 4),
                   trailing!,
                 ] else if (!selectionMode) ...[
                   const SizedBox(width: 2),
@@ -141,7 +165,7 @@ class GradingHistoryTile extends StatelessWidget {
   }
 
   // ── image with quality-colour ring + selection overlay ──
-  Widget _thumbnail(Color fg, Color bg) {
+  Widget _thumbnail(Color ring, Color bg) {
     return SizedBox(
       width: 60,
       height: 60,
@@ -152,7 +176,7 @@ class GradingHistoryTile extends StatelessWidget {
             padding: const EdgeInsets.all(2),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: fg.withOpacity(0.45), width: 2),
+              border: Border.all(color: ring, width: 2),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -167,6 +191,29 @@ class GradingHistoryTile extends StatelessWidget {
               ),
             ),
           ),
+          // TEMP: edit image button (bottom-right of the image)
+          if (onEditImage != null && !selectionMode)
+            Positioned(
+              right: -6,
+              bottom: -6,
+              child: GestureDetector(
+                onTap: onEditImage,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: _red,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.edit_rounded,
+                    size: 12,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
           if (selectionMode && selected)
             Positioned.fill(
               child: Container(
@@ -207,17 +254,18 @@ class GradingHistoryTile extends StatelessWidget {
   }
 
   // ── defect / disease chip ──
-  Widget _issueChip(Color fg) {
+  //   Low + disease (name known) → disease NAME · severity   (red)
+  //   Low + crack / rot / sunburn → that category            (red)
+  //   everything else             → "No defect"              (quality colour)
+  Widget _issueChip(Color qualityText) {
     final defect = result.defectType;
-    final IconData icon;
-    final String text;
-    final Color color;
+    final isLow = result.quality == 'low_quality';
 
-    if (defect == null || defect.isEmpty) {
-      icon = Icons.verified_rounded;
-      text = qt('no_defect');
-      color = fg;
-    } else if (result.hasDiseaseInfo) {
+    IconData icon = Icons.verified_rounded;
+    String text = qt('other_defect');
+    Color color = qualityText;
+
+    if (isLow && defect == 'disease' && result.hasDiseaseInfo) {
       icon = Icons.coronavirus_rounded;
       final name = d.LanguageController.instance.disease(
         result.diseaseName ?? '',
@@ -226,13 +274,12 @@ class GradingHistoryTile extends StatelessWidget {
       text = level == null
           ? name
           : '$name · ${d.LanguageController.instance.severity(level)}';
-      color = _red;
-    } else {
-      icon = defect == 'disease'
-          ? Icons.coronavirus_rounded
-          : Icons.warning_amber_rounded;
-      text = qDefect(defect);
-      color = _red;
+      color = lowRed;
+    } else if (isLow &&
+        (defect == 'crack' || defect == 'rot' || defect == 'sunburn')) {
+      icon = Icons.warning_amber_rounded;
+      text = qDefect(defect!);
+      color = lowRed;
     }
 
     return Container(
@@ -260,28 +307,6 @@ class GradingHistoryTile extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  // ── small quality badge (icon in the quality colour) ──
-  Widget _qualityBadge(Color fg) {
-    final IconData icon;
-    switch (result.quality) {
-      case 'high_quality':
-        icon = Icons.workspace_premium_rounded;
-      case 'medium_quality':
-        icon = Icons.thumbs_up_down_rounded;
-      default:
-        icon = Icons.trending_down_rounded;
-    }
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: fg.withOpacity(0.12),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(icon, color: fg, size: 17),
     );
   }
 

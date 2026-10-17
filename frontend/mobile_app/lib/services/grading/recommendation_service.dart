@@ -19,103 +19,133 @@ class RecommendationService {
 
   static final List<Map<String, dynamic>> _rules = [
     // ==============================================================
-    // HIGH QUALITY — WEIGHT-BASED RECOMMENDATIONS
+    // R01–R03  HIGH QUALITY — WEIGHT-BASED RECOMMENDATIONS
     // ==============================================================
     {
+      'rule_id': 'R01',
       'quality_level': 'high_quality',
       'defect_type': 'no_defect',
       'severity_min': 0.0,
       'severity_max': 0.0,
-      'weight_min': 250,
-      'weight_max': _maximumWeight,
-      'recommended_usage':
-          'Export Grade A Candidate — International Fresh-Fruit Market',
+      'weight_min': 200,
+      'weight_max': 300,
+      'recommended_usage': 'Export Grade A – International Fresh Fruit Market',
       'explanation':
-          'The fruit is classified as high quality, has no detected surface '
-          'defect, and weighs 250 g or more. Based on the project dataset, '
-          'it qualifies as an Export Grade A candidate.',
+          'The fruit is classified as high quality, no surface defect was '
+          'detected, and it weighs between 200 g and 300 g. This is the '
+          "project's Export Grade A weight range, so the fruit is a candidate "
+          'for the international fresh-fruit market.',
       'waste_usage':
-          'No waste-utilization process is required because the fruit is '
-          'suitable for fresh consumption. Grade, pack, label, and store it '
-          'under suitable cool conditions for fresh-market distribution.',
+          'No waste-utilization process is needed because the fruit is '
+          'suitable for fresh consumption. Clean, grade, pack in export '
+          'cartons, label, and keep in cool storage (about 5–7 °C) until '
+          'dispatch to the international fresh-fruit market.',
       'safety_note':
-          'Final export acceptance should also confirm fruit maturity, colour, '
-          'shape, cleanliness, pest damage, residue limits, packaging, and the '
-          'requirements of the destination market.',
+          'Final export acceptance must also confirm maturity, colour, shape, '
+          'cleanliness, pest damage, pesticide-residue limits, packaging, '
+          "phytosanitary certification, and the destination market's "
+          'requirements.',
     },
 
     {
+      'rule_id': 'R02',
       'quality_level': 'high_quality',
       'defect_type': 'no_defect',
       'severity_min': 0.0,
       'severity_max': 0.0,
-      'weight_min': 150,
-      'weight_max': 249,
-      'recommended_usage':
-          'Export Grade B Candidate or Premium Local Fresh Market',
+      'weight_min': 180,
+      'weight_max': 199,
+      'recommended_usage': 'Export Grade B – International Fresh Fruit Market',
       'explanation':
-          'The fruit is classified as high quality and has no detected defect, '
-          'but its weight is between 150 g and 249 g. Based on the dataset, '
-          'it is suitable for Export Grade B consideration or premium local sale.',
+          'The fruit is high quality and defect-free, and it weighs between '
+          '180 g and 199 g. It is slightly below the Grade A weight range, so '
+          'it is classified as an Export Grade B candidate for the '
+          'international fresh-fruit market.',
       'waste_usage':
-          'Use the fruit for fresh consumption rather than waste processing. '
-          'It can be sorted, cleaned, packed, and sold through premium local '
-          'markets. Export use requires confirmation of buyer specifications.',
+          'Use the fruit for fresh consumption, not waste processing. Clean, '
+          "grade, and pack it as Export Grade B. If the buyer's minimum weight "
+          'is not met, sell it through premium local fresh markets instead.',
       'safety_note':
-          'Weight is only one grading factor. Export suitability must be '
-          'confirmed through manual quality and phytosanitary inspection.',
+          'Weight is only one grading factor. Confirm buyer specifications, '
+          'phytosanitary requirements, and residue limits through manual '
+          'inspection before export.',
     },
 
     {
+      'rule_id': 'R03',
       'quality_level': 'high_quality',
       'defect_type': 'no_defect',
       'severity_min': 0.0,
       'severity_max': 0.0,
       'weight_min': 1,
-      'weight_max': 149,
-      'recommended_usage':
-          'Standard Local Fresh Market — Small High-Quality Fruit',
+      'weight_max': 179,
+      'recommended_usage': 'Standard Local Fresh Market',
       'explanation':
-          'The fruit is high quality and defect-free, but its weight is below '
-          '150 g. It is below the project dataset’s export and premium weight '
-          'ranges but remains suitable for fresh local consumption.',
+          'The fruit is high quality and defect-free, but it weighs less than '
+          '180 g, which is below the export weight ranges. It remains fully '
+          'suitable for fresh local consumption.',
       'waste_usage':
-          'Sell as a smaller fresh-market fruit or combine it into value packs. '
-          'If fresh-market demand is limited, the edible arils may be used for '
-          'juice, ready-to-eat packs, syrup, or other food products.',
+          'Sell through standard local fresh markets, supermarkets, or as '
+          'value packs of smaller fruit. If fresh demand is low, the arils can '
+          'be used for ready-to-eat aril packs, fresh juice, or syrup.',
       'safety_note':
-          'Inspect the fruit for hidden damage before sale or food processing.',
+          'Check the fruit for hidden damage, soft spots, or insect holes '
+          'before sale.',
     },
 
     // ==============================================================
-    // MEDIUM QUALITY
+    // R04–R05  MEDIUM QUALITY — WEIGHT-BASED RECOMMENDATIONS
     // ==============================================================
     {
+      'rule_id': 'R04',
+      'quality_level': 'medium_quality',
+      'defect_type': 'no_defect',
+      'severity_min': 0.0,
+      'severity_max': 0.0,
+      'weight_min': 200,
+      'weight_max': 300,
+      'recommended_usage': 'Local Fresh Market',
+      'explanation':
+          'The fruit is medium quality with minor cosmetic imperfections '
+          '(colour, shape, or small surface marks) and weighs between 200 g '
+          'and 300 g. It is not suitable for export but is good for local '
+          'fresh sale.',
+      'waste_usage':
+          'Wash, sort, and sell the fruit in local fresh markets or retail '
+          'shops. Fruit with lower visual appeal can also be used for fresh '
+          'juice, aril packs, jam, or syrup when the edible part is sound.',
+      'safety_note':
+          'Inspect each fruit by hand before sale. Do not sell fruit with soft '
+          'areas, mould, fermentation, or an unpleasant odour.',
+    },
+
+    {
+      'rule_id': 'R05',
       'quality_level': 'medium_quality',
       'defect_type': 'no_defect',
       'severity_min': 0.0,
       'severity_max': 0.0,
       'weight_min': 1,
-      'weight_max': _maximumWeight,
-      'recommended_usage': 'Local Fresh Market',
+      'weight_max': 199,
+      'recommended_usage': 'Farm-Gate Sale – Direct to Local Customers',
       'explanation':
-          'The fruit is classified as medium quality with minor cosmetic or '
-          'appearance-related imperfections but no specific severe defect was '
-          'identified. It is more suitable for local use than premium export.',
+          'The fruit is medium quality and weighs less than 200 g. Its size '
+          'and appearance make it less suitable for market sale, but it is '
+          'still good to eat, so it can be sold directly by the farmer.',
       'waste_usage':
-          'After manual inspection and washing, acceptable fruits may be sold '
-          'in the local market. Fruits with reduced visual appeal can be used '
-          'for juice, pulp, concentrate, syrup, jam, aril packs, or other '
-          'processed products when the edible portion remains sound.',
+          'Sell directly at the farm gate, roadside stalls, or to neighbours '
+          'and local customers at a lower price. Unsold fruit can be used at '
+          'home or sold to small juice shops for fresh juice.',
       'safety_note':
-          'Cut and inspect suspicious fruit before food processing. Do not use '
-          'fruit showing internal rot, mould, fermentation, or unpleasant odour.',
+          'Inspect the fruit before sale and remove any fruit with cracks, '
+          'soft spots, mould, or a bad smell.',
     },
 
     // ==============================================================
-    // LOW QUALITY — ROT
+    // R06  LOW QUALITY — ROT
     // ==============================================================
     {
+      'rule_id': 'R06',
       'quality_level': 'low_quality',
       'defect_type': 'rot',
       'severity_min': 0.0,
@@ -123,209 +153,215 @@ class RecommendationService {
       'weight_min': 0,
       'weight_max': _maximumWeight,
       'recommended_usage':
-          'Composting or Controlled Organic-Fertilizer Production Only',
+          'Composting – Organic Fertilizer (Manure) for the Field',
       'explanation':
-          'Rot indicates active microbial decay and may extend beyond the '
-          'visible damaged region. Therefore, the fruit is excluded from fresh '
-          'sale, juice extraction, pulp processing, animal feed, and cosmetic '
-          'or peel-based processing regardless of the measured severity.',
+          'Rot means active microbial decay that can spread beyond the visible '
+          'area. The fruit is therefore not safe for fresh sale, juice, pulp, '
+          'animal feed, or peel processing at any rot level.',
       'waste_usage':
-          'Place the fruit in a controlled composting system with dry plant '
-          'material to balance moisture. Maintain aeration and suitable '
-          'composting temperature. Do not place heavily diseased or rotten '
-          'material directly near healthy pomegranate plants.',
+          'Put the fruit in a compost pit or bin with dry plant material '
+          '(leaves, straw) to balance moisture. Turn the pile regularly for '
+          'aeration. After full decomposition (about 2–3 months), use the '
+          'compost as organic manure/fertilizer in the field.',
       'safety_note':
-          'Zero tolerance is applied for food use. Wear gloves when handling '
-          'mouldy fruit and clean tools and containers after disposal.',
+          'Zero tolerance for food use. Wear gloves when handling rotten fruit, '
+          'keep the compost away from healthy pomegranate plants, and clean '
+          'tools and containers after use.',
     },
 
     // ==============================================================
-    // LOW QUALITY — DISEASE
+    // R07–R09  LOW QUALITY — DISEASE
     // ==============================================================
     {
+      'rule_id': 'R07',
       'quality_level': 'low_quality',
       'defect_type': 'disease',
       'severity_min': 0.0,
-      'severity_max': 9.99,
+      'severity_max': 4.99,
       'weight_min': 0,
       'weight_max': _maximumWeight,
       'recommended_usage':
-          'Manual Inspection Before Any Food or Waste-Utilization Decision',
+          'Healthy Aril Extraction for Immediate Juice or Aril Packs After '
+          'Inspection',
       'explanation':
-          'Disease symptoms affect less than 10% of the detected fruit area. '
-          'The visible damage is limited, but image analysis cannot confirm '
-          'whether the internal edible portion is safe.',
+          'Disease symptoms cover less than 5% of the fruit surface. Many '
+          'pomegranate diseases at this early stage affect only the outer '
+          'peel, so the internal arils (seeds) may still be healthy and usable.',
       'waste_usage':
-          'Separate the fruit from healthy produce. An agricultural or food '
-          'quality inspector should examine the affected and internal sections. '
-          'Only confirmed healthy portions may be considered for immediate '
-          'processing; otherwise, route the fruit to controlled composting.',
+          'Separate the fruit from healthy produce. Cut it open and check the '
+          'inside. If the arils are firm, bright, and normal-smelling, remove '
+          'them and use them immediately for fresh juice or ready-to-eat aril '
+          'packs. Discard the diseased peel by composting.',
       'safety_note':
-          'Do not recommend direct fresh consumption based only on the image result.',
+          'Use the arils only if no internal browning, rot, mould, or bad '
+          'odour is found. If any internal damage is seen, compost the whole '
+          'fruit. Do not sell the whole fruit as fresh fruit.',
     },
 
     {
+      'rule_id': 'R08',
       'quality_level': 'low_quality',
       'defect_type': 'disease',
-      'severity_min': 10.0,
-      'severity_max': 29.99,
+      'severity_min': 5.0,
+      'severity_max': 39.99,
       'weight_min': 0,
       'weight_max': _maximumWeight,
-      'recommended_usage':
-          'Restricted Non-Food Peel Processing After Expert Inspection',
+      'recommended_usage': 'Manual Inspection Before Any Usage Decision',
       'explanation':
-          'Disease symptoms affect approximately 10–29% of the fruit surface. '
-          'The fruit is not recommended for fresh sale or normal food processing '
-          'because disease may extend beyond the visible region.',
+          'Disease symptoms cover about 5–39% of the fruit surface. At this '
+          'level the disease may have reached the inside of the fruit, and '
+          'image analysis alone cannot confirm whether the edible part is safe.',
       'waste_usage':
-          'After expert inspection, unaffected peel sections may be separated '
-          'for research-scale extraction of natural dye, tannin, pectin, or '
-          'non-food cosmetic ingredients. Diseased sections must be discarded '
-          'through controlled composting.',
+          'Separate the fruit from healthy produce. An agricultural officer or '
+          'experienced farmer should cut and inspect it. If the inside is '
+          'healthy, the arils may be used immediately for juice. If not, send '
+          'the fruit for controlled composting.',
       'safety_note':
-          'Do not use diseased peel or edible arils. Industrial extraction must '
-          'include contamination control and product-safety testing.',
+          'Do not use the fruit for fresh sale or food until it has been '
+          'inspected. Do not use diseased peel for peel powder or dye.',
     },
 
     {
+      'rule_id': 'R09',
       'quality_level': 'low_quality',
       'defect_type': 'disease',
-      'severity_min': 30.0,
+      'severity_min': 40.0,
       'severity_max': _maximumSeverity,
       'weight_min': 0,
       'weight_max': _maximumWeight,
-      'recommended_usage':
-          'Controlled Composting or Organic-Fertilizer Production',
+      'recommended_usage': 'Composting or Safe Disposal',
       'explanation':
-          'Disease symptoms affect 30% or more of the fruit surface. The high '
-          'affected area increases the possibility of internal damage and '
-          'cross-contamination, making food and peel processing unsuitable.',
+          'Disease symptoms cover 40% or more of the fruit surface. The fruit '
+          'is heavily infected, with a high risk of internal damage and of '
+          'spreading the disease to healthy fruit and plants.',
       'waste_usage':
-          'Isolate the fruit from healthy produce and process it through a '
-          'controlled composting system. Combine it with dry organic matter, '
-          'maintain aeration, and allow sufficient decomposition before using '
-          'the finished compost.',
+          'Remove the fruit from the farm area immediately. Compost it in a '
+          'closed, hot compost system away from the orchard, or dispose of it '
+          'safely by burying it deep in soil.',
       'safety_note':
-          'Do not use the affected fruit for human consumption, animal feed, '
-          'juice, pulp, peel powder, or cosmetic extraction.',
+          'Do not use for human consumption, animal feed, juice, pulp, peel '
+          'powder, or dye. Do not leave infected fruit on the ground in the '
+          'orchard, as it can spread the disease.',
     },
 
     // ==============================================================
-    // LOW QUALITY — CRACK
+    // R10–R12  LOW QUALITY — CRACK
     // ==============================================================
     {
+      'rule_id': 'R10',
       'quality_level': 'low_quality',
       'defect_type': 'crack',
       'severity_min': 0.0,
       'severity_max': 14.99,
       'weight_min': 0,
       'weight_max': _maximumWeight,
-      'recommended_usage':
-          'Immediate Juice Extraction from Inspected Healthy Arils',
+      'recommended_usage': 'Immediate Juice Extraction',
       'explanation':
-          'The crack affects less than 15% of the fruit surface. The fruit has '
-          'reduced storage life, but clean and unaffected arils may still be '
-          'suitable for immediate juice extraction after inspection.',
+          'The crack covers less than 15% of the fruit surface. The fruit '
+          'cannot be stored for long, but the clean, unaffected arils are '
+          'still suitable for juice if processed immediately.',
       'waste_usage':
-          'Wash the fruit, remove the cracked rind and any exposed, discoloured, '
-          'soft, mouldy, or contaminated tissue. Extract juice only from firm, '
-          'normal-smelling arils and process it immediately under hygienic conditions.',
+          'Wash the fruit, remove the cracked rind and any exposed or '
+          'discoloured arils, then extract juice from the firm, '
+          'normal-smelling arils on the same day. Store the juice chilled or '
+          'pasteurise it.',
       'safety_note':
           'Do not use the fruit if the crack contains mould, insects, soil, '
-          'fermentation, leakage, soft tissue, or an unpleasant odour.',
+          'leakage, fermentation, or a bad smell.',
     },
 
     {
+      'rule_id': 'R11',
       'quality_level': 'low_quality',
       'defect_type': 'crack',
       'severity_min': 15.0,
       'severity_max': 39.99,
       'weight_min': 0,
       'weight_max': _maximumWeight,
-      'recommended_usage':
-          'Immediate Pulp or Juice-Concentrate Processing After Inspection',
+      'recommended_usage': 'Peel Powder and Natural Dye Preparation',
       'explanation':
-          'The crack affects approximately 15–39% of the fruit surface. The '
-          'larger opening creates a higher contamination risk and makes the '
-          'fruit unsuitable for storage or normal fresh-market sale.',
+          'The crack covers about 15–39% of the fruit surface. The exposed '
+          'arils have a higher contamination risk, but the pomegranate peel is '
+          'rich in tannins and natural pigments and can still be used.',
       'waste_usage':
-          'Process the fruit immediately in a controlled facility. Remove all '
-          'exposed and damaged sections before using acceptable arils for '
-          'pasteurised juice, pulp, concentrate, syrup, or similar products. '
-          'Compost the rejected rind and damaged material.',
+          'Separate the peel from the arils. Wash the clean peel, cut it into '
+          'small pieces, and dry it in the shade or a dryer. Grind it into '
+          'peel powder for natural dye, herbal or cosmetic uses. Compost the '
+          'damaged arils and rind.',
       'safety_note':
-          'Food processing is allowed only after manual internal inspection. '
-          'Reject the entire fruit if contamination or decay is present.',
+          'Use only clean, mould-free peel. Peel powder made from damaged '
+          'fruit is for non-food uses (dye, research, cosmetics) unless it is '
+          'tested for safety.',
     },
 
     {
+      'rule_id': 'R12',
       'quality_level': 'low_quality',
       'defect_type': 'crack',
       'severity_min': 40.0,
       'severity_max': _maximumSeverity,
       'weight_min': 0,
       'weight_max': _maximumWeight,
-      'recommended_usage':
-          'Controlled Composting Due to High Contamination Risk',
+      'recommended_usage': 'Composting – Organic Fertilizer',
       'explanation':
-          'The crack affects 40% or more of the surface. Extensive exposure '
-          'creates a high risk of microbial contamination, moisture loss, '
-          'insect entry, and internal deterioration.',
+          'The crack covers 40% or more of the fruit surface. The large '
+          'opening creates a high risk of microbial contamination, insect '
+          'entry, and internal spoilage.',
       'waste_usage':
-          'Remove the fruit from the food-processing stream and place it in a '
-          'controlled composting system. Mix with dry organic material and '
-          'maintain suitable moisture, aeration, and decomposition time.',
+          'Remove the fruit from the food stream and place it in a compost pit '
+          'with dry organic material. Maintain moisture and aeration until '
+          'fully decomposed, then use the compost as field fertilizer.',
       'safety_note':
-          'Do not use for fresh consumption, juice, pulp, animal feed, or peel extraction.',
+          'Do not use for fresh consumption, juice, pulp, animal feed, or peel '
+          'powder.',
     },
 
     // ==============================================================
-    // LOW QUALITY — SUNBURN
+    // R13–R14  LOW QUALITY — SUNBURN
     // ==============================================================
     {
+      'rule_id': 'R13',
       'quality_level': 'low_quality',
       'defect_type': 'sunburn',
       'severity_min': 0.0,
       'severity_max': 9.99,
       'weight_min': 0,
       'weight_max': _maximumWeight,
-      'recommended_usage':
-          'Peel Powder, Natural Dye, or Non-Food Pigment Extraction',
+      'recommended_usage': 'Peel Powder and Natural Dye Preparation',
       'explanation':
-          'Sunburn affects less than 10% of the fruit surface. The damage is '
-          'mainly external and dry, so inspected unaffected peel may be suitable '
-          'for non-food value-added processing.',
+          'Sunburn covers less than 10% of the fruit surface. The damage is '
+          'external and dry, so the unaffected peel can be used for '
+          'value-added products such as peel powder and natural dye.',
       'waste_usage':
-          'Remove the burned section, wash the unaffected peel, dry it under '
-          'controlled hygienic conditions, and process it into peel powder or '
-          'extract natural pigments, tannins, and antioxidant compounds for '
-          'approved non-food research or industrial applications.',
+          'Remove the burned section, wash the remaining peel, dry it under '
+          'clean conditions, and grind it into peel powder or extract natural '
+          'dye and tannins. The healthy arils can be used for juice after '
+          'inspection.',
       'safety_note':
-          'Confirm that there is no rot, mould, cracking, or internal heat damage '
+          'Confirm that there is no rot, mould, crack, or internal heat damage '
           'before using any part of the fruit.',
     },
 
     {
+      'rule_id': 'R14',
       'quality_level': 'low_quality',
       'defect_type': 'sunburn',
       'severity_min': 10.0,
       'severity_max': _maximumSeverity,
       'weight_min': 0,
       'weight_max': _maximumWeight,
-      'recommended_usage':
-          'Non-Food Industrial Processing or Controlled Composting',
+      'recommended_usage': 'Manual Inspection Before Any Usage Decision',
       'explanation':
-          'Sunburn affects 10% or more of the fruit surface. The fruit has '
-          'reduced fresh-market value and may have dry, hardened, or heat-damaged '
-          'tissue that requires separation.',
+          'Sunburn covers 10% or more of the fruit surface. The fruit may have '
+          'hard, dry, or heat-damaged tissue inside, so the correct use cannot '
+          'be decided from the image alone.',
       'waste_usage':
-          'After inspection, unaffected peel may be considered for natural dye, '
-          'tannin, pectin, bio-adsorbent, or cosmetic-ingredient research. If '
-          'the damage is extensive or internal quality is uncertain, compost '
-          'the entire fruit instead.',
+          'Cut and inspect the fruit. If the arils are healthy, use them for '
+          'juice and the unaffected peel for peel powder or natural dye. If '
+          'the damage reaches the inside, send the whole fruit for composting.',
       'safety_note':
-          'This recommendation is for non-food utilization. Do not use damaged '
-          'sections in edible products without professional safety assessment.',
+          'Do not use damaged sections in food products. Decide the final use '
+          'only after manual inspection.',
     },
   ];
 
@@ -415,7 +451,11 @@ class RecommendationService {
         );
       }
 
-      final severity = severityPercent.clamp(0.0, _maximumSeverity);
+      // Round to 2 decimals so values like 4.995 % do not fall into the
+      // gap between two rules (e.g. 4.99 and 5.0).
+      final severity = double.parse(
+        severityPercent.clamp(0.0, _maximumSeverity).toStringAsFixed(2),
+      );
 
       for (final rule in _rules) {
         if (_matchesLowQualityRule(
@@ -425,9 +465,7 @@ class RecommendationService {
           severity: severity,
         )) {
           final result = Map<String, dynamic>.from(rule);
-          result['measured_severity'] = double.parse(
-            severity.toStringAsFixed(2),
-          );
+          result['measured_severity'] = severity;
           result['measured_weight'] = weightGrams;
           return result;
         }
