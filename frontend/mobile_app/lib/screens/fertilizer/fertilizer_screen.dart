@@ -127,6 +127,14 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
       return;
     }
 
+    final npkValues = [nitrogen, phosphorus, potassium];
+    final invalidNpk = npkValues.any((value) => !value.isFinite || value < 0);
+    final missingNpk = npkValues.every((value) => value == 0);
+    if (invalidNpk || missingNpk) {
+      setState(() => _errorMessage = t('invalidNpkValues'));
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -194,7 +202,10 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
             iconTheme: const IconThemeData(color: Colors.white),
             automaticallyImplyLeading: false,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Colors.white,
+              ),
               onPressed: () {
                 if (Navigator.of(context).canPop()) Navigator.of(context).pop();
               },
@@ -318,9 +329,11 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
             final status = scanning
                 ? t('connectingDevice')
                 : connected
-                    ? t('connected')
-                    : t('disconnected');
-            final color = connected ? const Color(0xFF16A34A) : BrandColor.primary;
+                ? t('connected')
+                : t('disconnected');
+            final color = connected
+                ? const Color(0xFF16A34A)
+                : BrandColor.primary;
             return _panel(
               height: 56,
               child: Row(
@@ -352,8 +365,8 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
                           scanning
                               ? t('connectingDevice')
                               : connected
-                                  ? t('live')
-                                  : t('waiting'),
+                              ? t('live')
+                              : t('waiting'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -460,7 +473,9 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
             child: TextField(
               controller: _ageController,
               textAlign: TextAlign.center,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w300,
@@ -488,7 +503,9 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                color: _ageError != null ? Colors.orange.shade800 : BrandColor.primary,
+                color: _ageError != null
+                    ? Colors.orange.shade800
+                    : BrandColor.primary,
               ),
             ),
           ),
@@ -656,13 +673,29 @@ extension on _ReadingKind {
       case _ReadingKind.temp:
         return WeatherArt(type: WeatherArtType.thermometer, size: size);
       case _ReadingKind.ph:
-        return _NutrientMark(letter: 'pH', color: const Color(0xFF0D9488), size: size);
+        return _NutrientMark(
+          letter: 'pH',
+          color: const Color(0xFF0D9488),
+          size: size,
+        );
       case _ReadingKind.nitrogen:
-        return _NutrientMark(letter: 'N', color: const Color(0xFF2563EB), size: size);
+        return _NutrientMark(
+          letter: 'N',
+          color: const Color(0xFF2563EB),
+          size: size,
+        );
       case _ReadingKind.phosphorus:
-        return _NutrientMark(letter: 'P', color: const Color(0xFFEA580C), size: size);
+        return _NutrientMark(
+          letter: 'P',
+          color: const Color(0xFFEA580C),
+          size: size,
+        );
       case _ReadingKind.potassium:
-        return _NutrientMark(letter: 'K', color: const Color(0xFF7C3AED), size: size);
+        return _NutrientMark(
+          letter: 'K',
+          color: const Color(0xFF7C3AED),
+          size: size,
+        );
     }
   }
 }

@@ -6,16 +6,17 @@ import 'package:firebase_core/firebase_core.dart';
 import '../../config/firestore_schema.dart';
 import '../../models/grading_result.dart';
 
-/// Handles saving/fetching fruit quality grading results in Firestore.
-/// Online is the primary mode. Firestore's built-in offline cache
-/// (enabled by default on Android/iOS) automatically queues writes and
-/// serves cached reads when the network is weak or unavailable — no
-/// extra offline-handling code is required here.
+/// Saves / fetches fruit quality grading results in Firestore.
+/// Firestore's offline cache (on by default on Android/iOS) queues writes
+/// and serves cached reads when the network is weak or unavailable.
 class GradingFirestoreService {
   GradingFirestoreService._();
   static final GradingFirestoreService instance = GradingFirestoreService._();
 
   FirebaseFirestore get _db => FirebaseFirestore.instance;
+
+  CollectionReference<Map<String, dynamic>> get _col =>
+      _db.collection(FirestoreSchema.qualityResults);
 
   String? get _uid =>
       Firebase.apps.isEmpty ? null : FirebaseAuth.instance.currentUser?.uid;
@@ -26,36 +27,23 @@ class GradingFirestoreService {
       throw Exception('Please log in before saving a grading result.');
     }
 
-    final docRef = _db.collection(FirestoreSchema.qualityResults).doc();
+    final docRef = _col.doc();
     final now = DateTime.now().toIso8601String();
 
     final data = result.toJson()
       ..['user_id'] = uid
       ..['created_at'] = now;
 
-    // If offline, Firestore queues this write locally and syncs it
-    // automatically once connectivity returns.
+    // Offline → queued locally and synced automatically later.
     await docRef.set(data);
 
-    return GradingResult(
-      id: docRef.id,
-      userId: uid,
-      quality: result.quality,
-      confidence: result.confidence,
-      defectType: result.defectType,
-      severityPercent: result.severityPercent,
-      weightGrams: result.weightGrams,
-      recommendation: result.recommendation,
-      imageUrl: result.imageUrl,
-      createdAt: now,
-    );
+    // Built from the exact map that was written, so every saved field
+    // (including disease fields) is returned and can never drift.
+    return GradingResult.fromJson({...data, 'id': docRef.id});
   }
 
   Future<List<GradingResult>> getHistory(String userId) async {
-    final snapshot = await _db
-        .collection(FirestoreSchema.qualityResults)
-        .where('user_id', isEqualTo: userId)
-        .get();
+    final snapshot = await _col.where('user_id', isEqualTo: userId).get();
 
     final results = snapshot.docs
         .map((doc) => GradingResult.fromJson({...doc.data(), 'id': doc.id}))
@@ -72,14 +60,31 @@ class GradingFirestoreService {
   }
 
   Future<void> deleteOne(String id) async {
-    await _db.collection(FirestoreSchema.qualityResults).doc(id).delete();
+    await _col.doc(id).delete();
+  }
+
+  /// Updates any fields of a saved record (used to attach the Disease
+  /// component's finding + recalculated recommendation).
+  Future<void> updateFields(String id, Map<String, dynamic> fields) async {
+    await _col.doc(id).update(fields);
+  }
+
+  /// Older call — name / treatment / prevention only.
+  Future<void> attachDiseaseInfo({
+    required String id,
+    required String diseaseName,
+    required String treatment,
+    required List<String> prevention,
+  }) async {
+    await _col.doc(id).update({
+      'disease_name': diseaseName,
+      'disease_treatment': treatment,
+      'disease_prevention': prevention,
+    });
   }
 
   Future<void> deleteAll(String userId) async {
-    final snapshot = await _db
-        .collection(FirestoreSchema.qualityResults)
-        .where('user_id', isEqualTo: userId)
-        .get();
+    final snapshot = await _col.where('user_id', isEqualTo: userId).get();
     for (final doc in snapshot.docs) {
       await doc.reference.delete();
     }

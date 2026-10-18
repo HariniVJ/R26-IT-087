@@ -5,12 +5,12 @@ import 'dart:typed_data';
 import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
 import '../../models/Q_prediction_result.dart';
-import 'dart:typed_data';
+
 class TfliteService {
   Interpreter? _binaryInterpreter;
   Interpreter? _qualityInterpreter;
   Interpreter? _defectInterpreter;
-  Interpreter? _segInterpreter; // 🆕
+  Interpreter? _segInterpreter;
 
   static const int imgSize = 224;
   final List<String> binaryClasses = ["not_pomegranate", "pomegranate"];
@@ -20,7 +20,6 @@ class TfliteService {
     "medium_quality",
   ];
   final List<String> defectClasses = ["crack", "disease", "rot", "sunburn"];
-  // 🆕 Order MUST match your data.yaml names order exactly
   final List<String> segClasses = ["fruit", "crack", "rot", "sunburn"];
 
   bool _loaded = false;
@@ -37,10 +36,22 @@ class TfliteService {
     _defectInterpreter = await Interpreter.fromAsset(
       'assets/models/quality/defect_type_model.tflite',
     );
-    _segInterpreter = await Interpreter.fromAsset(
-      'assets/models/quality/segmentation_model.tflite',
-    ); // 🆕
+    try {
+      _segInterpreter = await Interpreter.fromAsset(
+        'assets/models/quality/segmentation_model.tflite',
+      );
+    } catch (e) {
+      debugPrintSafe(
+        '⚠️ Segmentation model failed to load, will use color-heuristic severity only: $e',
+      );
+      _segInterpreter = null;
+    }
     _loaded = true;
+  }
+
+  void debugPrintSafe(String msg) {
+    // ignore: avoid_print
+    print(msg);
   }
 
   Float32List _preprocess(img.Image image, int size) {
@@ -93,23 +104,69 @@ class TfliteService {
     };
   }
 
-  // 🆕 Segmentation decode: finds the best-scoring anchor per class, combines
-  // its mask coefficients with the prototypes to get that class's pixel mask.
-  Future<Map<String, dynamic>> _runSegmentation(File imageFile) async {
+  /// Color-based severity fallback — used for disease, or whenever
+  /// segmentation fails/is unavailable. Measures % of surface that looks
+  /// dark/decayed or discolored, so severity is NEVER left null.
+  double _colorHeuristicSeverity(img.Image image) {
+    int abnormalPixels = 0;
+    int totalPixels = 0;
+    for (int y = 0; y < image.height; y += 2) {
+      for (int x = 0; x < image.width; x += 2) {
+        final p = image.getPixel(x, y);
+        final r = p.r, g = p.g, b = p.b;
+        final brightness = (r + g + b) / 3;
+        final isDark = brightness < 60;
+        final isBrown =
+            r > 60 && r < 160 && g > 30 && g < 120 && b < 80 && r > g && g >= b;
+        if (isDark || isBrown) abnormalPixels++;
+        totalPixels++;
+      }
+    }
+    if (totalPixels == 0) return 0.0;
+    final pct = (abnormalPixels / totalPixels) * 100;
+    return double.parse(pct.clamp(0, 100).toStringAsFixed(2));
+  }
+
+  /// Descriptive color profile for High/Medium fruits — informational only.
+  Map<String, dynamic> _analyzeColorProfile(img.Image image) {
+    int rSum = 0, gSum = 0, count = 0;
+    for (int y = 0; y < image.height; y += 4) {
+      for (int x = 0; x < image.width; x += 4) {
+        final p = image.getPixel(x, y);
+        rSum += p.r.toInt();
+        gSum += p.g.toInt();
+        count++;
+      }
+    }
+    if (count == 0) return {"tone": "Unknown"};
+    final avgR = rSum / count;
+    final avgG = gSum / count;
+    final rednessRatio = avgR / (avgG + 1);
+    String tone;
+    if (rednessRatio > 1.6) {
+      tone = "Deep Reddish";
+    } else if (rednessRatio > 1.2) {
+      tone = "Reddish";
+    } else {
+      tone = "Pale / Yellowish";
+    }
+    return {"tone": tone};
+  }
+
+  /// Segmentation-based severity for crack/rot/sunburn. Returns null if
+  /// the model isn't loaded or decoding fails — caller must fall back.
+  Future<double?> _runSegmentationSeverity(File imageFile) async {
+    if (_segInterpreter == null) return null;
     try {
       final bytes = await imageFile.readAsBytes();
       final image = img.decodeImage(bytes);
-      if (image == null) return {"defectType": null, "severity": null};
+      if (image == null) return null;
 
       final input = _preprocess(image, imgSize);
       final inputTensor = input.reshape([1, imgSize, imgSize, 3]);
 
-      final out0Shape = _segInterpreter!
-          .getOutputTensor(0)
-          .shape; // [1, 40, 1029]
-      final out1Shape = _segInterpreter!
-          .getOutputTensor(1)
-          .shape; // [1, 32, 56, 56]
+      final out0Shape = _segInterpreter!.getOutputTensor(0).shape;
+      final out1Shape = _segInterpreter!.getOutputTensor(1).shape;
 
       final out0 = List.generate(
         out0Shape[0],
@@ -130,17 +187,16 @@ class TfliteService {
       _segInterpreter!.runForMultipleInputs([inputTensor], {0: out0, 1: out1});
 
       final numAnchors = out0Shape[2];
-      final numClasses = segClasses.length; // 4
+      final numClasses = segClasses.length;
       const numMaskCoeffs = 32;
-      final protoSize = out1Shape[2]; // 56
+      final protoSize = out1Shape[2];
 
-      // For each class, find the anchor with the highest class score
       final bestScorePerClass = List.filled(numClasses, -1.0);
       final bestAnchorPerClass = List.filled(numClasses, -1);
 
       for (int a = 0; a < numAnchors; a++) {
         for (int c = 0; c < numClasses; c++) {
-          final score = out0[0][4 + c][a]; // channels 4..7 = class scores
+          final score = out0[0][4 + c][a];
           if (score > bestScorePerClass[c]) {
             bestScorePerClass[c] = score;
             bestAnchorPerClass[c] = a;
@@ -148,25 +204,19 @@ class TfliteService {
         }
       }
 
-      // Threshold — adjust if scores look too low/high after testing
-      const double confThreshold = 0.25;
-
+      const double confThreshold = 0.20;
       int? fruitPixels;
-      String? defectType;
       int? defectPixels;
       double bestDefectScore = -1;
 
       for (int c = 0; c < numClasses; c++) {
         if (bestScorePerClass[c] < confThreshold) continue;
         final anchor = bestAnchorPerClass[c];
-
-        // Extract this anchor's 32 mask coefficients
         final coeffs = List<double>.generate(
           numMaskCoeffs,
           (m) => out0[0][8 + m][anchor],
         );
 
-        // Combine coefficients with prototypes -> pixel mask, count "on" pixels
         int pixelCount = 0;
         for (int py = 0; py < protoSize; py++) {
           for (int px = 0; px < protoSize; px++) {
@@ -174,7 +224,7 @@ class TfliteService {
             for (int m = 0; m < numMaskCoeffs; m++) {
               sum += coeffs[m] * out1[0][m][py][px];
             }
-            final activated = 1 / (1 + math.exp(-sum)); // sigmoid
+            final activated = 1 / (1 + math.exp(-sum));
             if (activated > 0.5) pixelCount++;
           }
         }
@@ -183,28 +233,39 @@ class TfliteService {
           fruitPixels = pixelCount;
         } else if (bestScorePerClass[c] > bestDefectScore) {
           bestDefectScore = bestScorePerClass[c];
-          defectType = segClasses[c];
           defectPixels = pixelCount;
         }
       }
 
-      if (fruitPixels == null ||
-          fruitPixels == 0 ||
-          defectType == null ||
-          defectPixels == null) {
-        return {"defectType": null, "severity": null};
-      }
+      if (fruitPixels == null || fruitPixels == 0 || defectPixels == null)
+        return null;
 
       final severity = ((defectPixels / fruitPixels) * 100).clamp(0.0, 100.0);
-      return {
-        "defectType": defectType,
-        "severity": double.parse(severity.toStringAsFixed(2)),
-      };
+      return double.parse(severity.toStringAsFixed(2));
     } catch (e) {
-      // If segmentation decoding fails for any reason, fail gracefully —
-      // the app still works with quality+defect-type, just without severity.
-      return {"defectType": null, "severity": null};
+      debugPrintSafe(
+        '⚠️ Segmentation decode failed, will use color fallback: $e',
+      );
+      return null;
     }
+  }
+
+  Future<bool> checkIsPomegranate(File imageFile) async {
+    if (!_loaded) await loadModel();
+    final bytes = await imageFile.readAsBytes();
+    final image = img.decodeImage(bytes);
+    if (image == null) return false;
+    final input = _preprocess(image, imgSize);
+    final result = _classify(_binaryInterpreter!, input, binaryClasses);
+    return result["label"] == "pomegranate";
+  }
+
+  Future<Uint8List?> getPreprocessedPreview(File imageFile) async {
+    final bytes = await imageFile.readAsBytes();
+    final image = img.decodeImage(bytes);
+    if (image == null) return null;
+    final resized = img.copyResize(image, width: imgSize, height: imgSize);
+    return Uint8List.fromList(img.encodePng(resized));
   }
 
   Future<Map<String, dynamic>> runFullPipeline(File imageFile) async {
@@ -233,16 +294,24 @@ class TfliteService {
     String? defectType;
     double? defectConfidence;
     double? severity;
+    Map<String, dynamic>? colorProfile;
 
     if (qualityResult["label"] == "low_quality") {
       final defectResult = _classify(_defectInterpreter!, input, defectClasses);
       defectType = defectResult["label"];
       defectConfidence = defectResult["confidence"];
 
-      // 🆕 Run segmentation for severity, using the classifier's defect type
-      // as the primary label (more reliable than segmentation's own class pick)
-      final segResult = await _runSegmentation(imageFile);
-      severity = segResult["severity"] as double?;
+      if (defectType == "disease") {
+        // Color heuristic until Disease Detection component is integrated
+        severity = _colorHeuristicSeverity(image);
+      } else {
+        // crack / rot / sunburn — segmentation model first
+        severity = await _runSegmentationSeverity(imageFile);
+        // Guaranteed fallback — severity is NEVER left null
+        severity ??= _colorHeuristicSeverity(image);
+      }
+    } else {
+      colorProfile = _analyzeColorProfile(image);
     }
 
     return {
@@ -252,7 +321,8 @@ class TfliteService {
       "allQualityScores": qualityResult["all_scores"],
       "defectType": defectType,
       "defectConfidence": defectConfidence,
-      "severity": severity, // 🆕
+      "severity": severity,
+      "colorProfile": colorProfile,
     };
   }
 
@@ -268,13 +338,15 @@ class TfliteService {
       );
     }
 
+    final colorProfile =
+        pipelineResult["colorProfile"] as Map<String, dynamic>?;
+
     return PredictionResult(
       quality: pipelineResult["quality"] as String,
       confidence: (pipelineResult["qualityConfidence"] as double) * 100,
       defectType: pipelineResult["defectType"] as String?,
-      severityPercent:
-          pipelineResult["severity"]
-              as double?, // 🔧 was hardcoded null, now real
+      severityPercent: pipelineResult["severity"] as double?,
+      colorTone: colorProfile?["tone"] as String?,
       recommendation: "",
     );
   }
@@ -288,29 +360,10 @@ class TfliteService {
     return raw ?? {};
   }
 
-    /// Returns the 224x224 preprocessed image as PNG bytes, for UI preview only
-  Future<Uint8List?> getPreprocessedPreview(File imageFile) async {
-    final bytes = await imageFile.readAsBytes();
-    final image = img.decodeImage(bytes);
-    if (image == null) return null;
-    final resized = img.copyResize(image, width: imgSize, height: imgSize);
-    return Uint8List.fromList(img.encodePng(resized));
-  }
-
-  Future<bool> checkIsPomegranate(File imageFile) async {
-    if (!_loaded) await loadModel();
-    final bytes = await imageFile.readAsBytes();
-    final image = img.decodeImage(bytes);
-    if (image == null) return false;
-    final input = _preprocess(image, imgSize);
-    final result = _classify(_binaryInterpreter!, input, binaryClasses);
-    return result["label"] == "pomegranate";
-  }
-
   void dispose() {
     _binaryInterpreter?.close();
     _qualityInterpreter?.close();
     _defectInterpreter?.close();
-    _segInterpreter?.close(); // 🆕
+    _segInterpreter?.close();
   }
 }

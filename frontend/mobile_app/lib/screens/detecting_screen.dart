@@ -279,7 +279,7 @@ class _DetectingScreenState extends State<DetectingScreen>
           '==========================================',
         );
         debugPrint(
-          'BACKEND GROWTH ADVISORY',
+          'ON-DEVICE GROWTH ADVISORY',
         );
 
         debugPrint(

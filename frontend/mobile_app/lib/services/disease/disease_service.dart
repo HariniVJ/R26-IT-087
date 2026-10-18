@@ -1,137 +1,177 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../config/disease_ml_config.dart';
 import '../../l10n/d_app_strings.dart';
 import '../../models/Disease_prediction_result_model.dart';
-import '../ml/model_inference_service.dart';
-import '../ml/binary_validator_service.dart';
+import '../ml/disease_pipeline.dart';
 import 'treatment_data.dart';
 
+// Screens that `catch (NotPomegranateException e)` keep working unchanged.
+export '../ml/detection_exceptions.dart';
+
 class DiseaseService {
-  static final _validator = BinaryValidatorService.instance;
-  static final _ml = ModelInferenceService.instance;
   static final _db = FirebaseFirestore.instance;
   static final _storage = FirebaseStorage.instance;
   static const _collection = 'disease_predictions';
+
+  /// Max time to wait for Firestore. Offline, the write stays queued in the
+  /// local cache and syncs automatically when the phone is online again.
+  static const _writeTimeout = Duration(seconds: 3);
+
+  /// Optional: call when the detection screen opens (faster first result).
+  static Future<void> warmUpModels() => DiseasePipeline.instance.warmUp();
 
   static Future<PredictionResultModel> predictDisease(
     File imageFile, {
     AppLanguage language = AppLanguage.english,
   }) async {
+    final stopwatch = Stopwatch()..start();
+
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       throw Exception('You must be signed in to run detection.');
     }
 
-    // ── 1. Validate: is this actually a pomegranate? ──────────────────
-    final validation = await _validator.validate(imageFile);
+    // ── 1–4. On-device AI (offline): YOLO → validator → disease → rules ──
+    // Throws NotPomegranateException for rejected photos.
+    final out = await DiseasePipeline.instance.run(imageFile);
 
-    if (!validation.isPomegranate) {
-      throw Exception(
-        'This does not look like a pomegranate fruit '
-        '(${(validation.confidence * 100).toStringAsFixed(1)}% confidence). '
-        'Please capture a clear photo of a pomegranate.',
-      );
-    }
+    final diseaseName = out.disease;
+    //final confidence = out.confidence * 100;
+    final rawConfidence = out.confidence * 100;
+    final confidence = ConfidenceDisplay.adjust(rawConfidence);
+    final isHealthy = out.isHealthy;
 
-    // ── 2. Classify disease type ────────────────────────────────────
-    final classification = await _ml.classifyDisease(imageFile);
-    final diseaseName = classification.label;
-    final confidence = classification.confidence * 100;
-    final isHealthy = diseaseName.toLowerCase() == 'healthy';
+    // ── 5. Treatment + follow-up for every disease result ──
+    //   Healthy → no treatment, no prevention list, no follow-up
+    final info = TreatmentData.forDisease(
+      diseaseName,
+      language,
+      severityLevel: out.severityLevel,
+    );
+    final needsTreatment = !isHealthy;
+    final String treatment = needsTreatment
+        ? info.treatment
+        : AppStrings.translate('healthy_no_action', language);
+    final prevention = needsTreatment ? info.prevention : <String>[];
+    final followUpDays = needsTreatment ? info.followUpDays : 0;
+    final warnings = out.warningKeys
+        .map((k) => AppStrings.translate(k, language))
+        .toList();
 
-    // ── 3. Severity ────────────────────────────────────────────────
-    double severityPct = 0.0;
-    String severityLevel = 'N/A';
-
-    if (!isHealthy) {
-      final severity = await _ml.analyzeSeverity(imageFile);
-      severityPct = severity.percentage;
-      severityLevel = severity.level;
-    }
-
-    // ── 4. Treatment ───────────────────────────────────────────────
-    final info = TreatmentData.forDisease(diseaseName, language);
-
-    // ── 5. Save image locally (for immediate display) ────────────────
+    // ── 6. Save image locally (works offline, used for display/history) ──
     final savedImagePath = await _copyImageToAppStorage(imageFile);
 
-    // ── 6. Upload image to Firebase Storage (for history/cross-device) ──
-    String? imageUrl;
-    try {
-      imageUrl = await _uploadImageToStorage(imageFile, uid);
-    } catch (e) {
-      // ignore: avoid_print
-      print('Image upload failed (history thumbnail will be unavailable): $e');
-    }
-
     final now = DateTime.now();
-    final followUpDueDate = now.add(Duration(days: info.followUpDays));
+    final DateTime? followUpDueDate = needsTreatment
+        ? now.add(Duration(days: followUpDays))
+        : null;
 
-    // ── 7. Write to Firestore ──────────────────────────────────────
-    String? predictionId;
-    try {
-      final doc = await _db.collection(_collection).add({
+    // ── 7. Firestore — ID is created on the phone, so this never blocks
+    //       offline. The write is queued and synced later automatically. ──
+    final docRef = _db.collection(_collection).doc();
+    await _safeWrite(
+      docRef.set({
         'user_id': uid,
-        'is_pomegranate': validation.isPomegranate,
-        'validator_confidence': validation.confidence * 100,
+        'is_pomegranate': true,
+        'validator_confidence': out.pomegranateProbability * 100,
         'disease_name': diseaseName,
-        'confidence': confidence,
+        'confidence': confidence, 
+        'raw_confidence': rawConfidence, 
+        'second_disease_name': out.secondDisease,
+        'second_confidence': out.secondConfidence * 100,
+        'status': out.isUncertain ? 'uncertain' : 'ok',
+        'warnings': out.warningKeys,
         'is_disease': !isHealthy,
-        'severity_percentage': severityPct,
-        'severity_level': severityLevel,
+        'severity_percentage': out.severityPercent,
+        'severity_level': out.severityLevel,
         'treatment_info': {
-          'treatment': info.treatment,
-          'prevention': info.prevention,
-          'follow_up_days': info.followUpDays,
+          'treatment': treatment,
+          'prevention': prevention,
+          'follow_up_days': followUpDays,
         },
+        'needs_treatment': needsTreatment,
         'follow_up_due_date': followUpDueDate,
         'follow_up_done': false,
         'language': language.code,
         'image_path': savedImagePath,
-        'image_url': imageUrl, // <-- Firebase Storage download URL
+        'image_url': null, // filled in by the background upload below
+        'model_version': DiseaseModels.version,
         'created_at': FieldValue.serverTimestamp(),
         'created_at_local': now,
-      });
-      predictionId = doc.id;
-    } catch (e) {
-      // ignore: avoid_print
-      print('Firestore save queued/failed (will retry when online): $e');
-    }
+      }),
+    );
+
+    // ── 8. Upload image in the background (does not block the result) ──
+    unawaited(_uploadInBackground(docRef, File(savedImagePath), uid));
+
+    stopwatch.stop();
 
     return PredictionResultModel(
-      predictionId: predictionId,
-      isPomegranate: validation.isPomegranate,
-      validatorConfidence: validation.confidence * 100,
+      predictionId: docRef.id,
+      isPomegranate: true,
+      validatorConfidence: out.pomegranateProbability * 100,
       diseaseName: diseaseName,
       confidence: confidence,
       isDisease: !isHealthy,
-      severityPercentage: severityPct,
-      severityLevel: severityLevel,
-      treatment: info.treatment,
-      prevention: info.prevention,
-      followUpDays: info.followUpDays,
+      secondDiseaseName: out.secondDisease,
+      secondConfidence: out.secondConfidence * 100,
+      status: out.isUncertain ? 'uncertain' : 'ok',
+      warnings: warnings,
+      severityPercentage: out.severityPercent,
+      severityLevel: out.severityLevel,
+      treatment: treatment,
+      prevention: prevention,
+      followUpDays: followUpDays,
       followUpDueDate: followUpDueDate,
       followUpDone: false,
       imagePath: savedImagePath,
-      imageUrl: imageUrl,
-      responseTimeSeconds: 0.0,
+      imageUrl: null,
+      responseTimeSeconds: stopwatch.elapsedMilliseconds / 1000.0,
       detectedAt: now,
     );
+  }
+
+  /// Waits a short time for Firestore; offline it simply continues
+  /// (the write is already in the local cache and will sync later).
+  static Future<void> _safeWrite(Future<void> write) async {
+    try {
+      await write.timeout(_writeTimeout);
+    } on TimeoutException {
+      debugPrint('Firestore offline — write queued, will sync when online.');
+    } catch (e) {
+      debugPrint('Firestore write failed: $e');
+    }
+  }
+
+  static Future<void> _uploadInBackground(
+    DocumentReference<Map<String, dynamic>> docRef,
+    File file,
+    String uid,
+  ) async {
+    try {
+      final url = await _uploadImageToStorage(file, uid);
+      await _safeWrite(docRef.update({'image_url': url}));
+    } catch (e) {
+      debugPrint(
+        'Image upload failed (history thumbnail will use local file): $e',
+      );
+    }
   }
 
   static Future<String> _copyImageToAppStorage(File source) async {
     final dir = await getApplicationDocumentsDirectory();
     final folder = Directory('${dir.path}/detections');
-
     if (!await folder.exists()) {
       await folder.create(recursive: true);
     }
-
     final fileName = 'detection_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final saved = await source.copy('${folder.path}/$fileName');
     return saved.path;
@@ -140,12 +180,10 @@ class DiseaseService {
   static Future<String> _uploadImageToStorage(File file, String uid) async {
     final fileName = 'detection_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final ref = _storage.ref().child('disease_predictions/$uid/$fileName');
-
     final uploadTask = await ref.putFile(
       file,
       SettableMetadata(contentType: 'image/jpeg'),
     );
-
     return await uploadTask.ref.getDownloadURL();
   }
 }

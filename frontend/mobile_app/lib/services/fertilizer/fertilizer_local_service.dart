@@ -4,7 +4,7 @@ import 'fertilizer_tflite_service.dart';
 
 class FertilizerLocalService {
   FertilizerLocalService({FertilizerTfliteService? modelService})
-      : _modelService = modelService ?? FertilizerTfliteService();
+    : _modelService = modelService ?? FertilizerTfliteService();
 
   final FertilizerTfliteService _modelService;
 
@@ -20,6 +20,12 @@ class FertilizerLocalService {
   }) async {
     if (treeAge < 0 || treeAge > 10) {
       throw ArgumentError(t('plantAgeInvalid'));
+    }
+
+    final npkValues = [nitrogen, phosphorus, potassium];
+    if (npkValues.any((value) => !value.isFinite || value < 0) ||
+        npkValues.every((value) => value == 0)) {
+      throw ArgumentError(t('invalidNpkValues'));
     }
 
     final stage = _treeStage(treeAge);
@@ -112,14 +118,13 @@ class FertilizerLocalService {
     final pDeficiency = (optimalP - phosphorus).clamp(0, double.infinity);
     final kDeficiency = (optimalK - potassium).clamp(0, double.infinity);
 
-    final score =
-        0.50 * nDeficiency + 0.25 * pDeficiency + 0.25 * kDeficiency;
+    final score = 0.50 * nDeficiency + 0.25 * pDeficiency + 0.25 * kDeficiency;
 
     final fertilizerClass = score > 40
         ? 'HIGH'
         : score >= 20
-            ? 'MEDIUM'
-            : 'LOW';
+        ? 'MEDIUM'
+        : 'LOW';
 
     return (fertilizerClass, score);
   }
@@ -131,11 +136,7 @@ class FertilizerLocalService {
       3: (150.0, 185.0, 125.0),
       4: (200.0, 275.0, 175.0),
     };
-    const multiplier = {
-      'LOW': 0.75,
-      'MEDIUM': 1.00,
-      'HIGH': 1.25,
-    };
+    const multiplier = {'LOW': 0.75, 'MEDIUM': 1.00, 'HIGH': 1.25};
 
     final base = baseTable[stage]!;
     final factor = multiplier[fertilizerClass.toUpperCase()] ?? 1.0;

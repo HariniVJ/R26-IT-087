@@ -31,7 +31,10 @@ class FertilizerResultScreen extends StatelessWidget {
             iconTheme: const IconThemeData(color: Colors.white),
             automaticallyImplyLeading: false,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Colors.white,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -41,40 +44,6 @@ class FertilizerResultScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _summaryCard(),
-                const SizedBox(height: 18),
-                Text(
-                  t('nutrientQuantity'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 15,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _nutrientCard(
-                      title: t('nitrogen'),
-                      symbol: 'N',
-                      value: '${advice.nitrogen.toStringAsFixed(0)} g',
-                      color: const Color(0xFF2563EB),
-                    ),
-                    const SizedBox(width: 10),
-                    _nutrientCard(
-                      title: t('phosphorus'),
-                      symbol: 'P',
-                      value: '${advice.phosphorus.toStringAsFixed(0)} g',
-                      color: const Color(0xFFEA580C),
-                    ),
-                    const SizedBox(width: 10),
-                    _nutrientCard(
-                      title: t('potassium'),
-                      symbol: 'K',
-                      value: '${advice.potassium.toStringAsFixed(0)} g',
-                      color: const Color(0xFF7C3AED),
-                    ),
-                  ],
-                ),
                 const SizedBox(height: 18),
                 _amountCard(),
               ],
@@ -199,8 +168,18 @@ class FertilizerResultScreen extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 8),
-          _fertilizerRow('U', t('urea'), '${advice.ureaG} g', const Color(0xFF0EA5E9)),
-          _fertilizerRow('T', t('tsp'), '${advice.tspG} g', const Color(0xFFF59E0B)),
+          _fertilizerRow(
+            'U',
+            t('urea'),
+            '${advice.ureaG} g',
+            const Color(0xFF0EA5E9),
+          ),
+          _fertilizerRow(
+            'T',
+            t('tsp'),
+            '${advice.tspG} g',
+            const Color(0xFFF59E0B),
+          ),
           _fertilizerRow('M', t('mop'), '${advice.mopG} g', BrandColor.primary),
         ],
       ),
@@ -238,79 +217,12 @@ class FertilizerResultScreen extends StatelessWidget {
     );
   }
 
-  Widget _nutrientCard({
-    required String title,
-    required String symbol,
-    required String value,
-    required Color color,
-  }) {
-    return Expanded(
-      child: Container(
-        height: 132,
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(22),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [color, color.withValues(alpha: 0.82)],
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: color.withValues(alpha: 0.22),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-              ),
-            ),
-            Text(
-              symbol,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.8),
-                fontSize: 11,
-              ),
-            ),
-            const Spacer(),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w300,
-                  fontSize: 22,
-                ),
-              ),
-            ),
-            Text(
-              t('perTree').toUpperCase(),
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.85),
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.6,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _fertilizerRow(String letter, String name, String amount, Color color) {
+  Widget _fertilizerRow(
+    String letter,
+    String name,
+    String amount,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: const BoxDecoration(
@@ -323,7 +235,10 @@ class FertilizerResultScreen extends StatelessWidget {
             backgroundColor: color,
             child: Text(
               letter,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
           const SizedBox(width: 16),

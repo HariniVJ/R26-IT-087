@@ -7,8 +7,14 @@ class PredictionResultModel {
 
   // Disease classification
   final String diseaseName;
-  final double confidence;
+  final double confidence; // 0..100
   final bool isDisease;
+
+  // Second most likely disease + confidence status (kept for Firestore)
+  final String secondDiseaseName;
+  final double secondConfidence; // 0..100
+  final String status; // 'ok' | 'uncertain'
+  final List<String> warnings; // already translated text
 
   // Severity
   final double severityPercentage;
@@ -38,6 +44,10 @@ class PredictionResultModel {
     required this.diseaseName,
     required this.confidence,
     this.isDisease = true,
+    this.secondDiseaseName = '',
+    this.secondConfidence = 0.0,
+    this.status = 'ok',
+    this.warnings = const [],
     this.severityPercentage = 0.0,
     this.severityLevel = 'N/A',
     required this.treatment,
@@ -52,6 +62,15 @@ class PredictionResultModel {
   });
 
   bool get isHealthy => diseaseName.toLowerCase() == 'healthy';
+
+  bool get isUncertain => status == 'uncertain';
+
+  /// Show treatment / prevention / follow-up for every disease result.
+  /// Healthy results stop at the result screen.
+  bool get needsTreatment => isDisease && !isHealthy;
+
+  /// Schedule a follow-up reminder ONLY when this is true.
+  bool get needsFollowUp => needsTreatment && followUpDueDate != null;
 
   bool get isHighConfidence => confidence >= 80;
 

@@ -3,10 +3,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../common/brand_color.dart';
+import '../../common/disease/disease_helpers.dart';
+import '../../l10n/d_app_strings.dart';
 import '../../models/Disease_prediction_result_model.dart';
 import '../../services/disease/history_service.dart';
+import '../../widgets/severity_chip.dart';
 import 'history_detail_view.dart';
 
+/// Detection history list. All text follows the app language.
 class HistoryView extends StatefulWidget {
   const HistoryView({super.key});
 
@@ -21,6 +25,8 @@ class _HistoryViewState extends State<HistoryView> {
   bool _selectionMode = false;
   final Set<String> _selectedIds = {};
 
+  /// Values stay in English (they match the saved disease names);
+  /// only the chip LABEL is translated.
   static const List<String> _filterOptions = [
     'All',
     'Healthy',
@@ -30,6 +36,12 @@ class _HistoryViewState extends State<HistoryView> {
     'Cercospora',
   ];
 
+  LanguageController get _lang => LanguageController.instance;
+
+  /// Chip / message label for a filter value.
+  String _filterLabel(String option) =>
+      option == 'All' ? dt('filter_all') : _lang.disease(option);
+
   @override
   void initState() {
     super.initState();
@@ -37,7 +49,9 @@ class _HistoryViewState extends State<HistoryView> {
   }
 
   Future<void> _refresh() async {
-    setState(() => futureHistory = HistoryService.getFirebaseHistory());
+    setState(() {
+      futureHistory = HistoryService.getFirebaseHistory();
+    });
     await futureHistory;
   }
 
@@ -63,7 +77,6 @@ class _HistoryViewState extends State<HistoryView> {
     });
   }
 
-
   void _selectAll(List<PredictionResultModel> data) {
     setState(() {
       final allIds = data
@@ -81,12 +94,10 @@ class _HistoryViewState extends State<HistoryView> {
   }
 
   // ── Single-item delete confirmation ─────────────────────────────────
- Future<void> _confirmDeleteSingle(PredictionResultModel item) async {
+  Future<void> _confirmDeleteSingle(PredictionResultModel item) async {
     final confirmed = await _showDeleteDialog(
-      title: 'Delete this record?',
-      message:
-          'This detection record for "${item.diseaseName.replaceAll('_', ' ')}" '
-          'will be permanently deleted. This cannot be undone.',
+      title: dt('delete_one_title'),
+      message: dtf('delete_one_msg', {'name': _lang.disease(item.diseaseName)}),
     );
 
     if (confirmed != true || item.predictionId == null) return;
@@ -107,14 +118,18 @@ class _HistoryViewState extends State<HistoryView> {
             borderRadius: BorderRadius.circular(16),
           ),
           duration: const Duration(seconds: 2),
-          content: const Row(
+          content: Row(
             children: [
-              Icon(Icons.delete_forever_rounded, color: Colors.white, size: 22),
-              SizedBox(width: 12),
+              const Icon(
+                Icons.delete_forever_rounded,
+                color: Colors.white,
+                size: 22,
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Record deleted successfully',
-                  style: TextStyle(
+                  dt('record_deleted'),
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
@@ -129,21 +144,19 @@ class _HistoryViewState extends State<HistoryView> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(dtf('delete_failed', {'error': '$e'}))),
+      );
     }
-  } 
-  
+  }
+
   // ── Multi-select delete confirmation ────────────────────────────────
   Future<void> _confirmDeleteSelected() async {
     if (_selectedIds.isEmpty) return;
 
     final confirmed = await _showDeleteDialog(
-      title: 'Delete ${_selectedIds.length} record(s)?',
-      message:
-          'These detection records will be permanently deleted. '
-          'This cannot be undone.',
+      title: dtf('delete_many_title', {'n': '${_selectedIds.length}'}),
+      message: dt('delete_many_msg'),
     );
 
     if (confirmed != true) return;
@@ -154,7 +167,11 @@ class _HistoryViewState extends State<HistoryView> {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${_selectedIds.length} record(s) deleted')),
+        SnackBar(
+          content: Text(
+            dtf('records_deleted', {'n': '${_selectedIds.length}'}),
+          ),
+        ),
       );
       setState(() {
         _selectedIds.clear();
@@ -163,9 +180,9 @@ class _HistoryViewState extends State<HistoryView> {
       _refresh();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Delete failed: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(dtf('delete_failed', {'error': '$e'}))),
+      );
     }
   }
 
@@ -185,7 +202,7 @@ class _HistoryViewState extends State<HistoryView> {
             color: BrandColor.softPink,
             shape: BoxShape.circle,
           ),
-          child: Icon(
+          child: const Icon(
             Icons.delete_outline_rounded,
             color: BrandColor.primary,
             size: 30,
@@ -212,7 +229,7 @@ class _HistoryViewState extends State<HistoryView> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Cancel'),
+            child: Text(dt('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
@@ -223,7 +240,7 @@ class _HistoryViewState extends State<HistoryView> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: const Text('Delete'),
+            child: Text(dt('delete')),
           ),
         ],
       ),
@@ -232,106 +249,109 @@ class _HistoryViewState extends State<HistoryView> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: BrandColor.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          _selectionMode
-              ? '${_selectedIds.length} selected'
-              : 'Detection History',
-          style: const TextStyle(
-            color: BrandColor.darkText,
-            fontWeight: FontWeight.w800,
+    return ListenableBuilder(
+      listenable: _lang,
+      builder: (context, _) => Scaffold(
+        backgroundColor: BrandColor.background,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Text(
+            _selectionMode
+                ? dtf('selected_count', {'n': '${_selectedIds.length}'})
+                : dt('detection_history'),
+            style: const TextStyle(
+              color: BrandColor.darkText,
+              fontWeight: FontWeight.w800,
+            ),
           ),
-        ),
-        leading: _selectionMode
-            ? IconButton(
+          leading: _selectionMode
+              ? IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: BrandColor.darkText,
+                  ),
+                  onPressed: _toggleSelectionMode,
+                )
+              : null,
+          actions: [
+            if (!_selectionMode)
+              IconButton(
                 icon: const Icon(
-                  Icons.close_rounded,
-                  color: BrandColor.darkText,
+                  Icons.checklist_rounded,
+                  color: BrandColor.primary,
                 ),
+                tooltip: dt('select_items'),
                 onPressed: _toggleSelectionMode,
               )
-            : null,
-        actions: [
-          if (!_selectionMode)
-            IconButton(
-              icon: const Icon(
-                Icons.checklist_rounded,
+            else
+              IconButton(
+                icon: Icon(
+                  _selectedIds.isEmpty
+                      ? Icons.delete_outline_rounded
+                      : Icons.delete_rounded,
+                  color: _selectedIds.isEmpty
+                      ? BrandColor.lightText
+                      : BrandColor.primary,
+                ),
+                tooltip: dt('delete_selected'),
+                onPressed: _selectedIds.isEmpty ? null : _confirmDeleteSelected,
+              ),
+          ],
+        ),
+        body: Column(
+          children: [
+            _filterBar(),
+            Expanded(
+              child: RefreshIndicator(
                 color: BrandColor.primary,
-              ),
-              tooltip: 'Select items',
-              onPressed: _toggleSelectionMode,
-            )
-          else
-            IconButton(
-              icon: Icon(
-                _selectedIds.isEmpty
-                    ? Icons.delete_outline_rounded
-                    : Icons.delete_rounded,
-                color: _selectedIds.isEmpty
-                    ? BrandColor.lightText
-                    : BrandColor.primary,
-              ),
-              tooltip: 'Delete selected',
-              onPressed: _selectedIds.isEmpty ? null : _confirmDeleteSelected,
-            ),
-        ],
-      ),
-      body: Column(
-        children: [
-          _filterBar(),
-          Expanded(
-            child: RefreshIndicator(
-              color: BrandColor.primary,
-              onRefresh: _refresh,
-              child: FutureBuilder<List<PredictionResultModel>>(
-                future: futureHistory,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: BrandColor.primary,
-                      ),
+                onRefresh: _refresh,
+                child: FutureBuilder<List<PredictionResultModel>>(
+                  future: futureHistory,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: BrandColor.primary,
+                        ),
+                      );
+                    }
+
+                    if (snapshot.hasError) {
+                      return _errorState(snapshot.error.toString());
+                    }
+
+                    final allData = snapshot.data ?? [];
+                    final data = _applyFilter(allData);
+
+                    if (allData.isEmpty) {
+                      return _emptyState();
+                    }
+
+                    if (data.isEmpty) {
+                      return _noMatchState();
+                    }
+
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      children: [
+                        _buildStats(allData),
+                        const SizedBox(height: 18),
+                        if (_selectionMode) _selectAllRow(data),
+                        ...data.map((item) => _historyCard(item)),
+                      ],
                     );
-                  }
-
-                  if (snapshot.hasError) {
-                    return _errorState(snapshot.error.toString());
-                  }
-
-                  final allData = snapshot.data ?? [];
-                  final data = _applyFilter(allData);
-
-                  if (allData.isEmpty) {
-                    return _emptyState();
-                  }
-
-                  if (data.isEmpty) {
-                    return _noMatchState();
-                  }
-
-                  return ListView(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                    children: [
-                      _buildStats(allData),
-                      const SizedBox(height: 18),
-                      if (_selectionMode) _selectAllRow(data),
-                      ...data.map((item) => _historyCard(item)),
-                    ],
-                  );
-                },
+                  },
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  // ── Filter chip bar — unchanged ──────────────────────────────────────
+  // ── Filter chip bar ─────────────────────────────────────────────────
   Widget _filterBar() {
     return Container(
       color: Colors.white,
@@ -346,7 +366,6 @@ class _HistoryViewState extends State<HistoryView> {
           itemBuilder: (context, index) {
             final option = _filterOptions[index];
             final selected = _selectedFilter == option;
-            final displayName = option.replaceAll('_', ' ');
 
             return GestureDetector(
               onTap: () => setState(() => _selectedFilter = option),
@@ -364,7 +383,7 @@ class _HistoryViewState extends State<HistoryView> {
                   ),
                 ),
                 child: Text(
-                  displayName,
+                  _filterLabel(option),
                   style: TextStyle(
                     color: selected ? Colors.white : BrandColor.primary,
                     fontWeight: FontWeight.w700,
@@ -402,9 +421,9 @@ class _HistoryViewState extends State<HistoryView> {
               size: 20,
             ),
             const SizedBox(width: 8),
-            const Text(
-              'Select all',
-              style: TextStyle(
+            Text(
+              dt('select_all'),
+              style: const TextStyle(
                 color: BrandColor.darkText,
                 fontWeight: FontWeight.w700,
                 fontSize: 13,
@@ -416,7 +435,7 @@ class _HistoryViewState extends State<HistoryView> {
     );
   }
 
-  // ── Summary stats — changed from squares to rounded rectangles ───────
+  // ── Summary stats ───────────────────────────────────────────────────
   Widget _buildStats(List<PredictionResultModel> data) {
     final total = data.length;
     final healthy = data.where((d) => d.isHealthy).length;
@@ -427,7 +446,7 @@ class _HistoryViewState extends State<HistoryView> {
         Expanded(
           child: _statTile(
             icon: Icons.fact_check_rounded,
-            label: 'Total Scans',
+            label: dt('total_scans'),
             value: '$total',
             color: BrandColor.primary,
           ),
@@ -436,18 +455,18 @@ class _HistoryViewState extends State<HistoryView> {
         Expanded(
           child: _statTile(
             icon: Icons.eco_rounded,
-            label: 'Healthy',
+            label: dt('healthy_label'),
             value: '$healthy',
-            color: const Color(0xFF2DBE72),
+            color: DiseaseHelpers.healthyColor,
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _statTile(
             icon: Icons.warning_amber_rounded,
-            label: 'Diseased',
+            label: dt('diseased'),
             value: '$diseased',
-            color: const Color(0xFFF59E0B),
+            color: DiseaseHelpers.moderateColor,
           ),
         ),
       ],
@@ -461,11 +480,9 @@ class _HistoryViewState extends State<HistoryView> {
     required Color color,
   }) {
     return Container(
-      // Rectangle shape (wider than tall) instead of a square tile.
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        // Small corner radius -> reads as a rectangle, not a rounded square.
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: BrandColor.border),
       ),
@@ -474,27 +491,30 @@ class _HistoryViewState extends State<HistoryView> {
         children: [
           Icon(icon, color: color, size: 18),
           const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  color: BrandColor.darkText,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 15,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  value,
+                  style: const TextStyle(
+                    color: BrandColor.darkText,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                  ),
                 ),
-              ),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: BrandColor.lightText,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
+                Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: BrandColor.lightText,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -504,9 +524,7 @@ class _HistoryViewState extends State<HistoryView> {
   // ── History card — with checkbox in selection mode ───────────────────
   Widget _historyCard(PredictionResultModel item) {
     final isHealthy = item.isHealthy;
-    final statusColor = isHealthy
-        ? const Color(0xFF2DBE72)
-        : _severityColor(item.severityLevel);
+    final statusColor = DiseaseHelpers.statusColor(item);
     final id = item.predictionId;
     final isSelected = id != null && _selectedIds.contains(id);
 
@@ -588,7 +606,7 @@ class _HistoryViewState extends State<HistoryView> {
                       children: [
                         Expanded(
                           child: Text(
-                            item.diseaseName.replaceAll('_', ' '),
+                            _lang.disease(item.diseaseName),
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
                               fontSize: 14.5,
@@ -610,22 +628,14 @@ class _HistoryViewState extends State<HistoryView> {
                       spacing: 8,
                       runSpacing: 4,
                       children: [
-                        _miniBadge(
-                          icon: Icons.speed_rounded,
-                          text:
-                              '${item.severityLevel} · ${item.severityPercentage.toStringAsFixed(0)}%',
-                          color: statusColor,
-                        ),
-                        _miniBadge(
-                          icon: Icons.verified_rounded,
-                          text: '${item.confidence.toStringAsFixed(0)}% conf.',
-                          color: BrandColor.lightText,
-                        ),
+                        // Shared badges (same on Home + Detail)
+                        SeverityChip(result: item),
+                        ConfidenceBadge(result: item),
                       ],
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _formatDate(item.detectedAt),
+                      dRelativeDate(item.detectedAt),
                       style: const TextStyle(
                         color: BrandColor.lightText,
                         fontSize: 10.5,
@@ -637,7 +647,7 @@ class _HistoryViewState extends State<HistoryView> {
             ),
             if (!_selectionMode)
               IconButton(
-                icon: Icon(
+                icon: const Icon(
                   Icons.delete_outline_rounded,
                   color: BrandColor.lightText,
                   size: 20,
@@ -709,57 +719,6 @@ class _HistoryViewState extends State<HistoryView> {
     );
   }
 
-  Widget _miniBadge({
-    required IconData icon,
-    required String text,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 3),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Color _severityColor(String level) {
-    switch (level.toLowerCase()) {
-      case 'mild':
-        return const Color(0xFF2DBE72);
-      case 'moderate':
-        return const Color(0xFFF59E0B);
-      case 'severe':
-        return BrandColor.primary;
-      default:
-        return BrandColor.lightText;
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final diff = now.difference(date);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
-    return '${date.day}/${date.month}/${date.year}';
-  }
-
   Widget _emptyState() {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 30),
@@ -773,27 +732,27 @@ class _HistoryViewState extends State<HistoryView> {
             color: BrandColor.softPink,
             shape: BoxShape.circle,
           ),
-          child: Icon(
+          child: const Icon(
             Icons.history_rounded,
             color: BrandColor.primary,
             size: 40,
           ),
         ),
         const SizedBox(height: 20),
-        const Text(
-          'No detections yet',
+        Text(
+          dt('no_detections'),
           textAlign: TextAlign.center,
-          style: TextStyle(
+          style: const TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: 17,
             color: BrandColor.darkText,
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Your scanned pomegranates will show up here\nonce you run a detection.',
+        Text(
+          dt('no_detections_hint'),
           textAlign: TextAlign.center,
-          style: TextStyle(color: BrandColor.lightText, fontSize: 12.5),
+          style: const TextStyle(color: BrandColor.lightText, fontSize: 12.5),
         ),
       ],
     );
@@ -804,14 +763,14 @@ class _HistoryViewState extends State<HistoryView> {
       padding: const EdgeInsets.symmetric(horizontal: 30),
       children: [
         const SizedBox(height: 80),
-        Icon(
+        const Icon(
           Icons.filter_alt_off_rounded,
           color: BrandColor.lightText,
           size: 40,
         ),
         const SizedBox(height: 16),
         Text(
-          'No results for "${_selectedFilter.replaceAll('_', ' ')}"',
+          dtf('no_results_for', {'name': _filterLabel(_selectedFilter)}),
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontWeight: FontWeight.w800,
@@ -820,10 +779,10 @@ class _HistoryViewState extends State<HistoryView> {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Try a different filter above.',
+        Text(
+          dt('try_other_filter'),
           textAlign: TextAlign.center,
-          style: TextStyle(color: BrandColor.lightText, fontSize: 12.5),
+          style: const TextStyle(color: BrandColor.lightText, fontSize: 12.5),
         ),
       ],
     );
@@ -847,7 +806,7 @@ class _HistoryViewState extends State<HistoryView> {
             color: BrandColor.softPink,
             shape: BoxShape.circle,
           ),
-          child: Icon(
+          child: const Icon(
             Icons.error_outline_rounded,
             color: BrandColor.primary,
             size: 40,
@@ -856,10 +815,10 @@ class _HistoryViewState extends State<HistoryView> {
         const SizedBox(height: 20),
         Text(
           isIndexError
-              ? 'Setting things up…'
+              ? dt('setting_up')
               : isPermissionError
-              ? 'Access issue'
-              : 'Could not load history',
+              ? dt('access_issue')
+              : dt('could_not_load'),
           textAlign: TextAlign.center,
           style: const TextStyle(
             fontWeight: FontWeight.w900,
@@ -870,11 +829,9 @@ class _HistoryViewState extends State<HistoryView> {
         const SizedBox(height: 6),
         Text(
           isIndexError
-              ? 'The database index is still building. This usually '
-                    'takes a minute — pull down to refresh shortly.'
+              ? dt('index_building_msg')
               : isPermissionError
-              ? 'You may need to sign in again, or the database '
-                    'permissions need to be updated.'
+              ? dt('permission_msg')
               : message,
           textAlign: TextAlign.center,
           style: const TextStyle(color: BrandColor.lightText, fontSize: 12.5),
@@ -884,7 +841,7 @@ class _HistoryViewState extends State<HistoryView> {
           child: OutlinedButton.icon(
             onPressed: _refresh,
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Retry'),
+            label: Text(dt('retry')),
             style: OutlinedButton.styleFrom(
               foregroundColor: BrandColor.primary,
               side: const BorderSide(color: BrandColor.primary),
