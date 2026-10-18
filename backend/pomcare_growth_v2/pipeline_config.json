@@ -1,0 +1,65 @@
+{
+  "class_names": [
+    "Bud",
+    "Flower",
+    "EarlyFruit",
+    "MidGrowth",
+    "MatureFruit",
+    "Unknown"
+  ],
+  "imgsz": 640,
+  "detector_threshold": 0.1,
+  "classifier_threshold": 0.55,
+  "candidate_confidence_floor": 0.05,
+  "nms_iou": 0.5,
+  "max_det": 30,
+  "crop_padding": 0.12,
+  "classifier_input": "RGB 224x224 bilinear, divide by 255 exactly once; internal x*2-1",
+  "selection": "highest YOLO-confidence detection, then CNN argmax/Unknown/threshold",
+  "validation_targets_met": true,
+  "validation_targets": {
+    "negative_rejection": 0.95,
+    "stage_recall": [
+      0.8,
+      0.8,
+      0.8,
+      0.85,
+      0.85
+    ],
+    "apple_rejection": 0.95,
+    "minimum_apple_validation_images": 10
+  },
+  "ultralytics": "8.4.130",
+  "tensorflow": "2.21.0",
+  "training_run": "bud_recovery_80_20_v1",
+  "split_protocol": {
+    "scheme": "80% development / 20% test; 10% of development for validation",
+    "seed": 42,
+    "outer_folds": 5,
+    "inner_folds": 10,
+    "selected_outer_fold": 0,
+    "selected_inner_fold": 0,
+    "method": "StratifiedGroupKFold, majority positive stage and negative source strata",
+    "sklearn_version": "1.6.1",
+    "unique_images": 8513,
+    "counts": {
+      "train": 6168,
+      "val": 701,
+      "test": 1644
+    },
+    "fractions": {
+      "train": 0.7245389404440268,
+      "val": 0.08234464935980265,
+      "test": 0.19311641019617057
+    },
+    "groups": {
+      "train": 5123,
+      "val": 569,
+      "test": 1424
+    },
+    "test_used_for_selection": false,
+    "group_overrides_matched": 0,
+    "default_image_group_count": 6989
+  },
+  "target_stage_accuracy": 0.9
+}

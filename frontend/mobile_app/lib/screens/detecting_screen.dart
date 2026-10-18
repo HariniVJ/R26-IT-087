@@ -9,11 +9,10 @@ import 'package:image_picker/image_picker.dart';
 
 import '../services/firebase/firestore_service.dart';
 import '../services/growth/growth_advisory_service.dart';
-import '../services/growth/growth_tflite_service.dart';
+import '../l10n/app_strings.dart';
+import '../services/growth/growth_backend_service.dart';
 import 'result_screen.dart';
 
-String get apiBaseUrl =>
-    kIsWeb ? 'http://localhost:8000' : 'http://127.0.0.1:8000';
 
 const Color kPrimary = Color(0xFFB22222);
 const Color kPrimaryPink = Color(0xFFE14D75);
@@ -47,12 +46,12 @@ class _DetectingScreenState extends State<DetectingScreen>
 
   int _currentStep = 0;
 
-  final List<String> _steps = [
-    'Analyzing image...',
-    'Detecting fruit region...',
-    'Classifying growth stage...',
-    'Calculating harvest time...',
-    'Almost done...',
+  List<String> get _steps => [
+    t('growthStepAnalyzing'),
+    t('growthStepDetecting'),
+    t('growthStepClassifying'),
+    t('growthStepHarvest'),
+    t('growthStepAlmostDone'),
   ];
 
   @override
@@ -144,7 +143,7 @@ class _DetectingScreenState extends State<DetectingScreen>
       );
 
       final detection =
-          await GrowthTfliteService.instance.analyse(
+          await GrowthBackendService.instance.analyse(
         imageFile,
       );
 
@@ -196,9 +195,7 @@ class _DetectingScreenState extends State<DetectingScreen>
       if (!detection.detected ||
           detection.stage == null) {
         _showNotPomegranateDialog(
-          tip: detection.rejectionReason ??
-              'No pomegranate was detected. '
-                  'Please select a clear image of a pomegranate.',
+          tip: t('growthNotPomegranateTip'),
         );
 
         return;
@@ -209,7 +206,7 @@ class _DetectingScreenState extends State<DetectingScreen>
 
       if (user == null) {
         throw Exception(
-          'Please login before performing growth analysis.',
+          t('growthLoginRequired'),
         );
       }
 
@@ -495,8 +492,7 @@ class _DetectingScreenState extends State<DetectingScreen>
       if (!mounted) return;
 
       _showError(
-        'The growth analysis could not be completed.\n\n'
-        '$e',
+        t('growthAnalysisFailed'),
       );
     }
   }
@@ -560,12 +556,12 @@ class _DetectingScreenState extends State<DetectingScreen>
               height:
                   16,
             ),
-            const Text(
-              'Not a Pomegranate Image',
+            Text(
+              t('notPomegranateImage'),
               textAlign:
                   TextAlign.center,
               style:
-                  TextStyle(
+                  const TextStyle(
                 fontSize:
                     18,
                 fontWeight:
@@ -579,8 +575,7 @@ class _DetectingScreenState extends State<DetectingScreen>
                   10,
             ),
             Text(
-              'The system could not detect a '
-              'pomegranate fruit in this image.',
+              t('notPomegranateBody'),
               textAlign:
                   TextAlign.center,
               style:
@@ -660,7 +655,7 @@ class _DetectingScreenState extends State<DetectingScreen>
                             6,
                       ),
                       Text(
-                        'For best results:',
+                        t('forBestResults'),
                         style:
                             TextStyle(
                           fontSize:
@@ -678,16 +673,16 @@ class _DetectingScreenState extends State<DetectingScreen>
                         8,
                   ),
                   _tipRow(
-                    'Take a clear photo of pomegranate fruit',
+                    t('growthTipClearPhoto'),
                   ),
                   _tipRow(
-                    'Make sure the fruit is visible and well-lit',
+                    t('growthTipVisible'),
                   ),
                   _tipRow(
-                    'Avoid blurry or distant shots',
+                    t('growthTipAvoidBlurry'),
                   ),
                   _tipRow(
-                    'Do not upload unrelated images',
+                    t('growthTipNoUnrelated'),
                   ),
                 ],
               ),
@@ -720,10 +715,10 @@ class _DetectingScreenState extends State<DetectingScreen>
                       18,
                 ),
                 label:
-                    const Text(
-                  'Try Another Image',
+                    Text(
+                  t('tryAnotherImage'),
                   style:
-                      TextStyle(
+                      const TextStyle(
                     color:
                         Colors.white,
                     fontWeight:
@@ -818,8 +813,8 @@ class _DetectingScreenState extends State<DetectingScreen>
           ),
         ),
         title:
-            const Text(
-          'Error',
+            Text(
+          t('error'),
         ),
         content:
             Text(
@@ -838,7 +833,7 @@ class _DetectingScreenState extends State<DetectingScreen>
             },
             child:
                 Text(
-              'Go Back',
+              t('goBack'),
               style:
                   TextStyle(
                 color:
@@ -977,14 +972,14 @@ class _DetectingScreenState extends State<DetectingScreen>
                         ),
                       ),
                     ),
-                    const Expanded(
+                    Expanded(
                       child:
                           Text(
-                        'Detecting Image',
+                        t('growthDetectingImage'),
                         textAlign:
                             TextAlign.center,
                         style:
-                            TextStyle(
+                            const TextStyle(
                           fontSize:
                               16,
                           fontWeight:
@@ -1018,9 +1013,9 @@ class _DetectingScreenState extends State<DetectingScreen>
                         textAlign:
                             TextAlign.center,
                         text:
-                            const TextSpan(
+                            TextSpan(
                           style:
-                              TextStyle(
+                              const TextStyle(
                             fontSize:
                                 26,
                             fontWeight:
@@ -1033,13 +1028,13 @@ class _DetectingScreenState extends State<DetectingScreen>
                           children: [
                             TextSpan(
                               text:
-                                  'Detecting\n',
+                                  t('growthDetecting'),
                             ),
                             TextSpan(
                               text:
-                                  'Pomegranate',
+                                  t('cropValue'),
                               style:
-                                  TextStyle(
+                                  const TextStyle(
                                 color:
                                     kPrimary,
                               ),
@@ -1052,7 +1047,7 @@ class _DetectingScreenState extends State<DetectingScreen>
                             6,
                       ),
                       Text(
-                        'Please wait while we analyze your image...',
+                        t('growthPleaseWait'),
                         textAlign:
                             TextAlign.center,
                         style:
@@ -1263,8 +1258,7 @@ class _DetectingScreenState extends State<DetectingScreen>
                                   4,
                             ),
                             Text(
-                              'Our AI is analyzing the fruit stage, growth\n'
-                              'pattern and health...',
+                              t('growthAiAnalyzing'),
                               textAlign:
                                   TextAlign.center,
                               style:
@@ -1343,16 +1337,21 @@ class _DetectingScreenState extends State<DetectingScreen>
                                   width:
                                       6,
                                 ),
-                                Text(
-                                  'AI Processing Steps',
-                                  style:
-                                      TextStyle(
-                                    fontSize:
-                                        13,
-                                    fontWeight:
-                                        FontWeight.w700,
-                                    color:
-                                        kPrimary,
+                                Expanded(
+                                  child: Text(
+                                    t('growthAiProcessingSteps'),
+                                    softWrap: true,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style:
+                                        TextStyle(
+                                      fontSize:
+                                          13,
+                                      fontWeight:
+                                          FontWeight.w700,
+                                      color:
+                                          kPrimary,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1583,32 +1582,37 @@ class _StepItem extends StatelessWidget {
           width:
               12,
         ),
-        Padding(
-          padding:
-              const EdgeInsets.only(
-            top:
-                4,
-            bottom:
-                24,
-          ),
-          child:
-              Text(
-            label,
-            style:
-                TextStyle(
-              fontSize:
-                  13,
-              color:
-                  isDone
-                      ? kGreen
-                      : isActive
-                          ? kBlack
-                          : Colors.grey[400],
-              fontWeight:
-                  isDone ||
-                          isActive
-                      ? FontWeight.w600
-                      : FontWeight.normal,
+        Expanded(
+          child: Padding(
+            padding:
+                const EdgeInsets.only(
+              top:
+                  4,
+              bottom:
+                  24,
+            ),
+            child:
+                Text(
+              label,
+              softWrap: true,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style:
+                  TextStyle(
+                fontSize:
+                    13,
+                color:
+                    isDone
+                        ? kGreen
+                        : isActive
+                            ? kBlack
+                            : Colors.grey[400],
+                fontWeight:
+                    isDone ||
+                            isActive
+                        ? FontWeight.w600
+                        : FontWeight.normal,
+              ),
             ),
           ),
         ),

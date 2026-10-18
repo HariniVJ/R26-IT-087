@@ -71,6 +71,73 @@ String irrigationDecisionLabel(String? code, [String? fallback]) {
   }
 }
 
+
+String growthStageShortLabel(String? stage) {
+  switch (stage) {
+    case 'Bud':
+      return t('growthBud');
+    case 'Flower':
+      return t('growthFlower');
+    case 'EarlyFruit':
+      return t('growthEarlyFruit');
+    case 'MidGrowth':
+      return t('growthMidGrowth');
+    case 'MatureFruit':
+      return t('growthMature');
+    case 'Ready to Harvest':
+      return t('readyToHarvest');
+    default:
+      return stage == null || stage.isEmpty ? t('unknown') : stage;
+  }
+}
+
+String growthStageLabel(String? stage) {
+  switch (stage) {
+    case 'Bud':
+      return t('growthBudStage');
+    case 'Flower':
+      return t('growthFlowerStage');
+    case 'EarlyFruit':
+      return t('growthEarlyFruitStage');
+    case 'MidGrowth':
+      return t('growthMidGrowthStage');
+    case 'MatureFruit':
+      return t('growthMatureStage');
+    case 'Ready to Harvest':
+      return t('readyToHarvest');
+    default:
+      return stage == null || stage.isEmpty ? t('unknown') : stage;
+  }
+}
+
+String growthConditionLabel(String? value) {
+  final normalized = (value ?? '').trim().toLowerCase();
+  switch (normalized) {
+    case 'favourable':
+    case 'favorable':
+      return t('favourable');
+    case 'caution':
+      return t('caution');
+    case 'clear':
+      return t('clear');
+    case 'cloudy':
+      return t('cloudy');
+    case 'partly cloudy':
+      return t('partlyCloudy');
+    case 'rain':
+    case 'rainy':
+      return t('rain');
+    case 'unavailable':
+      return t('unavailable');
+    case 'unknown':
+      return t('unknown');
+    case 'soil sensor data unavailable':
+      return t('soilSensorUnavailable');
+    default:
+      return value == null || value.isEmpty ? t('unknown') : value;
+  }
+}
+
 const _en = {
   'home': 'Home',
   'history': 'History',
@@ -270,6 +337,87 @@ const _en = {
   'perTree': 'Per tree',
   'trees': 'Trees',
   'stage': 'Stage',
+  'readyToScan': 'Ready to Scan',
+  'captureImage': 'Capture Image',
+  'selectImage': 'Select Image',
+  'growthScanYour': 'Scan Your\n',
+  'growthPomegranate': 'Pomegranate\n',
+  'growthFruitStage': 'Fruit Stage',
+  'growthCaptureSubtitle': 'Capture or select an image to identify the fruit stage using AI.',
+  'growthScanHint': 'Position the fruit in the frame for best results',
+  'growthDetectingImage': 'Detecting Image',
+  'growthDetecting': 'Detecting\n',
+  'growthPleaseWait': 'Please wait while we analyze your image...',
+  'growthStepAnalyzing': 'Analyzing image...',
+  'growthStepDetecting': 'Detecting fruit region...',
+  'growthStepClassifying': 'Classifying growth stage...',
+  'growthStepHarvest': 'Calculating harvest time...',
+  'growthStepAlmostDone': 'Almost done...',
+  'growthAiAnalyzing': 'Our AI is analyzing the fruit stage, growth pattern and health...',
+  'growthAiProcessingSteps': 'AI Processing Steps',
+  'notPomegranateImage': 'Not a Pomegranate Image',
+  'notPomegranateBody': 'The system could not detect a pomegranate fruit in this image.',
+  'growthNotPomegranateTip': 'No pomegranate was detected. Please select a clear image of a pomegranate.',
+  'forBestResults': 'For best results:',
+  'growthTipClearPhoto': 'Take a clear photo of pomegranate fruit',
+  'growthTipVisible': 'Make sure the fruit is visible and well-lit',
+  'growthTipAvoidBlurry': 'Avoid blurry or distant shots',
+  'growthTipNoUnrelated': 'Do not upload unrelated images',
+  'tryAnotherImage': 'Try Another Image',
+  'error': 'Error',
+  'goBack': 'Go Back',
+  'growthAnalysisFailed': 'The growth analysis could not be completed. Please try again.',
+  'growthLoginRequired': 'Please log in before performing growth analysis.',
+  'detectedResult': 'Detected Result',
+  'growthResultSubtitle': 'AI-powered pomegranate growth stage detection',
+  'results': 'Results',
+  'detectedStage': 'DETECTED STAGE',
+  'confidenceScore': 'Confidence Score {value}%',
+  'comingNext': 'Coming Next',
+  'estimatedTransition': 'Estimated transition',
+  'expectedPeriod': 'Expected period',
+  'harvestStatus': 'Harvest Status',
+  'matureStageReached': 'Mature Fruit Stage Reached',
+  'currentStatus': 'Current status',
+  'readyForMaturityAssessment': 'Ready for maturity assessment',
+  'notAvailable': 'Not available',
+  'growthDateEstimation': 'Growth Date Estimation',
+  'captureDate': 'Capture Date',
+  'earliestEstimatedDate': 'Earliest Estimated Date',
+  'latestEstimatedDate': 'Latest Estimated Date',
+  'remainingToMature': 'Remaining to Mature',
+  'growthDateNote': 'The expected dates are estimated from the farmer-observed stage timeline. Weather and soil conditions do not add or subtract days from this range.',
+  'developmentCondition': 'Development Condition',
+  'weather': 'Weather',
+  'airTemperature': 'Air Temperature',
+  'notConnected': 'Not connected',
+  'unavailable': 'Unavailable',
+  'unknown': 'Unknown',
+  'sensorNotFound': 'Sensor not found',
+  'environmentStatusUnavailable': 'Environmental status unavailable',
+  'growthProgress': 'Growth Progress',
+  'careBasics': 'Care Basics',
+  'careActions': 'Care Actions',
+  'careAction': 'Care Action',
+  'riskWarning': 'Risk Warning',
+  'noCareInfo': 'No care information is available.',
+  'continueMonitoring': 'Continue regular crop monitoring.',
+  'noSpecificWarning': 'No specific warning is available.',
+  'scanAgain': 'Scan Again',
+  'growthBud': 'Bud',
+  'growthFlower': 'Flower',
+  'growthEarlyFruit': 'Early Fruit',
+  'growthMidGrowth': 'Mid Growth',
+  'growthMature': 'Mature',
+  'growthBudStage': 'Bud Stage',
+  'growthFlowerStage': 'Flower Stage',
+  'growthEarlyFruitStage': 'Early Fruit Stage',
+  'growthMidGrowthStage': 'Mid-Growth Stage',
+  'growthMatureStage': 'Mature Fruit Stage',
+  'readyToHarvest': 'Ready to Harvest',
+  'favourable': 'Favourable',
+  'caution': 'Caution',
+  'soilSensorUnavailable': 'Soil sensor data unavailable',
 };
 
 const _si = {
@@ -472,6 +620,87 @@ const _si = {
   'perTree': 'ගසකට',
   'trees': 'ගස්',
   'stage': 'අවධිය',
+  'readyToScan': 'ස්කෑන් කිරීමට සූදානම්',
+  'captureImage': 'ඡායාරූපයක් ගන්න',
+  'selectImage': 'ඡායාරූපයක් තෝරන්න',
+  'growthScanYour': 'ඔබගේ\n',
+  'growthPomegranate': 'දෙළුම්\n',
+  'growthFruitStage': 'පලතුරු අවධිය ස්කෑන් කරන්න',
+  'growthCaptureSubtitle': 'AI භාවිතයෙන් පලතුරු වර්ධන අවධිය හඳුනාගැනීමට ඡායාරූපයක් ගන්න හෝ තෝරන්න.',
+  'growthScanHint': 'හොඳම ප්‍රතිඵල සඳහා පලතුර රාමුව තුළ නිවැරදිව තබන්න',
+  'growthDetectingImage': 'රූපය හඳුනාගනිමින්',
+  'growthDetecting': 'හඳුනාගනිමින්\n',
+  'growthPleaseWait': 'ඔබගේ රූපය විශ්ලේෂණය කරන තුරු කරුණාකර රැඳී සිටින්න...',
+  'growthStepAnalyzing': 'රූපය විශ්ලේෂණය කරමින්...',
+  'growthStepDetecting': 'පලතුරු ප්‍රදේශය හඳුනාගනිමින්...',
+  'growthStepClassifying': 'වර්ධන අවධිය වර්ගීකරණය කරමින්...',
+  'growthStepHarvest': 'අස්වනු කාලය ගණනය කරමින්...',
+  'growthStepAlmostDone': 'තව ටිකයි...',
+  'growthAiAnalyzing': 'AI පද්ධතිය පලතුරු අවධිය, වර්ධන රටාව සහ තත්ත්වය විශ්ලේෂණය කරයි...',
+  'growthAiProcessingSteps': 'AI සැකසුම් පියවර',
+  'notPomegranateImage': 'මෙය දෙළුම් රූපයක් නොවේ',
+  'notPomegranateBody': 'මෙම රූපයේ දෙළුම් පලතුරක් හඳුනාගත නොහැකි විය.',
+  'growthNotPomegranateTip': 'දෙළුම් පලතුරක් හඳුනාගත නොහැකි විය. පැහැදිලි දෙළුම් රූපයක් තෝරන්න.',
+  'forBestResults': 'හොඳම ප්‍රතිඵල සඳහා:',
+  'growthTipClearPhoto': 'දෙළුම් පලතුරේ පැහැදිලි ඡායාරූපයක් ගන්න',
+  'growthTipVisible': 'පලතුර පැහැදිලිව පෙනෙන සහ හොඳ ආලෝකයක් ඇති බව තහවුරු කරන්න',
+  'growthTipAvoidBlurry': 'අපැහැදිලි හෝ දුරින් ගත් ඡායාරූප වලින් වළකින්න',
+  'growthTipNoUnrelated': 'අදාළ නොවන රූප උඩුගත නොකරන්න',
+  'tryAnotherImage': 'වෙනත් රූපයක් උත්සාහ කරන්න',
+  'error': 'දෝෂය',
+  'goBack': 'ආපසු යන්න',
+  'growthAnalysisFailed': 'වර්ධන විශ්ලේෂණය සම්පූර්ණ කළ නොහැකි විය. නැවත උත්සාහ කරන්න.',
+  'growthLoginRequired': 'වර්ධන විශ්ලේෂණයට පෙර පිවිසෙන්න.',
+  'detectedResult': 'හඳුනාගත් ප්‍රතිඵලය',
+  'growthResultSubtitle': 'AI මගින් දෙළුම් වර්ධන අවධිය හඳුනාගැනීම',
+  'results': 'ප්‍රතිඵල',
+  'detectedStage': 'හඳුනාගත් අවධිය',
+  'confidenceScore': 'විශ්වාස අගය {value}%',
+  'comingNext': 'ඊළඟට',
+  'estimatedTransition': 'ඇස්තමේන්තුගත මාරුව',
+  'expectedPeriod': 'අපේක්ෂිත කාලය',
+  'harvestStatus': 'අස්වනු තත්ත්වය',
+  'matureStageReached': 'පරිණත පලතුරු අවධියට ළඟා වී ඇත',
+  'currentStatus': 'වත්මන් තත්ත්වය',
+  'readyForMaturityAssessment': 'පරිණතභාවය ඇගයීමට සූදානම්',
+  'notAvailable': 'ලබාගත නොහැක',
+  'growthDateEstimation': 'වර්ධන දිනය ඇස්තමේන්තුව',
+  'captureDate': 'ඡායාරූපගත් දිනය',
+  'earliestEstimatedDate': 'මුල්ම ඇස්තමේන්තු දිනය',
+  'latestEstimatedDate': 'අවසාන ඇස්තමේන්තු දිනය',
+  'remainingToMature': 'පරිණත වීමට ඉතිරි',
+  'growthDateNote': 'අපේක්ෂිත දින ගොවියා නිරීක්ෂණය කළ අවධි කාලරේඛාව මත ඇස්තමේන්තු කරයි. කාලගුණය හා පස් තත්ත්වය මෙම පරාසයට දින එකතු හෝ අඩු නොකරයි.',
+  'developmentCondition': 'වර්ධන තත්ත්වය',
+  'weather': 'කාලගුණය',
+  'airTemperature': 'වායු උෂ්ණත්වය',
+  'notConnected': 'සම්බන්ධ වී නැත',
+  'unavailable': 'ලබාගත නොහැක',
+  'unknown': 'නොදන්නා',
+  'sensorNotFound': 'සංවේදකය හමු නොවීය',
+  'environmentStatusUnavailable': 'පාරිසරික තත්ත්වය ලබාගත නොහැක',
+  'growthProgress': 'වර්ධන ප්‍රගතිය',
+  'careBasics': 'මූලික සත්කාර',
+  'careActions': 'සත්කාර ක්‍රියාමාර්ග',
+  'careAction': 'සත්කාර ක්‍රියාව',
+  'riskWarning': 'අවදානම් අනතුරු ඇඟවීම',
+  'noCareInfo': 'සත්කාර තොරතුරු ලබාගත නොහැක.',
+  'continueMonitoring': 'සාමාන්‍ය බෝග නිරීක්ෂණය දිගටම කරගෙන යන්න.',
+  'noSpecificWarning': 'විශේෂ අනතුරු ඇඟවීමක් නොමැත.',
+  'scanAgain': 'නැවත ස්කෑන් කරන්න',
+  'growthBud': 'කලිකාව',
+  'growthFlower': 'මල',
+  'growthEarlyFruit': 'මුල් පලතුර',
+  'growthMidGrowth': 'මධ්‍ය වර්ධනය',
+  'growthMature': 'පරිණත',
+  'growthBudStage': 'කලිකා අවධිය',
+  'growthFlowerStage': 'මල් අවධිය',
+  'growthEarlyFruitStage': 'මුල් පලතුරු අවධිය',
+  'growthMidGrowthStage': 'මධ්‍ය වර්ධන අවධිය',
+  'growthMatureStage': 'පරිණත පලතුරු අවධිය',
+  'readyToHarvest': 'අස්වනු නෙළීමට සූදානම්',
+  'favourable': 'හිතකර',
+  'caution': 'අවධානය',
+  'soilSensorUnavailable': 'පස් සංවේදක දත්ත ලබාගත නොහැක',
 };
 
 const _ta = {
@@ -674,4 +903,85 @@ const _ta = {
   'perTree': 'ஒரு மரத்திற்கு',
   'trees': 'மரங்கள்',
   'stage': 'நிலை',
+  'readyToScan': 'ஸ்கேன் செய்யத் தயார்',
+  'captureImage': 'படம் எடுக்கவும்',
+  'selectImage': 'படத்தைத் தேர்ந்தெடுக்கவும்',
+  'growthScanYour': 'உங்கள்\n',
+  'growthPomegranate': 'மாதுளை\n',
+  'growthFruitStage': 'பழ வளர்ச்சி நிலையை ஸ்கேன் செய்யவும்',
+  'growthCaptureSubtitle': 'AI மூலம் பழ வளர்ச்சி நிலையை கண்டறிய படம் எடுக்கவும் அல்லது தேர்ந்தெடுக்கவும்.',
+  'growthScanHint': 'சிறந்த முடிவிற்கு பழத்தை சட்டகத்தின் உள்ளே தெளிவாக வைக்கவும்',
+  'growthDetectingImage': 'படம் கண்டறியப்படுகிறது',
+  'growthDetecting': 'கண்டறிகிறது\n',
+  'growthPleaseWait': 'உங்கள் படத்தை பகுப்பாய்வு செய்யும் வரை காத்திருக்கவும்...',
+  'growthStepAnalyzing': 'படம் பகுப்பாய்வு செய்யப்படுகிறது...',
+  'growthStepDetecting': 'பழப் பகுதி கண்டறியப்படுகிறது...',
+  'growthStepClassifying': 'வளர்ச்சி நிலை வகைப்படுத்தப்படுகிறது...',
+  'growthStepHarvest': 'அறுவடை நேரம் கணக்கிடப்படுகிறது...',
+  'growthStepAlmostDone': 'கிட்டத்தட்ட முடிந்தது...',
+  'growthAiAnalyzing': 'AI பழத்தின் வளர்ச்சி நிலை, வளர்ச்சி முறை மற்றும் நிலையை பகுப்பாய்வு செய்கிறது...',
+  'growthAiProcessingSteps': 'AI செயலாக்க படிகள்',
+  'notPomegranateImage': 'இது மாதுளை படம் அல்ல',
+  'notPomegranateBody': 'இந்த படத்தில் மாதுளை பழத்தை கணினி கண்டறிய முடியவில்லை.',
+  'growthNotPomegranateTip': 'மாதுளை கண்டறியப்படவில்லை. தெளிவான மாதுளை படத்தை தேர்ந்தெடுக்கவும்.',
+  'forBestResults': 'சிறந்த முடிவுகளுக்கு:',
+  'growthTipClearPhoto': 'மாதுளை பழத்தின் தெளிவான படத்தை எடுக்கவும்',
+  'growthTipVisible': 'பழம் தெளிவாகவும் நல்ல வெளிச்சத்திலும் இருப்பதை உறுதிசெய்யவும்',
+  'growthTipAvoidBlurry': 'மங்கலான அல்லது தொலைவில் எடுத்த படங்களை தவிர்க்கவும்',
+  'growthTipNoUnrelated': 'தொடர்பில்லாத படங்களை பதிவேற்ற வேண்டாம்',
+  'tryAnotherImage': 'வேறு படத்தை முயற்சிக்கவும்',
+  'error': 'பிழை',
+  'goBack': 'திரும்பிச் செல்லவும்',
+  'growthAnalysisFailed': 'வளர்ச்சி பகுப்பாய்வை முடிக்க முடியவில்லை. மீண்டும் முயற்சிக்கவும்.',
+  'growthLoginRequired': 'வளர்ச்சி பகுப்பாய்வுக்கு முன் உள்நுழையவும்.',
+  'detectedResult': 'கண்டறியப்பட்ட முடிவு',
+  'growthResultSubtitle': 'AI அடிப்படையிலான மாதுளை வளர்ச்சி நிலை கண்டறிதல்',
+  'results': 'முடிவுகள்',
+  'detectedStage': 'கண்டறியப்பட்ட நிலை',
+  'confidenceScore': 'நம்பிக்கை மதிப்பு {value}%',
+  'comingNext': 'அடுத்து',
+  'estimatedTransition': 'மதிப்பிடப்பட்ட மாற்றம்',
+  'expectedPeriod': 'எதிர்பார்க்கப்படும் காலம்',
+  'harvestStatus': 'அறுவடை நிலை',
+  'matureStageReached': 'முதிர்ந்த பழ நிலை அடைந்தது',
+  'currentStatus': 'தற்போதைய நிலை',
+  'readyForMaturityAssessment': 'முதிர்ச்சி மதிப்பீட்டிற்கு தயார்',
+  'notAvailable': 'கிடைக்கவில்லை',
+  'growthDateEstimation': 'வளர்ச்சி தேதி மதிப்பீடு',
+  'captureDate': 'படம் எடுத்த தேதி',
+  'earliestEstimatedDate': 'ஆரம்ப மதிப்பிடப்பட்ட தேதி',
+  'latestEstimatedDate': 'இறுதி மதிப்பிடப்பட்ட தேதி',
+  'remainingToMature': 'முதிர்ச்சிக்கு மீதமுள்ளது',
+  'growthDateNote': 'எதிர்பார்க்கப்படும் தேதிகள் விவசாயி கவனித்த வளர்ச்சி நிலை காலவரிசையை அடிப்படையாகக் கொண்டு மதிப்பிடப்படுகின்றன. வானிலை மற்றும் மண் நிலை இந்த வரம்பில் நாட்களை கூட்டவோ குறைக்கவோ செய்யாது.',
+  'developmentCondition': 'வளர்ச்சி சூழ்நிலை',
+  'weather': 'வானிலை',
+  'airTemperature': 'காற்று வெப்பநிலை',
+  'notConnected': 'இணைக்கப்படவில்லை',
+  'unavailable': 'கிடைக்கவில்லை',
+  'unknown': 'தெரியவில்லை',
+  'sensorNotFound': 'சென்சார் கிடைக்கவில்லை',
+  'environmentStatusUnavailable': 'சுற்றுச்சூழல் நிலை கிடைக்கவில்லை',
+  'growthProgress': 'வளர்ச்சி முன்னேற்றம்',
+  'careBasics': 'அடிப்படை பராமரிப்பு',
+  'careActions': 'பராமரிப்பு நடவடிக்கைகள்',
+  'careAction': 'பராமரிப்பு நடவடிக்கை',
+  'riskWarning': 'ஆபத்து எச்சரிக்கை',
+  'noCareInfo': 'பராமரிப்பு தகவல் கிடைக்கவில்லை.',
+  'continueMonitoring': 'வழக்கமான பயிர் கண்காணிப்பை தொடரவும்.',
+  'noSpecificWarning': 'குறிப்பிட்ட எச்சரிக்கை இல்லை.',
+  'scanAgain': 'மீண்டும் ஸ்கேன் செய்யவும்',
+  'growthBud': 'மொட்டு',
+  'growthFlower': 'பூ',
+  'growthEarlyFruit': 'ஆரம்ப பழம்',
+  'growthMidGrowth': 'நடுத்தர வளர்ச்சி',
+  'growthMature': 'முதிர்ந்தது',
+  'growthBudStage': 'மொட்டு நிலை',
+  'growthFlowerStage': 'பூ நிலை',
+  'growthEarlyFruitStage': 'ஆரம்ப பழ நிலை',
+  'growthMidGrowthStage': 'நடுத்தர வளர்ச்சி நிலை',
+  'growthMatureStage': 'முதிர்ந்த பழ நிலை',
+  'readyToHarvest': 'அறுவடைக்கு தயார்',
+  'favourable': 'சாதகமான',
+  'caution': 'எச்சரிக்கை',
+  'soilSensorUnavailable': 'மண் சென்சார் தரவு கிடைக்கவில்லை',
 };

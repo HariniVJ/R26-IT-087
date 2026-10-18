@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import '../l10n/app_strings.dart';
 
 import '../services/sensor/soil_bluetooth_service.dart';
 
@@ -39,10 +40,10 @@ class _ResultScreenState extends State<ResultScreen>
   late final SoilBluetoothService _soilService;
   double? _liveSoilTemperature;
 
-  final List<String> _tabs = [
-    'Growth Progress',
-    'Care Basics',
-    'Care Actions',
+  List<String> get _tabs => [
+    t('growthProgress'),
+    t('careBasics'),
+    t('careActions'),
   ];
 
   final List<Map<String, dynamic>> _stagesCartoon = [
@@ -162,7 +163,7 @@ class _ResultScreenState extends State<ResultScreen>
       widget.resultData['growth_stage']?['detected'] ?? 'Unknown';
 
   String get _displayName =>
-      widget.resultData['growth_stage']?['display_name'] ?? 'Unknown';
+      widget.resultData['growth_stage']?['display_name'] ?? t('unknown');
 
   double get _confidence =>
       (widget.resultData['growth_stage']?['confidence_percent'] ?? 0)
@@ -202,7 +203,9 @@ class _ResultScreenState extends State<ResultScreen>
       widget.resultData['weather']?['available'] ?? false;
 
   String get _weatherCondition =>
-      widget.resultData['weather']?['condition'] ?? 'Unavailable';
+      growthConditionLabel(
+        widget.resultData['weather']?['condition']?.toString() ?? 'Unavailable',
+      );
 
   double? get _weatherTemperature =>
       (widget.resultData['weather']?['temperature_celsius'] as num?)
@@ -223,24 +226,26 @@ class _ResultScreenState extends State<ResultScreen>
   
   String get _soilTemperatureDisplay {
     if (_liveSoilTemperature != null) {
-      return '${_liveSoilTemperature!.toStringAsFixed(1)}°C (Live)';
+      return '${_liveSoilTemperature!.toStringAsFixed(1)}°C (${t('live')})';
     } else if (_soilTemperature != null) {
       return '${_soilTemperature!.toStringAsFixed(1)}°C';
     } else if (_soilService.isScanning.value) {
-      return 'Scanning...';
-    } else if (!_soilService.isConnected.value && _soilService.status.value.contains('not found')) {
-      return 'Sensor not found';
+      return t('scanningDevice');
+    } else if (!_soilService.isConnected.value &&
+        _soilService.status.value.contains('not found')) {
+      return t('sensorNotFound');
     } else {
-      return 'Connecting...';
+      return t('connectingDevice');
     }
   }
 
   String get _environmentLevel =>
       widget.resultData['environment']?['level'] ?? 'Unknown';
 
-  String get _environmentStatus =>
-      widget.resultData['environment']?['status'] ??
-      'Environmental status unavailable';
+  String get _environmentStatus => growthConditionLabel(
+        widget.resultData['environment']?['status']?.toString() ??
+            t('environmentStatusUnavailable'),
+      );
 
   String get _environmentReason =>
       widget.resultData['environment']?['reason'] ?? '';
@@ -263,37 +268,13 @@ class _ResultScreenState extends State<ResultScreen>
     return index;
   }
 
-  String get _cleanStageName {
-    switch (_detectedStage) {
-      case 'Bud':
-        return 'Bud Stage';
-      case 'Flower':
-        return 'Flower Stage';
-      case 'EarlyFruit':
-        return 'Early Fruit Stage';
-      case 'MidGrowth':
-        return 'Mid-Growth Stage';
-      case 'MatureFruit':
-        return 'Mature Fruit Stage';
-      default:
-        return _displayName;
-    }
-  }
+  String get _cleanStageName =>
+      _detectedStage == 'Unknown'
+          ? _displayName
+          : growthStageLabel(_detectedStage);
 
-  String get _nextStageName {
-    switch (_nextStage) {
-      case 'Flower':
-        return 'Flower Stage';
-      case 'EarlyFruit':
-        return 'Early Fruit Stage';
-      case 'MidGrowth':
-        return 'Mid-Growth Stage';
-      case 'MatureFruit':
-        return 'Mature Fruit Stage';
-      default:
-        return '';
-    }
-  }
+  String get _nextStageName =>
+      _nextStage.isEmpty ? '' : growthStageLabel(_nextStage);
 
   String get _currentRealPhoto =>
       _stageRealPhotos[_detectedStage] ??
@@ -435,9 +416,9 @@ class _ResultScreenState extends State<ResultScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Detected Result',
-                          style: TextStyle(
+                        Text(
+                          t('detectedResult'),
+                          style: const TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
                             color: kBlack,
@@ -447,7 +428,7 @@ class _ResultScreenState extends State<ResultScreen>
                         const SizedBox(height: 2),
 
                         Text(
-                          'AI-powered pomegranate growth stage detection',
+                          t('growthResultSubtitle'),
                           style: TextStyle(
                             fontSize: 12,
                             color: kGray,
@@ -532,11 +513,11 @@ class _ResultScreenState extends State<ResultScreen>
             ),
           ),
 
-          const Expanded(
+          Expanded(
             child: Text(
-              'Results',
+              t('results'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: kBlack,
@@ -587,7 +568,7 @@ class _ResultScreenState extends State<ResultScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'DETECTED STAGE',
+                  t('detectedStage'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
@@ -624,7 +605,9 @@ class _ResultScreenState extends State<ResultScreen>
 
                     Flexible(
                       child: Text(
-                        'Confidence Score ${_confidence.toStringAsFixed(0)}%',
+                        tf('confidenceScore', {
+                          'value': _confidence.toStringAsFixed(0),
+                        }),
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -713,7 +696,7 @@ class _ResultScreenState extends State<ResultScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Coming Next',
+          t('comingNext'),
           style: TextStyle(
             fontSize: 10.5,
             color: kGray,
@@ -736,7 +719,7 @@ class _ResultScreenState extends State<ResultScreen>
 
         _predictionInfo(
           icon: Icons.schedule_rounded,
-          label: 'Estimated transition',
+          label: t('estimatedTransition'),
           value: _transitionRange,
         ),
 
@@ -744,7 +727,7 @@ class _ResultScreenState extends State<ResultScreen>
 
         _predictionInfo(
           icon: Icons.calendar_month_rounded,
-          label: 'Expected period',
+          label: t('expectedPeriod'),
           value: _estimatedDateRange,
         ),
       ],
@@ -756,7 +739,7 @@ class _ResultScreenState extends State<ResultScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Harvest Status',
+          t('harvestStatus'),
           style: TextStyle(
             fontSize: 10.5,
             color: kGray,
@@ -765,9 +748,9 @@ class _ResultScreenState extends State<ResultScreen>
 
         const SizedBox(height: 2),
 
-        const Text(
-          'Mature Fruit Stage Reached',
-          style: TextStyle(
+        Text(
+          t('matureStageReached'),
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w800,
             color: kGreen,
@@ -778,8 +761,8 @@ class _ResultScreenState extends State<ResultScreen>
 
         _predictionInfo(
           icon: Icons.check_circle_outline_rounded,
-          label: 'Current status',
-          value: 'Ready for maturity assessment',
+          label: t('currentStatus'),
+          value: t('readyForMaturityAssessment'),
         ),
       ],
     );
@@ -821,7 +804,7 @@ class _ResultScreenState extends State<ResultScreen>
               Text(
                 value.isNotEmpty
                     ? value
-                    : 'Not available',
+                    : t('notAvailable'),
                 style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -850,19 +833,19 @@ class _ResultScreenState extends State<ResultScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.event_available_rounded,
                 size: 18,
                 color: Color(0xFF9B6B00),
               ),
 
-              SizedBox(width: 7),
+              const SizedBox(width: 7),
 
               Text(
-                'Growth Date Estimation',
-                style: TextStyle(
+                t('growthDateEstimation'),
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF9B6B00),
@@ -874,21 +857,21 @@ class _ResultScreenState extends State<ResultScreen>
           const SizedBox(height: 12),
 
           _dateRow(
-            'Capture Date',
+            t('captureDate'),
             _captureDate,
           ),
 
           const Divider(height: 17),
 
           _dateRow(
-            'Earliest Estimated Date',
+            t('earliestEstimatedDate'),
             _estimatedStartDate,
           ),
 
           const Divider(height: 17),
 
           _dateRow(
-            'Latest Estimated Date',
+            t('latestEstimatedDate'),
             _estimatedEndDate,
           ),
 
@@ -896,7 +879,7 @@ class _ResultScreenState extends State<ResultScreen>
             const Divider(height: 17),
 
             _dateRow(
-              'Remaining to Mature',
+              t('remainingToMature'),
               _harvestRange,
             ),
           ],
@@ -911,7 +894,7 @@ class _ResultScreenState extends State<ResultScreen>
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              'The expected dates are estimated from the farmer-observed stage timeline. Weather and soil conditions do not add or subtract days from this range.',
+              t('growthDateNote'),
               style: TextStyle(
                 fontSize: 10.5,
                 color: Colors.grey[700],
@@ -947,7 +930,7 @@ class _ResultScreenState extends State<ResultScreen>
           child: Text(
             value.isNotEmpty
                 ? value
-                : 'N/A',
+                : t('notAvailable'),
             textAlign: TextAlign.right,
             style: const TextStyle(
               fontSize: 11.5,
@@ -990,9 +973,9 @@ class _ResultScreenState extends State<ResultScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Development Condition',
-                      style: TextStyle(
+                    Text(
+                      t('developmentCondition'),
+                      style: const TextStyle(
                         fontSize: 10,
                         color: kGray,
                       ),
@@ -1020,10 +1003,10 @@ class _ResultScreenState extends State<ResultScreen>
             children: [
               Expanded(
                 child: _conditionValue(
-                  title: 'Weather',
+                  title: t('weather'),
                   value: _weatherAvailable
                       ? _weatherCondition
-                      : 'Unavailable',
+                      : t('unavailable'),
                 ),
               ),
 
@@ -1031,10 +1014,10 @@ class _ResultScreenState extends State<ResultScreen>
 
               Expanded(
                 child: _conditionValue(
-                  title: 'Air Temperature',
+                  title: t('airTemperature'),
                   value: _weatherTemperature != null
                       ? '${_weatherTemperature!.toStringAsFixed(1)}°C'
-                      : 'N/A',
+                      : t('notAvailable'),
                 ),
               ),
             ],
@@ -1046,10 +1029,10 @@ class _ResultScreenState extends State<ResultScreen>
             children: [
               Expanded(
                 child: _conditionValue(
-                  title: 'Soil Temperature',
+                  title: t('soilTemperature'),
                   value: _soilAvailable
                       ? _soilTemperatureDisplay
-                      : 'Not connected',
+                      : t('notConnected'),
                 ),
               ),
 
@@ -1057,10 +1040,10 @@ class _ResultScreenState extends State<ResultScreen>
 
               Expanded(
                 child: _conditionValue(
-                  title: 'Humidity',
+                  title: t('humidity'),
                   value: _humidity != null
                       ? '${_humidity!.toStringAsFixed(0)}%'
-                      : 'N/A',
+                      : t('notAvailable'),
                 ),
               ),
             ],
@@ -1230,10 +1213,10 @@ class _ResultScreenState extends State<ResultScreen>
     if (_activeTab == 1) {
       return _tipCard(
         icon: Icons.water_drop_outlined,
-        title: 'Care Basics',
+        title: t('careBasics'),
         content: _careTip.isNotEmpty
             ? _careTip
-            : 'No care information is available.',
+            : t('noCareInfo'),
         isWarning: false,
       );
     }
@@ -1246,10 +1229,10 @@ class _ResultScreenState extends State<ResultScreen>
       children: [
         _tipCard(
           icon: Icons.task_alt_rounded,
-          title: 'Care Action',
+          title: t('careAction'),
           content: _careAction.isNotEmpty
               ? _careAction
-              : 'Continue regular crop monitoring.',
+              : t('continueMonitoring'),
           isWarning: false,
         ),
 
@@ -1257,10 +1240,10 @@ class _ResultScreenState extends State<ResultScreen>
 
         _tipCard(
           icon: Icons.warning_amber_rounded,
-          title: 'Risk Warning',
+          title: t('riskWarning'),
           content: _riskWarning.isNotEmpty
               ? _riskWarning
-              : 'No specific warning is available.',
+              : t('noSpecificWarning'),
           isWarning: true,
         ),
       ],
@@ -1271,9 +1254,9 @@ class _ResultScreenState extends State<ResultScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Growth Progress',
-          style: TextStyle(
+        Text(
+          t('growthProgress'),
+          style: const TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             color: kBlack,
@@ -1296,9 +1279,12 @@ class _ResultScreenState extends State<ResultScreen>
                   _stagesCartoon[i]['cartoon']
                       as String;
 
-              final label =
-                  _stagesCartoon[i]['label']
+              final stageKey =
+                  _stagesCartoon[i]['key']
                       as String;
+
+              final label =
+                  growthStageShortLabel(stageKey);
 
               return Expanded(
                 child: Column(
@@ -1481,21 +1467,21 @@ class _ResultScreenState extends State<ResultScreen>
             ),
           ],
         ),
-        child: const Row(
+        child: Row(
           mainAxisAlignment:
               MainAxisAlignment.center,
           children: [
-            Icon(
+            const Icon(
               Icons.camera_alt_rounded,
               color: Colors.white,
               size: 18,
             ),
 
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
 
             Text(
-              'Scan Again',
-              style: TextStyle(
+              t('scanAgain'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
