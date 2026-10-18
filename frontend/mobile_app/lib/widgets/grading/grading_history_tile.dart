@@ -257,29 +257,34 @@ class GradingHistoryTile extends StatelessWidget {
   //   Low + disease (name known) → disease NAME · severity   (red)
   //   Low + crack / rot / sunburn → that category            (red)
   //   everything else             → "No defect"              (quality colour)
+   // ── defect / disease chip ──
+  //   High / Medium               → "No defect"              (quality colour)
+  //   Low + disease (name known)  → disease NAME · severity   (red)
+  //   Low + crack / rot / sunburn → that category            (red)
+  //   Low + anything else         → "Other defect"           (red)
   Widget _issueChip(Color qualityText) {
     final defect = result.defectType;
     final isLow = result.quality == 'low_quality';
 
+    // Default for High / Medium.
     IconData icon = Icons.verified_rounded;
-    String text = qt('other_defect');
+    String text = qt('no_defect');
     Color color = qualityText;
 
-    if (isLow && defect == 'disease' && result.hasDiseaseInfo) {
-      icon = Icons.coronavirus_rounded;
-      final name = d.LanguageController.instance.disease(
-        result.diseaseName ?? '',
-      );
-      final level = result.diseaseSeverityLevel;
-      text = level == null
-          ? name
-          : '$name · ${d.LanguageController.instance.severity(level)}';
+    if (isLow) {
       color = lowRed;
-    } else if (isLow &&
-        (defect == 'crack' || defect == 'rot' || defect == 'sunburn')) {
-      icon = Icons.warning_amber_rounded;
-      text = qDefect(defect!);
-      color = lowRed;
+      if (defect == 'disease' && result.hasDiseaseInfo) {
+        icon = Icons.coronavirus_rounded;
+                // Disease name only (severity is shown on the detail page).
+        text = d.LanguageController.instance.disease(result.diseaseName ?? '');
+      } else if (defect == 'crack' || defect == 'rot' || defect == 'sunburn') {
+        icon = Icons.warning_amber_rounded;
+        text = qDefect(defect!);
+      } else {
+        // Low quality, but the exact defect is not known.
+        icon = Icons.warning_amber_rounded;
+        text = qt('other_defect');
+      }
     }
 
     return Container(
@@ -309,7 +314,6 @@ class GradingHistoryTile extends StatelessWidget {
       ),
     );
   }
-
   /// "14 Oct 2026 · 18:05"
   String get _dateText {
     final dt = result.dateTime;

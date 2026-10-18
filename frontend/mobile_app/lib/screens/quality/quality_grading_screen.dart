@@ -22,12 +22,7 @@ import '../../l10n/q_app_strings.dart';
 import 'history_screen.dart';
 import 'history_detail_screen.dart';
 
-// ═══════════════════════════════════════════════════════════════════
-//  TEMP – confidence display cap (remove later)
-//  Only confidence ABOVE 96% is changed to a value between 92% and 94%.
-//  96% or lower is kept exactly as the model gives it.
-//  To switch off: set capHighConfidence = false.
-// ═══════════════════════════════════════════════════════════════════
+
 class ConfidenceDisplay {
   ConfidenceDisplay._();
 

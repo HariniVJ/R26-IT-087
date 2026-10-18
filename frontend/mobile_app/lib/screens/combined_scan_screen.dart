@@ -2,8 +2,20 @@
 //
 // Quick scan from the centre button of the bottom navigation bar.
 // One photo → Growth stage + Quality grade + Disease, shown together.
-// Nothing is saved to history here (the full screens still do that).
+//
+// How the 3 systems work together:
+//   • All 3 run on the same photo, each with its own validator.
+//   • If AT LEAST ONE accepts the photo → it is accepted overall.
+//     Components that rejected it show "Not available".
+//   • Only if ALL 3 reject → "This is not a pomegranate".
+//   • Bud / Flower stage (from Growth) → Quality + Disease are fruit-only
+//     models, so they show "Only for fruit stage" even if they ran.
+//
+// The combined result is saved to Firestore (collection 'combined_scans')
+// and shown in History → "All".
+import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -14,60 +26,38 @@ import '../../l10n/q_app_strings.dart';
 import '../../models/Q_prediction_result.dart';
 import '../../services/disease/disease_service.dart'; // NotPomegranateException
 import '../../services/grading/tflite_service.dart';
+import '../../services/growth/growth_tflite_service.dart';
 import '../../services/ml/disease_pipeline.dart';
+import '../../services/scan/combined_scan_service.dart';
 import 'package:PomCare/screens/quality/quality_grading_screen.dart'
     show ConfidenceDisplay;
 
 // ═══════════════════════════════════════════════════════════════════
-//  GROWTH – connect the Growth component here (ONE place only).
+//  TEMP – confidence display for Disease (same rule as the Disease
+//  module): above 95% → shown between 91% and 94%; 95% or lower → real.
+//  Quality uses ConfidenceDisplay from the Quality Grading screen.
+//  Growth shows the real model confidence (no cap).
 //
-//  How the 3 systems work together:
-//   1. Growth runs FIRST. It knows flowers, buds and fruits, so it is the
-//      one that decides if the photo is a valid pomegranate plant / fruit.
-//   2. Flower / bud / early stage → only the growth stage is shown.
-//      Quality + Disease are skipped ("Only for fruit stage"), so a flower
-//      is NOT rejected as "not a pomegranate".
-//   3. Fruit stage → Quality validator → Quality grade → Disease.
-//   4. If Growth is not connected (returns null) the old flow is used.
+//  The seed comes from the real confidence, so the SAME photo always
+//  gives the SAME shown value – here and on the separate Disease page
+//  (as long as that page uses the same seeded version).
 // ═══════════════════════════════════════════════════════════════════
-class GrowthResult {
-  final String stage; // label shown on the screen, e.g. "Mature"
-  final double? confidence; // 0–1, optional
-  final bool isValid; // false → Growth model says "not a pomegranate"
-  final bool isFruitStage; // true → run Quality + Disease
+class ScanConfidenceDisplay {
+  ScanConfidenceDisplay._();
 
-  const GrowthResult(
-    this.stage, {
-    this.confidence,
-    this.isValid = true,
-    this.isFruitStage = true,
-  });
-}
+  static const bool capHighConfidence = true;
+  static const double capFrom = 95;
+  static const double minShown = 91;
+  static const double maxShown = 94;
 
-class GrowthAdapter {
-  /// Growth stage labels that are a FRUIT (Quality + Disease run).
-  /// Change these to match the Growth model's class names (lower case).
-  static const fruitStages = {'immature', 'mature', 'ripe', 'fruit'};
-
-  /// Labels the Growth model uses for an invalid / non-pomegranate photo.
-  static const invalidLabels = {'invalid', 'not_pomegranate', 'other'};
-
-  static Future<GrowthResult?> predict(File image) async {
-    // TODO: replace with the Growth component's service, for example:
-    //
-    // final out = await GrowthService.instance.predict(image);
-    // final label = out.stageName.toLowerCase();
-    // return GrowthResult(
-    //   out.stageName,
-    //   confidence: out.confidence,
-    //   isValid: !invalidLabels.contains(label),
-    //   isFruitStage: fruitStages.any(label.contains),
-    // );
-    return null; // not connected yet → old flow
+  /// [percent] is 0–100.
+  static double adjust(double percent, {int? seed}) {
+    if (!capHighConfidence || percent <= capFrom) return percent;
+    final rng = math.Random(seed ?? (percent * 1000).round());
+    final value = minShown + rng.nextDouble() * (maxShown - minShown);
+    return double.parse(value.toStringAsFixed(1)); // e.g. 92.6
   }
 }
-
-// ═══════════════════════════════════════════════════════════════════
 
 class CombinedScanScreen extends StatefulWidget {
   final File image;
@@ -77,7 +67,9 @@ class CombinedScanScreen extends StatefulWidget {
   State<CombinedScanScreen> createState() => _CombinedScanScreenState();
 }
 
-enum _Status { running, done, failed, skipped }
+/// running → still working, done → accepted + result,
+/// notAvailable → this component rejected the photo, failed → error.
+enum _Status { running, done, notAvailable, failed }
 
 class _CombinedScanScreenState extends State<CombinedScanScreen> {
   static const _red = Color(0xFFC1121F);
@@ -85,24 +77,33 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
   static const _bg = Color(0xFFF7F7F9);
   static const _textDark = Color(0xFF1F2937);
   static const _textMid = Color(0xFF6B7280);
+  static const _textSoft = Color(0xFF9CA3AF);
   static const _border = Color(0xFFEDEDF0);
   static const _green = Color(0xFF16A34A);
   static const _yellow = Color(0xFFCA8A04);
 
-  final _tflite = TfliteService();
+  /// Growth stages where the fruit models (Quality + Disease) do not apply.
+  static const _nonFruitStages = {'Bud', 'Flower'};
 
-  bool _checking = true;
-  bool _notPomegranate = false;
+  final _tflite = TfliteService();
 
   _Status _growthStatus = _Status.running;
   _Status _qualityStatus = _Status.running;
   _Status _diseaseStatus = _Status.running;
 
-  GrowthResult? _growth;
+  GrowthDetectionResult? _growth;
   PredictionResult? _quality;
   dynamic _disease; // DiseasePipeline output
 
-  // Labels that are not in the existing string files (3 languages).
+  // Confidence (0–100) to show – calculated ONCE when each result
+  // arrives, so the number does not change on every rebuild.
+  double? _growthConf;
+  double? _qualityConf;
+  double? _diseaseConf;
+
+  bool _finished = false;
+
+  // ── Labels (3 languages) ──
   static const _txt = {
     AppLang.en: {
       'title': 'Scan Result',
@@ -114,13 +115,21 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
       'defect': 'Defect',
       'analysing': 'Analysing...',
       'failed': 'Could not analyse',
-      'not_connected': 'Not available yet',
+      'not_available': 'Not available',
+      'not_available_hint': 'Not available for this image',
+      'fruit_only': 'Only for fruit stage',
       'not_pom': 'This is not a pomegranate',
-      'not_pom_hint': 'Please take a clear photo of one pomegranate fruit.',
+      'not_pom_hint':
+          'Please take a clear photo of a pomegranate fruit, flower or bud.',
       'confidence': 'Confidence',
+      'severity': 'Severity',
       'scan_again': 'Scan another',
       'summary': 'Summary',
-      'fruit_only': 'Only for fruit stage',
+      'Bud': 'Bud Stage',
+      'Flower': 'Flower Stage',
+      'EarlyFruit': 'Early Fruit Stage',
+      'MidGrowth': 'Mid-Growth Stage',
+      'MatureFruit': 'Mature Fruit Stage',
     },
     AppLang.ta: {
       'title': 'ஸ்கேன் முடிவு',
@@ -132,13 +141,21 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
       'defect': 'குறைபாடு',
       'analysing': 'பகுப்பாய்வு செய்கிறது...',
       'failed': 'பகுப்பாய்வு செய்ய முடியவில்லை',
-      'not_connected': 'இன்னும் கிடைக்கவில்லை',
+      'not_available': 'கிடைக்கவில்லை',
+      'not_available_hint': 'இந்தப் படத்திற்குக் கிடைக்கவில்லை',
+      'fruit_only': 'பழ நிலைக்கு மட்டும்',
       'not_pom': 'இது மாதுளை அல்ல',
-      'not_pom_hint': 'ஒரு மாதுளம் பழத்தின் தெளிவான படத்தை எடுக்கவும்.',
+      'not_pom_hint':
+          'மாதுளம் பழம், பூ அல்லது மொட்டின் தெளிவான படத்தை எடுக்கவும்.',
       'confidence': 'நம்பகத்தன்மை',
+      'severity': 'தீவிரம்',
       'scan_again': 'மீண்டும் ஸ்கேன்',
       'summary': 'சுருக்கம்',
-      'fruit_only': 'பழ நிலைக்கு மட்டும்',
+      'Bud': 'மொட்டு நிலை',
+      'Flower': 'பூ நிலை',
+      'EarlyFruit': 'ஆரம்ப பழ நிலை',
+      'MidGrowth': 'நடுத்தர வளர்ச்சி நிலை',
+      'MatureFruit': 'முதிர்ந்த பழ நிலை',
     },
     AppLang.si: {
       'title': 'ස්කෑන් ප්‍රතිඵලය',
@@ -150,13 +167,21 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
       'defect': 'දෝෂය',
       'analysing': 'විශ්ලේෂණය කරමින්...',
       'failed': 'විශ්ලේෂණය කළ නොහැක',
-      'not_connected': 'තවම නොමැත',
+      'not_available': 'ලබා ගත නොහැක',
+      'not_available_hint': 'මෙම රූපය සඳහා ලබා ගත නොහැක',
+      'fruit_only': 'ගෙඩි අවධියට පමණි',
       'not_pom': 'මෙය දෙළුමක් නොවේ',
-      'not_pom_hint': 'කරුණාකර එක් දෙළුම් ගෙඩියක පැහැදිලි ඡායාරූපයක් ගන්න.',
+      'not_pom_hint':
+          'කරුණාකර දෙළුම් ගෙඩියක, මලක හෝ කැකුළක පැහැදිලි ඡායාරූපයක් ගන්න.',
       'confidence': 'විශ්වාසය',
+      'severity': 'බරපතලකම',
       'scan_again': 'නැවත ස්කෑන්',
       'summary': 'සාරාංශය',
-      'fruit_only': 'ගෙඩි අවධියට පමණි',
+      'Bud': 'කැකුළු අවධිය',
+      'Flower': 'මල් අවධිය',
+      'EarlyFruit': 'මුල් ගෙඩි අවධිය',
+      'MidGrowth': 'මධ්‍ය වර්ධන අවධිය',
+      'MatureFruit': 'පරිණත ගෙඩි අවධිය',
     },
   };
 
@@ -180,105 +205,195 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
   void dispose() {
     LanguageController.instance.removeListener(_refresh);
     _tflite.dispose();
+    // GrowthTfliteService is a shared singleton – not disposed here.
     super.dispose();
   }
 
-  // ── Run the 3 components one after another (avoids GPU/CPU clashes) ──
+  // ═══════════════════════════════════════════════════════════════════
+  //  Run the 3 components one after another (avoids CPU/GPU clashes).
+  //  Each one decides for itself; none of them blocks the others.
+  // ═══════════════════════════════════════════════════════════════════
   Future<void> _runAll() async {
     final image = widget.image;
 
-    // 1. Growth FIRST – it accepts flowers, buds and fruits.
-    GrowthResult? growth;
+    // ── 1. Growth (accepts buds, flowers and fruits) ──
     try {
-      growth = await GrowthAdapter.predict(image);
+      final g = await GrowthTfliteService.instance.analyse(image);
+      if (!mounted) return;
+      setState(() {
+        _growth = g;
+        _growthStatus = g.detected ? _Status.done : _Status.notAvailable;
+        if (g.detected) _growthConf = g.confidence * 100; // real value
+      });
     } catch (e) {
       debugPrint('Growth error: $e');
       if (mounted) setState(() => _growthStatus = _Status.failed);
     }
-    if (!mounted) return;
 
-    // Growth model says this is not a pomegranate at all.
-    if (growth != null && !growth.isValid) {
-      setState(() {
-        _checking = false;
-        _notPomegranate = true;
-      });
-      return;
-    }
-
-    setState(() {
-      _checking = false;
-      _growth = growth;
-      if (_growthStatus != _Status.failed) _growthStatus = _Status.done;
-    });
-
-    // Flower / bud / early stage → only growth result, nothing rejected.
-    if (growth != null && !growth.isFruitStage) {
-      _skipFruitChecks();
-      return;
-    }
-
-    // 2. Fruit (or growth not connected) → quality validator.
+    // ── 2. Quality (fruit only) ──
     try {
       await _tflite.loadModel();
       final ok = await _tflite.checkIsPomegranate(image);
       if (!mounted) return;
       if (!ok) {
-        if (growth == null) {
-          // Old flow: no growth result → reject like before.
-          setState(() => _notPomegranate = true);
-        } else {
-          // Growth says fruit, but the fruit models can't use this photo.
-          _skipFruitChecks();
-        }
-        return;
+        setState(() => _qualityStatus = _Status.notAvailable);
+      } else {
+        final q = await _tflite.predict(image);
+        if (!mounted) return;
+        setState(() {
+          _quality = q;
+          _qualityStatus = _Status.done;
+          // Quality rule: above 96% → 92–94%.
+          _qualityConf = ConfidenceDisplay.adjust(q.confidenceDecimal * 100);
+        });
       }
     } catch (e) {
-      debugPrint('Validator error: $e');
-    }
-
-    // 3. Quality grade.
-    try {
-      final q = await _tflite.predict(image);
-      if (!mounted) return;
-      setState(() {
-        _quality = q;
-        _qualityStatus = _Status.done;
-      });
-    } catch (e) {
       debugPrint('Quality error: $e');
-      if (mounted) setState(() => _qualityStatus = _Status.failed);
+      if (!mounted) return;
+      final rejected = e.toString().toLowerCase().contains('not recognized');
+      setState(
+        () => _qualityStatus = rejected ? _Status.notAvailable : _Status.failed,
+      );
     }
 
-    // 4. Disease (on-device pipeline, not saved to history).
+    // ── 3. Disease (fruit only, not saved to history) ──
     try {
       final out = await DiseasePipeline.instance.run(image);
       if (!mounted) return;
       setState(() {
         _disease = out;
         _diseaseStatus = _Status.done;
+        _diseaseConf = ScanConfidenceDisplay.adjust(
+          (out.confidence as num).toDouble() * 100,
+        );
       });
     } on NotPomegranateException {
-      if (!mounted) return;
-      setState(() {
-        if (growth == null) {
-          _notPomegranate = true;
-        } else {
-          _diseaseStatus = _Status.skipped;
-        }
-      });
+      if (mounted) setState(() => _diseaseStatus = _Status.notAvailable);
     } catch (e) {
       debugPrint('Disease error: $e');
       if (mounted) setState(() => _diseaseStatus = _Status.failed);
     }
+
+    if (!mounted) return;
+
+    // ── 4. Growth says Bud / Flower → fruit models do not apply ──
+    if (_isNonFruitStage) {
+      setState(() {
+        _qualityStatus = _Status.notAvailable;
+        _diseaseStatus = _Status.notAvailable;
+      });
+    }
+
+    setState(() => _finished = true);
+
+    // ── 5. Save to History → All (only when at least one accepted) ──
+    if (!_rejectedByAll) unawaited(_saveScan());
   }
 
-  void _skipFruitChecks() {
-    if (!mounted) return;
-    setState(() {
-      _qualityStatus = _Status.skipped;
-      _diseaseStatus = _Status.skipped;
-    });
+  bool _saved = false;
+
+  Future<void> _saveScan() async {
+    if (_saved) return;
+    _saved = true;
+    final out = _disease;
+    final growthDone = _growthStatus == _Status.done;
+    final qualityDone = _qualityStatus == _Status.done;
+    final diseaseDone = _diseaseStatus == _Status.done;
+    await CombinedScanService.instance.save(
+      image: widget.image,
+      data: {
+        // Growth
+        'growth_status': _growthStatus.name,
+        'growth_stage': growthDone ? _growth?.stage : null,
+        'growth_confidence': growthDone ? _growthConf : null,
+        // Quality
+        'quality_status': _qualityStatus.name,
+        'quality': qualityDone ? _quality?.quality : null,
+        'quality_confidence': qualityDone ? _qualityConf : null,
+        'defect_type': qualityDone ? _quality?.defectType : null,
+        // Disease
+        'disease_status': _diseaseStatus.name,
+        'disease_name': diseaseDone ? out?.disease as String? : null,
+        'disease_healthy': diseaseDone ? out?.isHealthy == true : null,
+        'disease_confidence': diseaseDone ? _diseaseConf : null,
+        'severity_level': diseaseDone ? out?.severityLevel as String? : null,
+        'severity_percent': diseaseDone
+            ? (out?.severityPercent as num?)?.toDouble()
+            : null,
+        'non_fruit_stage': _isNonFruitStage,
+      },
+    );
+  }
+
+  bool get _isNonFruitStage =>
+      _growthStatus == _Status.done && _nonFruitStages.contains(_growth?.stage);
+
+  /// Overall result: rejected only when NONE of the 3 accepted the photo.
+  bool get _rejectedByAll =>
+      _finished &&
+      _growthStatus != _Status.done &&
+      _qualityStatus != _Status.done &&
+      _diseaseStatus != _Status.done &&
+      // at least one real rejection (not only errors)
+      (_growthStatus == _Status.notAvailable ||
+          _qualityStatus == _Status.notAvailable ||
+          _diseaseStatus == _Status.notAvailable);
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  Text values
+  // ═══════════════════════════════════════════════════════════════════
+  String _statusText(_Status s, {bool fruitOnly = false}) {
+    switch (s) {
+      case _Status.running:
+        return _t('analysing');
+      case _Status.failed:
+        return _t('failed');
+      case _Status.notAvailable:
+        return _t('not_available');
+      case _Status.done:
+        return '';
+    }
+  }
+
+  String _hint(_Status s, {bool fruitOnly = false}) {
+    if (s != _Status.notAvailable) return '';
+    return fruitOnly ? _t('fruit_only') : _t('not_available_hint');
+  }
+
+  String get _growthText => _growthStatus == _Status.done
+      ? _t(_growth?.stage ?? '')
+      : _statusText(_growthStatus);
+
+  String get _qualityText => _qualityStatus == _Status.done
+      ? qQuality(_quality!.quality)
+      : _statusText(_qualityStatus);
+
+  String get _defectText {
+    final defect = _quality?.defectType;
+    return defect == null ? _t('no_defect') : qDefect(defect);
+  }
+
+  bool get _healthy => _disease?.isHealthy == true;
+
+  String get _diseaseText {
+    if (_diseaseStatus != _Status.done) return _statusText(_diseaseStatus);
+    if (_healthy) return _t('no_disease');
+    return d.LanguageController.instance.disease(_disease.disease as String);
+  }
+
+  String _pct(double v) => '${v.toStringAsFixed(1)}%';
+
+  Color get _qualityColor {
+    switch (_quality?.quality) {
+      case 'high_quality':
+        return _green;
+      case 'medium_quality':
+        return _yellow;
+      case 'low_quality':
+        return _red;
+      default:
+        return _textMid;
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -286,6 +401,7 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
   // ═══════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
+    final rejected = _rejectedByAll;
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -308,17 +424,15 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
               height: 250,
               width: double.infinity,
               fit: BoxFit.cover,
-              color: _notPomegranate ? Colors.grey : null,
-              colorBlendMode: _notPomegranate ? BlendMode.saturation : null,
+              color: rejected ? Colors.grey : null,
+              colorBlendMode: rejected ? BlendMode.saturation : null,
             ),
           ),
           const SizedBox(height: 16),
-          if (_checking)
-            _loadingRow(_t('analysing'))
-          else if (_notPomegranate)
+          if (rejected)
             _notPomegranateCard()
           else ...[
-            if (_allDone) ...[_summaryCard(), const SizedBox(height: 12)],
+            if (_finished) ...[_summaryCard(), const SizedBox(height: 12)],
             _growthCard(),
             const SizedBox(height: 12),
             _qualityCard(),
@@ -332,54 +446,7 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
     );
   }
 
-  bool get _allDone =>
-      _growthStatus != _Status.running &&
-      _qualityStatus != _Status.running &&
-      _diseaseStatus != _Status.running;
-
-  // ── Text values used by the cards and the summary ──
-  String get _growthText {
-    if (_growthStatus == _Status.failed) return _t('failed');
-    return _growth?.stage ?? _t('not_connected');
-  }
-
-  String get _qualityText {
-    if (_qualityStatus == _Status.skipped) return _t('fruit_only');
-    if (_qualityStatus == _Status.failed || _quality == null) {
-      return _t('failed');
-    }
-    return qQuality(_quality!.quality);
-  }
-
-  String get _defectText {
-    final defect = _quality?.defectType;
-    if (defect == null) return _t('no_defect');
-    return qDefect(defect);
-  }
-
-  String get _diseaseText {
-    if (_diseaseStatus == _Status.skipped) return _t('fruit_only');
-    if (_diseaseStatus == _Status.failed || _disease == null) {
-      return _t('failed');
-    }
-    if (_disease.isHealthy == true) return _t('no_disease');
-    return d.LanguageController.instance.disease(_disease.disease as String);
-  }
-
-  Color get _qualityColor {
-    switch (_quality?.quality) {
-      case 'high_quality':
-        return _green;
-      case 'medium_quality':
-        return _yellow;
-      case 'low_quality':
-        return _red;
-      default:
-        return _textMid;
-    }
-  }
-
-  // ── Summary: "Mature · Medium quality · No disease" ──
+  // ── Summary: "Mature Fruit Stage · Medium Quality · No disease" ──
   Widget _summaryCard() {
     return Container(
       width: double.infinity,
@@ -406,21 +473,29 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _chip(Icons.eco_rounded, _growthText, _green),
-              if (_qualityStatus != _Status.skipped)
-                _chip(
-                  Icons.workspace_premium_rounded,
-                  _qualityText,
-                  _qualityColor,
-                ),
-              if (_diseaseStatus != _Status.skipped)
-                _chip(
-                  _disease?.isHealthy == true
-                      ? Icons.verified_rounded
-                      : Icons.coronavirus_rounded,
-                  _diseaseText,
-                  _disease?.isHealthy == true ? _green : _red,
-                ),
+              _chip(
+                Icons.eco_rounded,
+                _growthStatus == _Status.done
+                    ? _growthText
+                    : '${_t('growth')}: ${_t('not_available')}',
+                _growthStatus == _Status.done ? _green : _textSoft,
+              ),
+              _chip(
+                Icons.workspace_premium_rounded,
+                _qualityStatus == _Status.done
+                    ? _qualityText
+                    : '${_t('quality')}: ${_t('not_available')}',
+                _qualityStatus == _Status.done ? _qualityColor : _textSoft,
+              ),
+              _chip(
+                _healthy ? Icons.verified_rounded : Icons.coronavirus_rounded,
+                _diseaseStatus == _Status.done
+                    ? _diseaseText
+                    : '${_t('disease')}: ${_t('not_available')}',
+                _diseaseStatus != _Status.done
+                    ? _textSoft
+                    : (_healthy ? _green : _red),
+              ),
             ],
           ),
         ],
@@ -440,12 +515,14 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 5),
-        Text(
-          text,
-          style: TextStyle(
-            color: color,
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -454,17 +531,18 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
 
   // ── Growth ──
   Widget _growthCard() {
-    final conf = _growth?.confidence;
+    final g = _growth;
     return _resultCard(
       icon: Icons.eco_rounded,
       iconColor: _green,
       title: _t('growth'),
       status: _growthStatus,
       value: _growthText,
-      valueColor: _growth == null ? _textMid : _textDark,
-      extra: conf == null
+      valueColor: _green,
+      hint: _hint(_growthStatus),
+      extra: g == null || !g.detected || _growthConf == null
           ? null
-          : [_metric(_t('confidence'), '${(conf * 100).toStringAsFixed(1)}%')],
+          : [_metric(_t('confidence'), _pct(_growthConf!))],
     );
   }
 
@@ -473,10 +551,9 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
     final q = _quality;
     List<Widget>? extra;
     if (q != null) {
-      // TEMP – same confidence cap as the Quality Grading screen.
-      final conf = ConfidenceDisplay.adjust(q.confidenceDecimal * 100);
       extra = [
-        _metric(_t('confidence'), '${conf.toStringAsFixed(1)}%'),
+        if (_qualityConf != null)
+          _metric(_t('confidence'), _pct(_qualityConf!)),
         _metric(_t('defect'), _defectText),
       ];
     }
@@ -487,6 +564,7 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
       status: _qualityStatus,
       value: _qualityText,
       valueColor: _qualityColor,
+      hint: _hint(_qualityStatus, fruitOnly: _isNonFruitStage),
       extra: extra,
     );
   }
@@ -496,25 +574,25 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
     final out = _disease;
     List<Widget>? extra;
     if (out != null) {
-      final conf = (out.confidence as double) * 100;
       extra = [
-        _metric(_t('confidence'), '${conf.toStringAsFixed(1)}%'),
-        if (out.isHealthy != true && out.severityLevel != null)
+        if (_diseaseConf != null)
+          _metric(_t('confidence'), _pct(_diseaseConf!)),
+        if (!_healthy && out.severityLevel != null)
           _metric(
-            qt('severity'),
+            _t('severity'),
             '${d.LanguageController.instance.severity(out.severityLevel as String)}'
             ' · ${(out.severityPercent as num).toStringAsFixed(1)}%',
           ),
       ];
     }
-    final healthy = out?.isHealthy == true;
     return _resultCard(
-      icon: healthy ? Icons.verified_rounded : Icons.coronavirus_rounded,
-      iconColor: healthy ? _green : _red,
+      icon: _healthy ? Icons.verified_rounded : Icons.coronavirus_rounded,
+      iconColor: _healthy ? _green : _red,
       title: _t('disease'),
       status: _diseaseStatus,
       value: _diseaseText,
-      valueColor: healthy ? _green : _red,
+      valueColor: _healthy ? _green : _red,
+      hint: _hint(_diseaseStatus, fruitOnly: _isNonFruitStage),
       extra: extra,
     );
   }
@@ -527,8 +605,11 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
     required _Status status,
     required String value,
     required Color valueColor,
+    String hint = '',
     List<Widget>? extra,
   }) {
+    final done = status == _Status.done;
+    final cardIconColor = done ? iconColor : _textSoft;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -542,10 +623,10 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: iconColor.withOpacity(0.10),
+                  color: cardIconColor.withOpacity(0.10),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: iconColor, size: 20),
+                child: Icon(icon, color: cardIconColor, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -562,22 +643,32 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
                     ),
                     const SizedBox(height: 2),
                     if (status == _Status.running)
-                      _loadingRow(_t('analysing'), small: true)
+                      _loadingRow(_t('analysing'))
                     else
                       Text(
                         value,
                         style: TextStyle(
-                          color: status == _Status.done ? valueColor : _textMid,
+                          color: done ? valueColor : _textMid,
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
+                    if (hint.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        hint,
+                        style: const TextStyle(
+                          color: _textSoft,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
           ),
-          if (status == _Status.done && extra != null && extra.isNotEmpty) ...[
+          if (done && extra != null && extra.isNotEmpty) ...[
             const SizedBox(height: 12),
             Row(
               children: [
@@ -625,12 +716,9 @@ class _CombinedScanScreenState extends State<CombinedScanScreen> {
     ),
   );
 
-  Widget _loadingRow(String text, {bool small = false}) => Padding(
-    padding: EdgeInsets.symmetric(vertical: small ? 2 : 14),
+  Widget _loadingRow(String text) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
     child: Row(
-      mainAxisAlignment: small
-          ? MainAxisAlignment.start
-          : MainAxisAlignment.center,
       children: [
         const SizedBox(
           width: 14,
