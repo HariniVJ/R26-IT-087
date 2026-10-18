@@ -43,11 +43,7 @@ class LanguageController extends ChangeNotifier {
     return value;
   }
 
-  static const _tables = {
-    AppLang.en: _en,
-    AppLang.si: _si,
-    AppLang.ta: _ta,
-  };
+  static const _tables = {AppLang.en: _en, AppLang.si: _si, AppLang.ta: _ta};
 }
 
 String t(String key) => LanguageController.instance.t(key);
@@ -270,6 +266,8 @@ const _en = {
   'checkFertilizer': 'Check Fertilizer',
   'errorSensorReadings':
       'Connect the Bluetooth soil sensor. N, P, K, pH and moisture are read automatically.',
+  'invalidNpkValues':
+      'Enter valid NPK readings. Nitrogen, phosphorus, and potassium cannot all be zero.',
   'errorFertilizerFailed': 'Could not check fertilizer. Please try again.',
   'years': 'Years',
   'plantAgeHint': '0 – 10',
@@ -416,25 +414,36 @@ const _si = {
   'wind': 'සුළඟ',
   'feels': 'දැනෙන',
   'refresh': 'යාවත්කාලීන',
-  'plantAgeInvalid': '\u0d9a\u0dbb\u0dd4\u0dab\u0dcf\u0d9a\u0dbb \u0dc0\u0dba\u0dc3 0 \u0dc3\u0dd2\u0da7 10 \u0daf\u0d9a\u0dca\u0dc0\u0dcf \u0d85\u0dad\u0dbb \u0d87\u0dad\u0dd4\u0dc5\u0dad\u0dca \u0d9a\u0dbb\u0db1\u0dca\u0db1.',
-  'deviceConnection': '\u0d8b\u0db4\u0dcf\u0d82\u0d9c \u0dc3\u0db8\u0dca\u0db6\u0db1\u0dca\u0db0\u0dad\u0dcf\u0dc0',
+  'plantAgeInvalid':
+      '\u0d9a\u0dbb\u0dd4\u0dab\u0dcf\u0d9a\u0dbb \u0dc0\u0dba\u0dc3 0 \u0dc3\u0dd2\u0da7 10 \u0daf\u0d9a\u0dca\u0dc0\u0dcf \u0d85\u0dad\u0dbb \u0d87\u0dad\u0dd4\u0dc5\u0dad\u0dca \u0d9a\u0dbb\u0db1\u0dca\u0db1.',
+  'deviceConnection':
+      '\u0d8b\u0db4\u0dcf\u0d82\u0d9c \u0dc3\u0db8\u0dca\u0db6\u0db1\u0dca\u0db0\u0dad\u0dcf\u0dc0',
   'connected': '\u0dc3\u0db8\u0dca\u0db6\u0db1\u0dca\u0db0\u0dba\u0dd2',
-  'disconnected': '\u0dc0\u0dd2\u0dc3\u0db1\u0dca\u0db0\u0dd2 \u0dc0\u0dd3 \u0d87\u0dad',
+  'disconnected':
+      '\u0dc0\u0dd2\u0dc3\u0db1\u0dca\u0db0\u0dd2 \u0dc0\u0dd3 \u0d87\u0dad',
   'scanningDevice': '\u0dc3\u0ddc\u0dba\u0db8\u0dd2\u0db1\u0dca...',
-  'locationAvailable': '\u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0dc3\u0dd6\u0daf\u0dcf\u0db1\u0db8\u0dca',
-  'locationUnavailable': '\u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0db1\u0ddc\u0db8\u0dd0\u0dad',
-  'findingLocation': '\u0d94\u0db6\u0dda \u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0dc3\u0ddc\u0dba\u0db8\u0dd2\u0db1\u0dca...',
-  'irrigationHeroSubtitle': '\u0d94\u0db6\u0dda \u0d9c\u0ddc\u0dc0\u0dd2\u0db4\u0dbd \u0dc3\u0db3\u0dc4\u0dcf \u0dc3\u0da2\u0dd3\u0dc0\u0dd3 \u0db4\u0dc3 \u0dc3\u0dc4 \u0d9a\u0dcf\u0dbd\u0d9c\u0dd4\u0dab\u0dba',
-  'irrigateRecommendedTitle': '\u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0db1\u0dd2\u0dbb\u0dca\u0daf\u0dda\u0dc1 \u0d9a\u0dd9\u0dbb\u0dda',
+  'locationAvailable':
+      '\u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0dc3\u0dd6\u0daf\u0dcf\u0db1\u0db8\u0dca',
+  'locationUnavailable':
+      '\u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0db1\u0ddc\u0db8\u0dd0\u0dad',
+  'findingLocation':
+      '\u0d94\u0db6\u0dda \u0dc3\u0dca\u0dae\u0dcf\u0db1\u0dba \u0dc3\u0ddc\u0dba\u0db8\u0dd2\u0db1\u0dca...',
+  'irrigationHeroSubtitle':
+      '\u0d94\u0db6\u0dda \u0d9c\u0ddc\u0dc0\u0dd2\u0db4\u0dbd \u0dc3\u0db3\u0dc4\u0dcf \u0dc3\u0da2\u0dd3\u0dc0\u0dd3 \u0db4\u0dc3 \u0dc3\u0dc4 \u0d9a\u0dcf\u0dbd\u0d9c\u0dd4\u0dab\u0dba',
+  'irrigateRecommendedTitle':
+      '\u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0db1\u0dd2\u0dbb\u0dca\u0daf\u0dda\u0dc1 \u0d9a\u0dd9\u0dbb\u0dda',
   'irrigateRecommendedBody':
       '\u0db4\u0dc3\u0dca \u0dad\u0dd9\u0dad\u0db8\u0db1\u0dba \u0daf\u0dd0\u0db1\u0dca \u0d85\u0da9\u0dd4\u0dba. \u0dc1\u0dcf\u0d9a\u0dba\u0dda \u0dba\u0dc4\u0db4\u0dad\u0dca \u0dc0\u0dbb\u0dca\u0db0\u0db1\u0dba\u0da7 \u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0db1\u0dd2\u0dbb\u0dca\u0daf\u0dda\u0dc1 \u0d9a\u0dd9\u0dbb\u0dda.',
-  'irrigateNotNeededTitle': '\u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad',
+  'irrigateNotNeededTitle':
+      '\u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad',
   'irrigateNotNeededBody':
       '\u0db4\u0dc3\u0dda \u0daf\u0dd0\u0db1\u0da7 \u0db4\u0dca\u200d\u0dbb\u0db8\u0dcf\u0dab\u0dc0\u0dad\u0dca \u0dad\u0dd9\u0dad\u0db8\u0db1\u0dba\u0d9a\u0dca \u0d87\u0dad. \u0daf\u0dd0\u0db1\u0dca \u0da2\u0dbd\u0dba \u0dba\u0dd9\u0daf\u0dd3\u0db8 \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad.',
-  'waitBeforeIrrigatingTitle': '\u0da2\u0dbd\u0dba \u0dba\u0dd9\u0daf\u0dd3\u0db8\u0da7 \u0db4\u0dd9\u0dbb \u0dbb\u0dd0\u0db3\u0dd3 \u0dc3\u0dd2\u0da7\u0dd2\u0db1\u0dca\u0db1',
+  'waitBeforeIrrigatingTitle':
+      '\u0da2\u0dbd\u0dba \u0dba\u0dd9\u0daf\u0dd3\u0db8\u0da7 \u0db4\u0dd9\u0dbb \u0dbb\u0dd0\u0db3\u0dd3 \u0dc3\u0dd2\u0da7\u0dd2\u0db1\u0dca\u0db1',
   'waitBeforeIrrigatingBody':
       '\u0d89\u0d9a\u0dca\u0db8\u0db1\u0dd2\u0db1\u0dca \u0dc0\u0dd0\u0dc3\u0dca\u0dc3\u0d9a\u0dca \u0db6\u0dbd\u0dcf\u0db4\u0ddc\u0dbb\u0ddc\u0dad\u0dca\u0dad\u0dd4\u0dba\u0dd2. \u0d85\u0db1\u0dc0\u0dc1\u0dca\u200d\u0dba \u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba\u0dd9\u0db1\u0dca \u0dc0\u0dc5\u0d9a\u0dd2\u0db1\u0dca\u0db1.',
-  'noUrgentTitle': '\u0dc4\u0daf\u0dd2\u0dc3\u0dd2 \u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad',
+  'noUrgentTitle':
+      '\u0dc4\u0daf\u0dd2\u0dc3\u0dd2 \u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad',
   'noUrgentBody':
       '\u0db4\u0dc3\u0dca \u0dad\u0dd9\u0dad\u0db8\u0db1\u0dba \u0db8\u0db0\u0dca\u200d\u0dba\u0dc3\u0dca\u0dae\u0dba. \u0daf\u0dd0\u0db1\u0dca \u0da2\u0dbd\u0dba \u0dba\u0dd9\u0daf\u0dd3\u0db8 \u0d85\u0dc0\u0dc1\u0dca\u200d\u0dba \u0db1\u0dd0\u0dad.',
   'errorSensorDisconnected':
@@ -448,9 +457,12 @@ const _si = {
   'errorPredictionFailed':
       '\u0da2\u0dbd \u0dc3\u0db8\u0dca\u0db4\u0dcf\u0daf\u0db1\u0dba \u0db4\u0dbb\u0dd3\u0d9a\u0dca\u0dc2\u0dcf \u0d9a\u0dc5 \u0db1\u0ddc\u0dc4\u0dd0\u0d9a. \u0db1\u0dd0\u0dc0\u0dad \u0d8b\u0dad\u0dca\u0dc3\u0dcf\u0dc4 \u0d9a\u0dbb\u0db1\u0dca\u0db1.',
   'sunny': '\u0d85\u0dc0\u0dca\u0dc0 \u0dc3\u0dc4\u0dd2\u0dad\u0dba',
-  'thunderstorm': '\u0d9c\u0dd2\u0d9c\u0dd4\u0dbb\u0dd4\u0db8\u0dca \u0dc3\u0dc4\u0dd2\u0dad \u0dc0\u0dd0\u0dc3\u0dca\u0dc3',
-  'rainShowers': '\u0dc0\u0dd0\u0dc3\u0dd2 \u0dc0\u0dd0\u0da7\u0dd3\u0db8\u0dca',
-  'pleaseWait': '\u0d9a\u0dbb\u0dd4\u0dab\u0dcf\u0d9a\u0dbb \u0dbb\u0dd0\u0db3\u0dd3 \u0dc3\u0dd2\u0da7\u0dd2\u0db1\u0dca...',
+  'thunderstorm':
+      '\u0d9c\u0dd2\u0d9c\u0dd4\u0dbb\u0dd4\u0db8\u0dca \u0dc3\u0dc4\u0dd2\u0dad \u0dc0\u0dd0\u0dc3\u0dca\u0dc3',
+  'rainShowers':
+      '\u0dc0\u0dd0\u0dc3\u0dd2 \u0dc0\u0dd0\u0da7\u0dd3\u0db8\u0dca',
+  'pleaseWait':
+      '\u0d9a\u0dbb\u0dd4\u0dab\u0dcf\u0d9a\u0dbb \u0dbb\u0dd0\u0db3\u0dd3 \u0dc3\u0dd2\u0da7\u0dd2\u0db1\u0dca...',
   'editProfile': 'පැතිකඩ සංස්කරණය',
   'saveProfile': 'සුරකින්න',
   'cancel': 'අවලංගු කරන්න',
@@ -480,6 +492,8 @@ const _si = {
   'checkFertilizer': 'පොහොර පරීක්ෂා කරන්න',
   'errorSensorReadings':
       'බ්ලූටූත් පස් සංවේදකය සම්බන්ධ කරන්න. N, P, K, pH සහ තෙතමනය ස්වයංක්‍රීයව කියවයි.',
+  'invalidNpkValues':
+      'වලංගු NPK අගයන් ඇතුළත් කරන්න. නයිට්‍රජන්, පොස්පරස් සහ පොටෑසියම් සියල්ල ශුන්‍ය විය නොහැක.',
   'errorFertilizerFailed': 'පොහොර පරීක්ෂා කළ නොහැක. නැවත උත්සාහ කරන්න.',
   'years': 'අවුරුදු',
   'plantAgeHint': '0 – 10',
@@ -645,8 +659,7 @@ const _ta = {
   'waitBeforeIrrigatingBody':
       'விரைவில் மழை எதிர்பார்க்கப்படுகிறது. தேவையற்ற நீர்ப்பாசனத்தை தவிர்க்கவும்.',
   'noUrgentTitle': 'அவசர நீர்ப்பாசனம் தேவையில்லை',
-  'noUrgentBody':
-      'மண் ஈரப்பதம் மிதமானது. இப்போது நீர்ப்பாசனம் தேவையில்லை.',
+  'noUrgentBody': 'மண் ஈரப்பதம் மிதமானது. இப்போது நீர்ப்பாசனம் தேவையில்லை.',
   'errorSensorDisconnected':
       'புளூடூத் மண் சென்சார் துண்டிக்கப்பட்டுள்ளது. சாதனத்தை இணைத்து மீண்டும் முயலவும்.',
   'errorNoSoilMoisture':
@@ -665,7 +678,8 @@ const _ta = {
   'saveProfile': 'சேமிக்கவும்',
   'cancel': 'ரத்து',
   'profileUpdated': 'சுயவிவரம் புதுப்பிக்கப்பட்டது.',
-  'profileUpdateFailed': 'சுயவிவரத்தை புதுப்பிக்க முடியவில்லை. மீண்டும் முயலவும்.',
+  'profileUpdateFailed':
+      'சுயவிவரத்தை புதுப்பிக்க முடியவில்லை. மீண்டும் முயலவும்.',
   'nameRequired': 'உங்கள் முழு பெயரை உள்ளிடவும்.',
   'mobileInvalid': 'சரியான கைபேசி எண்ணை உள்ளிடவும். உதா: 0771234567.',
   'accountInfo': 'கணக்கு',
@@ -690,6 +704,8 @@ const _ta = {
   'checkFertilizer': 'உரத்தை சரிபார்க்கவும்',
   'errorSensorReadings':
       'புளூடூத் மண் சென்சாரை இணைக்கவும். N, P, K, pH மற்றும் ஈரப்பதம் தானாகப் படிக்கப்படும்.',
+  'invalidNpkValues':
+      'சரியான NPK அளவீடுகளை உள்ளிடவும். நைட்ரஜன், பாஸ்பரஸ் மற்றும் பொட்டாசியம் அனைத்தும் பூஜ்ஜியமாக இருக்க முடியாது.',
   'errorFertilizerFailed': 'உரத்தை சரிபார்க்க முடியவில்லை. மீண்டும் முயலவும்.',
   'years': 'ஆண்டுகள்',
   'plantAgeHint': '0 – 10',
