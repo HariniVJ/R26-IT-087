@@ -154,7 +154,10 @@ class _FertilizerScreenState extends State<FertilizerScreen> {
 
       try {
         await FirestoreService.instance.saveFertilizer(advice);
-      } catch (_) {}
+      } catch (error, stackTrace) {
+        debugPrint('Fertilizer history save failed: $error');
+        debugPrintStack(stackTrace: stackTrace);
+      }
 
       if (!mounted) return;
       Navigator.push(
