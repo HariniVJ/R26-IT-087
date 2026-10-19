@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../common/brand_color.dart';
 import '../../l10n/app_strings.dart';
 import '../../models/fertilizer_advice.dart';
+import 'fertilizer_history_screen.dart';
 
 class FertilizerResultScreen extends StatelessWidget {
   final FertilizerAdvice advice;
@@ -37,6 +38,20 @@ class FertilizerResultScreen extends StatelessWidget {
               ),
               onPressed: () => Navigator.pop(context),
             ),
+            actions: [
+              IconButton(
+                tooltip: 'Fertilizer history',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FertilizerHistoryScreen(),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.history, color: Colors.white),
+              ),
+            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),

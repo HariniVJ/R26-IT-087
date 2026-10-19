@@ -1,17 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
-//  DISEASE DETECTION — MODEL FILES & SETTINGS (ONE PLACE ONLY)
-//
-//  To update a model:
-//    1. Copy the new .tflite file into  assets/models/disease/
-//    2. Change ONLY the file name below.
-//  Every service (validator, classifier, severity) reads its path from here.
-//
-//  The numbers below come from  app_config.json  exported by Colab (cell D9).
-//  If you retrain and app_config.json changes, update the matching value here.
-// ═══════════════════════════════════════════════════════════════════════════
 import 'dart:math';
-/// TFLite asset paths. These must also be listed under `flutter: assets:` in
-/// pubspec.yaml (listing the folder `assets/models/disease/` is enough).
 class DiseaseModels {
   DiseaseModels._();
 

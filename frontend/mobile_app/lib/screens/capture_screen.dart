@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'detecting_screen.dart';
+import '../l10n/app_strings.dart';
 import '../services/growth/growth_tflite_service.dart';
 import '../services/auth/auth_service.dart';
 import '../config/app_constants.dart';
@@ -349,7 +350,8 @@ class _CaptureScreenState extends State<CaptureScreen>
                                     shape: BoxShape.circle),
                               ),
                               const SizedBox(width: 6),
-                              const Text('Ready to Scan',
+                              Text(
+                                  t('readyToScan'),
                                   style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
@@ -376,7 +378,9 @@ class _CaptureScreenState extends State<CaptureScreen>
                           child: GestureDetector(
                             onTap: _openCamera,
                             child: Container(
-                              height: 58,
+                              constraints: const BoxConstraints(minHeight: 58),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 14),
                               decoration: BoxDecoration(
                                 color: primary,
                                 borderRadius: BorderRadius.circular(18),
@@ -387,17 +391,26 @@ class _CaptureScreenState extends State<CaptureScreen>
                                     offset: const Offset(0, 5)),
                                 ],
                               ),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.camera_alt_rounded,
-                                      color: Colors.white, size: 20),
-                                  SizedBox(width: 8),
-                                  Text('Capture Image',
-                                      style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700)),
+                                  const Icon(
+                                    Icons.camera_alt_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      t('captureImage'),
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -408,7 +421,9 @@ class _CaptureScreenState extends State<CaptureScreen>
                           child: GestureDetector(
                             onTap: _openGallery,
                             child: Container(
-                              height: 58,
+                              constraints: const BoxConstraints(minHeight: 58),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 14),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(18),
@@ -421,17 +436,21 @@ class _CaptureScreenState extends State<CaptureScreen>
                                     blurRadius: 8),
                                 ],
                               ),
-                              child: const Row(
+                              child:Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Icon(Icons.photo_library_rounded,
                                       color: primary, size: 20),
                                   SizedBox(width: 8),
-                                  Text('Select Image',
+                                  Flexible(
+                                    child: Text(
+                                      t('selectImage'),
+                                      textAlign: TextAlign.center,
                                       style: TextStyle(
                                           color: primary,
                                           fontSize: 14,
                                           fontWeight: FontWeight.w700)),
+                                  ),
                                 ],
                               ),
                             ),

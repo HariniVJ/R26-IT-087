@@ -12,10 +12,14 @@ service cloud.firestore {
       return isSignedIn() && resource.data[field] == request.auth.uid;
     }
     function ownsFarmerDoc() {
-      return ownerExisting('farmerId') || ownerExisting('userId');
+      return ownerExisting('farmerId')
+        || ownerExisting('userId')
+        || ownerExisting('user_id');
     }
     function createsFarmerDoc() {
-      return ownerCreate('farmerId') || ownerCreate('userId');
+      return ownerCreate('farmerId')
+        || ownerCreate('userId')
+        || ownerCreate('user_id');
     }
 
     match /users/{userId} {
@@ -24,7 +28,8 @@ service cloud.firestore {
     }
     match /farms/{farmId} {
       allow create: if createsFarmerDoc();
-      allow read, update, delete: if ownsFarmerDoc();
+      allow read, update, delete: if isSignedIn()
+        && (farmId == request.auth.uid || ownsFarmerDoc());
     }
     match /trees/{treeId} {
       allow create: if createsFarmerDoc();
