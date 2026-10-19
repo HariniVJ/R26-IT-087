@@ -1,99 +1,78 @@
-import os
-import numpy as np
-from PIL import Image
-import io
-import tensorflow as tf
+from pathlib import Path
 
-CLASSES = ["Bud", "Flower", "EarlyFruit", "MidGrowth", "MatureFruit", "Unknown"]
+from pomcare_growth_v2.pomcare_predictor import PomCarePredictor
+from pomcare_growth_v2.pomcare_utils import CLASSES
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "pomegranate_cnn_model.h5")
-MIN_CONFIDENCE_THRESHOLD = 0.75
 
-_model = None
+BUNDLE_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "pomcare_growth_v2"
+)
+
+_predictor = None
 
 
 def load_model():
-    global _model
-    if _model is None:
-        if not os.path.exists(MODEL_PATH):
-            raise FileNotFoundError(
-                f"Model file not found at: {MODEL_PATH}\n"
-                f"Please copy your trained 'pomegranate_cnn_model.h5' "
-                f"into the backend/app/models/ folder."
-            )
-        print(f"Loading CNN model from: {MODEL_PATH}")
-        _model = tf.keras.models.load_model(MODEL_PATH)
-        print("Model loaded successfully!")
+    global _predictor
 
-        # Sanity check: confirm model output size matches CLASSES list
-        output_size = _model.output_shape[-1]
-        if output_size != len(CLASSES):
-            print(
-                f"WARNING: Model outputs {output_size} classes but "
-                f"CLASSES list has {len(CLASSES)} entries. "
-                f"Check that CLASSES order matches your training notebook."
-            )
-    return _model
+    if _predictor is None:
+        print(
+            f"Loading PomCare Growth V2 model from: "
+            f"{BUNDLE_DIR}"
+        )
 
+        _predictor = PomCarePredictor(
+            bundle_dir=BUNDLE_DIR,
+            device="cpu",
+        )
 
-def preprocess_image(image_bytes: bytes) -> np.ndarray:
-    img = Image.open(io.BytesIO(image_bytes))
-    img = img.convert("RGB")
-    img = img.resize((224, 224))
-    img_array = np.array(img, dtype=np.float32) / 255.0
-    img_array = np.expand_dims(img_array, axis=0)
-    return img_array
+        print("PomCare Growth V2 model loaded successfully!")
+
+    return _predictor
 
 
 def predict_growth_stage(image_bytes: bytes) -> dict:
-    model = load_model()
-    img_array = preprocess_image(image_bytes)
-    predictions = model.predict(img_array, verbose=0)
+    predictor = load_model()
 
-    confidence = float(np.max(predictions[0]))
-    class_index = int(np.argmax(predictions[0]))
-    predicted_class = CLASSES[class_index]
+    result = predictor.predict(image_bytes)
+
+    # New model class probabilities
+    class_scores = result.get("class_scores") or {}
 
     all_probabilities = {
-        CLASSES[i]: round(float(predictions[0][i]), 4)
-        for i in range(len(CLASSES))
+        class_name: round(
+            float(class_scores.get(class_name, 0.0)),
+            4,
+        )
+        for class_name in CLASSES
     }
 
-    # ── Reject if model explicitly predicts "Unknown" ──────────────
-    # This is the 6th class trained on non-pomegranate images
-    # (red/green apples, tomatoes, oranges, random objects) to
-    # directly solve the false-positive problem from PP1.
-    is_unknown_class = (predicted_class == "Unknown")
+    classifier_score = result.get("classifier_score")
 
-    # ── Reject if confidence is too low, regardless of class ───────
-    # Even if it predicts a real stage, low confidence means the
-    # model itself is not sure — safer to reject than guess wrong.
-    is_low_confidence = (confidence < MIN_CONFIDENCE_THRESHOLD)
+    confidence = (
+        float(classifier_score)
+        if classifier_score is not None
+        else 0.0
+    )
 
-    if is_unknown_class or is_low_confidence:
-        if is_unknown_class:
-            reason = (
-                "This image was identified as a non-pomegranate object "
-                "(the AI model was specifically trained to detect this). "
-                "Please upload a clear photo of a pomegranate plant or fruit."
-            )
-        else:
-            reason = (
-                "The uploaded image does not appear to contain a pomegranate fruit "
-                "with enough confidence. Please upload a clear photo of a "
-                "pomegranate plant or fruit."
-            )
-
+    # Rejected image:
+    # no detection / unknown / uncertain
+    if not result.get("accepted", False):
         return {
             "predicted_class": None,
             "confidence": round(confidence, 4),
             "all_probabilities": all_probabilities,
             "rejected": True,
-            "rejection_reason": reason,
+            "rejection_reason": result.get(
+                "message",
+                "The image could not be confidently "
+                "identified as a supported pomegranate stage.",
+            ),
         }
 
+    # Accepted pomegranate growth stage
     return {
-        "predicted_class": predicted_class,
+        "predicted_class": result["stage"],
         "confidence": round(confidence, 4),
         "all_probabilities": all_probabilities,
         "rejected": False,
