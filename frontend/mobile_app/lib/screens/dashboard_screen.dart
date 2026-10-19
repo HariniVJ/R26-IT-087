@@ -54,7 +54,7 @@ const _modules = [
   DashboardItem(
     title: 'Quality Grading',
     subtitle: 'AI Analysis',
-    emoji: '🍎',
+    emoji: '🌱',
     color: BrandColor.primary,
     screenName: 'grading',
   ),
